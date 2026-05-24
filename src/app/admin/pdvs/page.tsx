@@ -29,7 +29,7 @@ export default async function PdvsPage() {
         title="PDVs"
         subtitle={`${data?.length ?? 0} PDVs · arraste para reordenar · clique no PIN p/ liberar acesso`}
       />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="mb-4 flex justify-end">
           {venue && <NewPdvButton venueId={venue.id} />}
         </div>

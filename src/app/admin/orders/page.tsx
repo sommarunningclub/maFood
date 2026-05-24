@@ -29,13 +29,13 @@ export default function OrdersPage() {
   return (
     <>
       <PageHeader title="Pedidos" subtitle={`${rows.length} registros`} />
-      <div className="p-6">
-        {/* Filtros */}
-        <div className="mb-4 flex gap-3">
+      <div className="p-4 sm:p-6">
+        {/* Filtros — empilham em mobile */}
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
           <select
             value={pdv}
             onChange={(e) => setPdv(e.target.value)}
-            className="rounded-admin border border-palantir-border bg-palantir-surface px-3 py-2 text-sm text-palantir-text"
+            className="rounded-admin border border-palantir-border bg-palantir-surface px-3 py-2 text-sm text-palantir-text min-h-touch focus-ring-admin w-full sm:w-auto"
           >
             <option value="all">Todos os PDVs</option>
             {PDVS.map((p) => (
@@ -44,12 +44,12 @@ export default function OrdersPage() {
               </option>
             ))}
           </select>
-          <div className="flex gap-1">
+          <div className="-mx-4 sm:mx-0 flex gap-1 overflow-x-auto no-scrollbar px-4 sm:px-0">
             {STATUSES.map((s) => (
               <button
                 key={s}
                 onClick={() => setStatus(s)}
-                className={`mono rounded-admin border px-3 py-2 text-xs uppercase ${
+                className={`mono shrink-0 rounded-admin border px-3 min-h-touch text-xs uppercase focus-ring-admin ${
                   status === s
                     ? "border-palantir-blue text-palantir-blue"
                     : "border-palantir-border text-palantir-muted"
@@ -61,7 +61,8 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        <div className="border border-palantir-border bg-palantir-surface">
+        {/* Tabela desktop */}
+        <div className="hidden md:block border border-palantir-border bg-palantir-surface overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="mono border-b border-palantir-border text-left text-[10px] uppercase tracking-wider text-palantir-muted">
@@ -81,17 +82,17 @@ export default function OrdersPage() {
                   key={o.id}
                   className="border-t border-palantir-border hover:bg-palantir-surface2"
                 >
-                  <td className="mono px-4 py-2 text-palantir-blue">#{o.number}</td>
-                  <td className="px-4 py-2 text-palantir-text">{o.pdv_name}</td>
+                  <td className="mono px-4 py-2 text-palantir-blue whitespace-nowrap">#{o.number}</td>
+                  <td className="px-4 py-2 text-palantir-text whitespace-nowrap">{o.pdv_name}</td>
                   <td className="px-4 py-2 text-palantir-text">{o.customer_name}</td>
                   <td className="mono px-4 py-2 text-palantir-muted">
                     {o.items.reduce((s, i) => s + i.qty, 0)}
                   </td>
-                  <td className="mono px-4 py-2 text-palantir-muted">
+                  <td className="mono px-4 py-2 text-palantir-muted whitespace-nowrap">
                     {o.method.toUpperCase()}
                   </td>
-                  <td className="mono px-4 py-2 text-palantir-text">{brl(o.total)}</td>
-                  <td className="mono px-4 py-2 text-palantir-muted">
+                  <td className="mono px-4 py-2 text-palantir-text whitespace-nowrap">{brl(o.total)}</td>
+                  <td className="mono px-4 py-2 text-palantir-muted whitespace-nowrap">
                     {formatTime(o.created_at)}
                   </td>
                   <td className="px-4 py-2">
@@ -102,6 +103,46 @@ export default function OrdersPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Cards mobile */}
+        <ul className="md:hidden space-y-2">
+          {rows.map((o) => (
+            <li
+              key={o.id}
+              className="border border-palantir-border bg-palantir-surface p-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="mono text-palantir-blue text-sm">#{o.number}</p>
+                  <p className="text-palantir-text text-sm truncate">{o.pdv_name}</p>
+                  <p className="text-palantir-muted text-xs truncate">{o.customer_name}</p>
+                </div>
+                <StatusBadge status={o.status} />
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
+                <div>
+                  <p className="mono text-palantir-muted uppercase tracking-wide">Itens</p>
+                  <p className="mono text-palantir-text">
+                    {o.items.reduce((s, i) => s + i.qty, 0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="mono text-palantir-muted uppercase tracking-wide">Valor</p>
+                  <p className="mono text-palantir-text">{brl(o.total)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="mono text-palantir-muted uppercase tracking-wide">Hora</p>
+                  <p className="mono text-palantir-muted">{formatTime(o.created_at)}</p>
+                </div>
+              </div>
+            </li>
+          ))}
+          {rows.length === 0 && (
+            <li className="border border-palantir-border bg-palantir-surface p-6 text-center text-sm text-palantir-muted">
+              Nenhum pedido neste filtro
+            </li>
+          )}
+        </ul>
       </div>
     </>
   );

@@ -40,8 +40,8 @@ const tooltipStyle = {
 
 export function DashboardCharts() {
   return (
-    <div className="grid grid-cols-2 gap-6">
-      <div className="border border-palantir-border bg-palantir-surface p-4">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+      <div className="border border-palantir-border bg-palantir-surface p-3 sm:p-4">
         <h2 className="mb-3 text-sm font-semibold text-white">Vendas por Hora (R$)</h2>
         <ResponsiveContainer width="100%" height={200}>
           <AreaChart data={SALES}>
@@ -52,19 +52,19 @@ export function DashboardCharts() {
               </linearGradient>
             </defs>
             <XAxis dataKey="h" {...axis} />
-            <YAxis {...axis} />
+            <YAxis {...axis} width={36} />
             <Tooltip contentStyle={tooltipStyle} />
             <Area type="monotone" dataKey="v" stroke="#58A6FF" fill="url(#g)" strokeWidth={2} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
-      <div className="border border-palantir-border bg-palantir-surface p-4">
+      <div className="border border-palantir-border bg-palantir-surface p-3 sm:p-4">
         <h2 className="mb-3 text-sm font-semibold text-white">Tempo Médio de Preparo (min)</h2>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={PREP}>
             <XAxis dataKey="pdv" {...axis} />
-            <YAxis {...axis} />
+            <YAxis {...axis} width={28} />
             <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "#1C2128" }} />
             <Bar dataKey="min" fill="#3FB950" />
           </BarChart>

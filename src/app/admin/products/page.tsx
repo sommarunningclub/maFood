@@ -21,7 +21,7 @@ export default async function ProductsPage() {
   return (
     <>
       <PageHeader title="Produtos" subtitle={`${products?.length ?? 0} itens · ${pdvs?.length ?? 0} PDVs`} />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <ProductsView
           pdvs={(pdvs ?? []).map((p) => ({
             ...p,

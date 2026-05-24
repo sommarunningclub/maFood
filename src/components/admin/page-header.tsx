@@ -1,8 +1,23 @@
-export function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+export function PageHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+}) {
   return (
-    <header className="border-b border-palantir-border bg-palantir-bg/80 px-6 py-4 backdrop-blur">
-      <h1 className="text-xl font-semibold text-white">{title}</h1>
-      {subtitle && <p className="mono text-xs text-palantir-muted">{subtitle}</p>}
+    <header className="sticky top-[3.25rem] lg:top-0 z-20 border-b border-palantir-border bg-palantir-bg/85 px-4 py-3 sm:px-6 sm:py-4 backdrop-blur">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-fluid-xl font-semibold text-white truncate">{title}</h1>
+          {subtitle && (
+            <p className="mono text-[11px] sm:text-xs text-palantir-muted truncate">{subtitle}</p>
+          )}
+        </div>
+        {action && <div className="flex items-center gap-2">{action}</div>}
+      </div>
     </header>
   );
 }
