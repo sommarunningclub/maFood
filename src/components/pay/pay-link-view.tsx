@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { CreditCard, Loader2, CheckCircle2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { CreditCard, Loader2, CheckCircle2, Lock, ShoppingBag } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { brl } from "@/lib/utils";
 
@@ -236,148 +236,235 @@ export function PayLinkView({
     holder.postalCode.replace(/\D/g, "").length === 8 &&
     holder.addressNumber.trim().length >= 1;
 
+  // Resumo do pedido (DRY — usado em mobile sticky top e desktop sidebar)
+  const orderSummary = (
+    <div className="rounded-client border border-somma-border bg-somma-surface p-4 lg:p-5">
+      <div className="flex items-center gap-2 mb-3">
+        <ShoppingBag className="size-4 text-somma-orange" />
+        <p className="num text-[11px] uppercase tracking-widest text-somma-muted">
+          Resumo do pedido
+        </p>
+      </div>
+      <ul className="space-y-1.5">
+        {order.items.map((it) => (
+          <li key={it.id} className="flex justify-between gap-3 text-sm">
+            <span className="text-somma-text min-w-0">
+              <span className="num text-somma-orange mr-1">{it.qty}×</span>
+              {it.name}
+            </span>
+            <span className="num text-somma-muted shrink-0">
+              {brl(it.qty * it.unit_price)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="border-t border-somma-border mt-3 pt-3 flex justify-between items-baseline">
+        <span className="num text-[11px] uppercase tracking-wider text-somma-muted">Total</span>
+        <span className="num text-fluid-2xl font-bold text-white">{brl(order.total)}</span>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe pb-32 bg-somma-bg somma-grain">
-      <header className="text-center">
-        <p className="num text-[11px] text-somma-orange tracking-[0.3em] uppercase">
-          maFood · pagamento
-        </p>
-        <h1 className="text-fluid-2xl text-white font-display uppercase mt-2">
-          {order.pdv_name}
-        </h1>
-        <p className="num text-[11px] text-somma-muted mt-1">
-          Pedido #{order.number} · {order.customer_name}
-        </p>
+    <div className="min-h-dvh-100 bg-somma-bg somma-grain text-white">
+      {/* Header top — barra fina laranja */}
+      <header className="border-b border-somma-border bg-somma-bg/80 backdrop-blur pt-safe">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+          <p className="num text-[11px] text-somma-orange tracking-[0.3em] uppercase">
+            maFood
+          </p>
+          <p className="num text-[11px] text-somma-muted uppercase tracking-widest hidden sm:inline-flex items-center gap-1.5">
+            <Lock className="size-3" />
+            Pagamento seguro · Asaas
+          </p>
+        </div>
       </header>
 
-      <section className="mt-6 rounded-client border border-somma-border bg-somma-surface p-4 max-w-md mx-auto">
-        {order.items.map((it) => (
-          <div key={it.id} className="flex justify-between text-sm py-0.5">
-            <span className="text-somma-text">
-              <span className="num text-somma-orange">{it.qty}×</span> {it.name}
-            </span>
-            <span className="num text-somma-muted">{brl(it.qty * it.unit_price)}</span>
-          </div>
-        ))}
-        <div className="flex justify-between border-t border-somma-border mt-2 pt-2 text-white font-semibold">
-          <span>Total</span>
-          <span className="num">{brl(order.total)}</span>
-        </div>
-      </section>
-
-      <section className="mt-6 max-w-md mx-auto space-y-3">
-        <div className="flex items-center gap-2 num text-[11px] text-somma-muted uppercase tracking-widest">
-          <CreditCard className="size-4" />
-          Dados do cartão
-        </div>
-        <Input
-          label="Número do cartão"
-          value={formatCardNumber(card.number)}
-          onChange={(v) => setCard({ ...card, number: v.replace(/\D/g, "").slice(0, 19) })}
-          placeholder="0000 0000 0000 0000"
-          inputMode="numeric"
-        />
-        <Input
-          label="Nome impresso"
-          value={card.holderName}
-          onChange={(v) => setCard({ ...card, holderName: v })}
-          placeholder="COMO NO CARTÃO"
-          autoCapitalize="characters"
-        />
-        <div className="grid grid-cols-3 gap-3">
-          <Input
-            label="Mês"
-            value={card.expiryMonth}
-            onChange={(v) => setCard({ ...card, expiryMonth: v.replace(/\D/g, "").slice(0, 2) })}
-            placeholder="MM"
-            inputMode="numeric"
-          />
-          <Input
-            label="Ano"
-            value={card.expiryYear}
-            onChange={(v) => setCard({ ...card, expiryYear: v.replace(/\D/g, "").slice(0, 4) })}
-            placeholder="AAAA"
-            inputMode="numeric"
-          />
-          <Input
-            label="CVV"
-            value={card.ccv}
-            onChange={(v) => setCard({ ...card, ccv: v.replace(/\D/g, "").slice(0, 4) })}
-            placeholder="123"
-            inputMode="numeric"
-          />
-        </div>
-      </section>
-
-      <section className="mt-6 max-w-md mx-auto space-y-3">
-        <p className="num text-[11px] text-somma-muted uppercase tracking-widest">
-          Dados do titular
-        </p>
-        <Input
-          label="E-mail"
-          value={holder.email}
-          onChange={(v) => setHolder({ ...holder, email: v })}
-          placeholder="seu@email.com"
-          inputMode="email"
-        />
-        <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
-          <Input
-            label="CEP"
-            value={maskCep(holder.postalCode)}
-            onChange={(v) => {
-              const raw = v.replace(/\D/g, "").slice(0, 8);
-              setHolder({ ...holder, postalCode: raw });
-              if (raw.length === 8) void lookupCep(raw);
-              else setCepHint(null);
-            }}
-            placeholder="00000-000"
-            inputMode="numeric"
-          />
-          <div className="num text-[10px] text-somma-muted pb-3 min-w-[60px]">
-            {cepLoading ? "buscando..." : cepHint ? "✓" : ""}
-          </div>
-        </div>
-        {cepHint?.street && (
-          <p className="num text-[11px] text-somma-muted -mt-1">
-            {cepHint.street}
-            {cepHint.neighborhood ? ` · ${cepHint.neighborhood}` : ""} · {cepHint.city}/{cepHint.state}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 lg:pt-10">
+        {/* Hero */}
+        <div className="text-center lg:text-left">
+          <p className="num text-[10px] text-somma-orange tracking-[0.3em] uppercase">
+            Pedido #{order.number}
           </p>
-        )}
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            label="Número *"
-            value={holder.addressNumber}
-            onChange={(v) => setHolder({ ...holder, addressNumber: v.slice(0, 20) })}
-            placeholder="123"
-            inputMode="numeric"
-          />
-          <Input
-            label="Complemento"
-            value={holder.addressComplement}
-            onChange={(v) => setHolder({ ...holder, addressComplement: v })}
-            placeholder="Apto 12"
-          />
+          <h1 className="text-fluid-3xl text-white font-display uppercase leading-[0.95] mt-2 text-balance">
+            {order.pdv_name}
+          </h1>
+          <p className="num text-[12px] text-somma-muted mt-2">
+            {order.customer_name}
+          </p>
         </div>
-        <Input
-          label="Telefone (opcional)"
-          value={maskPhone(holder.phone)}
-          onChange={(v) => setHolder({ ...holder, phone: v.replace(/\D/g, "").slice(0, 11) })}
-          placeholder="(00) 00000-0000"
-          inputMode="numeric"
-        />
-      </section>
 
-      <div className="fixed bottom-0 inset-x-0 z-30 bg-somma-bg/95 backdrop-blur border-t border-somma-border pb-safe">
+        {/* Mobile (lg-): resumo aparece logo aqui, depois form. Desktop: grid 2 col */}
+        <div className="mt-6 lg:mt-10 lg:grid lg:grid-cols-[1fr_400px] lg:gap-10 lg:items-start pb-32 lg:pb-16">
+          {/* === FORM === */}
+          <div className="space-y-6 order-2 lg:order-1">
+            {/* Resumo só em mobile, antes do form */}
+            <div className="lg:hidden">{orderSummary}</div>
+
+            {/* Card section */}
+            <section className="rounded-client border border-somma-border bg-somma-surface p-4 sm:p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <CreditCard className="size-4 text-somma-orange" />
+                <p className="num text-[11px] text-somma-muted uppercase tracking-widest">
+                  Dados do cartão
+                </p>
+              </div>
+              <Input
+                label="Número do cartão"
+                value={formatCardNumber(card.number)}
+                onChange={(v) => setCard({ ...card, number: v.replace(/\D/g, "").slice(0, 19) })}
+                placeholder="0000 0000 0000 0000"
+                inputMode="numeric"
+              />
+              <Input
+                label="Nome impresso no cartão"
+                value={card.holderName}
+                onChange={(v) => setCard({ ...card, holderName: v })}
+                placeholder="COMO NO CARTÃO"
+                autoCapitalize="characters"
+              />
+              <div className="grid grid-cols-3 gap-3">
+                <Input
+                  label="Mês"
+                  value={card.expiryMonth}
+                  onChange={(v) => setCard({ ...card, expiryMonth: v.replace(/\D/g, "").slice(0, 2) })}
+                  placeholder="MM"
+                  inputMode="numeric"
+                />
+                <Input
+                  label="Ano"
+                  value={card.expiryYear}
+                  onChange={(v) => setCard({ ...card, expiryYear: v.replace(/\D/g, "").slice(0, 4) })}
+                  placeholder="AAAA"
+                  inputMode="numeric"
+                />
+                <Input
+                  label="CVV"
+                  value={card.ccv}
+                  onChange={(v) => setCard({ ...card, ccv: v.replace(/\D/g, "").slice(0, 4) })}
+                  placeholder="123"
+                  inputMode="numeric"
+                />
+              </div>
+            </section>
+
+            {/* Titular section */}
+            <section className="rounded-client border border-somma-border bg-somma-surface p-4 sm:p-5 space-y-3">
+              <p className="num text-[11px] text-somma-muted uppercase tracking-widest">
+                Dados do titular
+              </p>
+              <Input
+                label="E-mail"
+                value={holder.email}
+                onChange={(v) => setHolder({ ...holder, email: v })}
+                placeholder="seu@email.com"
+                inputMode="email"
+              />
+              <div>
+                <label className="block">
+                  <span className="num text-[11px] text-somma-muted flex items-center gap-2">
+                    CEP
+                    {cepLoading && (
+                      <span className="num text-[10px] text-somma-orange inline-flex items-center gap-1">
+                        <Loader2 className="size-3 animate-spin" /> buscando...
+                      </span>
+                    )}
+                    {cepHint && !cepLoading && (
+                      <span className="num text-[10px] text-somma-green">✓ encontrado</span>
+                    )}
+                  </span>
+                  <input
+                    value={maskCep(holder.postalCode)}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, "").slice(0, 8);
+                      setHolder({ ...holder, postalCode: raw });
+                      if (raw.length === 8) void lookupCep(raw);
+                      else setCepHint(null);
+                    }}
+                    inputMode="numeric"
+                    placeholder="00000-000"
+                    className="mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 min-h-touch h-12 text-white text-sm outline-none focus:border-somma-orange focus-ring"
+                  />
+                </label>
+                {cepHint?.street && (
+                  <p className="num text-[11px] text-somma-muted mt-1.5">
+                    {cepHint.street}
+                    {cepHint.neighborhood ? ` · ${cepHint.neighborhood}` : ""} · {cepHint.city}/{cepHint.state}
+                  </p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Número *"
+                  value={holder.addressNumber}
+                  onChange={(v) => setHolder({ ...holder, addressNumber: v.slice(0, 20) })}
+                  placeholder="123"
+                  inputMode="numeric"
+                />
+                <Input
+                  label="Complemento"
+                  value={holder.addressComplement}
+                  onChange={(v) => setHolder({ ...holder, addressComplement: v })}
+                  placeholder="Apto 12"
+                />
+              </div>
+              <Input
+                label="Telefone (opcional)"
+                value={maskPhone(holder.phone)}
+                onChange={(v) => setHolder({ ...holder, phone: v.replace(/\D/g, "").slice(0, 11) })}
+                placeholder="(00) 00000-0000"
+                inputMode="numeric"
+              />
+            </section>
+
+            {/* CTA desktop — inline na coluna do form */}
+            <div className="hidden lg:block">
+              <button
+                onClick={submit}
+                disabled={!cardFilled}
+                className="w-full rounded-client bg-somma-orange min-h-touch h-14 text-white font-display uppercase tracking-wide active:scale-[0.99] transition-transform focus-ring disabled:opacity-40 text-base"
+              >
+                Pagar {brl(subtotal)}
+              </button>
+              <p className="num text-[10px] text-somma-muted text-center mt-3 inline-flex items-center justify-center gap-1.5 w-full">
+                <Lock className="size-3" />
+                Pagamento seguro processado pelo Asaas
+              </p>
+            </div>
+          </div>
+
+          {/* === DESKTOP SIDEBAR === */}
+          <aside className="hidden lg:block order-1 lg:order-2 lg:sticky lg:top-24">
+            {orderSummary}
+            <div className="mt-4 rounded-client border border-somma-border/60 bg-somma-surface/40 p-4 space-y-2 text-xs text-somma-muted">
+              <div className="flex items-center gap-2 text-somma-text">
+                <Lock className="size-3.5 text-somma-green" />
+                <span className="num text-[11px] uppercase tracking-widest text-white">
+                  Seguro
+                </span>
+              </div>
+              <p className="text-[11px] leading-relaxed">
+                Seus dados de pagamento são criptografados e processados pelo Asaas,
+                certificado PCI-DSS. A maFood não armazena seu cartão.
+              </p>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      {/* CTA mobile — sticky bottom */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-somma-bg/95 backdrop-blur border-t border-somma-border pb-safe">
         <div className="mx-auto max-w-md p-3 sm:p-4">
           <button
             onClick={submit}
             disabled={!cardFilled}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-client bg-somma-orange min-h-touch h-13 text-white font-display uppercase tracking-wide active:scale-[0.98] transition-transform focus-ring disabled:opacity-40"
+            className="w-full rounded-client bg-somma-orange min-h-touch h-13 text-white font-display uppercase tracking-wide active:scale-[0.98] transition-transform focus-ring disabled:opacity-40"
           >
             Pagar {brl(subtotal)}
           </button>
-          <p className="num text-[9px] text-somma-muted text-center mt-2">
-            Pagamento seguro processado pelo Asaas
+          <p className="num text-[9px] text-somma-muted text-center mt-2 inline-flex items-center justify-center gap-1 w-full">
+            <Lock className="size-2.5" />
+            Pagamento seguro · Asaas
           </p>
         </div>
       </div>
