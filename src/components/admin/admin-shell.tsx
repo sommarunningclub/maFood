@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
+  Home,
   LayoutDashboard,
   ScrollText,
   Store,
@@ -12,11 +13,13 @@ import {
   DollarSign,
   Menu,
   X,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/admin", label: "Dashboard", Icon: LayoutDashboard },
+  { href: "/admin", label: "Hub", Icon: Home, exact: true },
+  { href: "/admin/dashboard", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/admin/orders", label: "Pedidos", Icon: ScrollText },
   { href: "/admin/pdvs", label: "PDVs", Icon: Store },
   { href: "/admin/products", label: "Produtos", Icon: Package },
@@ -26,7 +29,16 @@ const NAV = [
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function logout() {
+    setLoggingOut(true);
+    await fetch("/api/admin/auth/logout", { method: "POST" });
+    router.push("/admin/login");
+    router.refresh();
+  }
 
   // Fecha drawer ao navegar
   useEffect(() => {
@@ -51,8 +63,13 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const isActive = (href: string) =>
-    href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+  const isActive = (href: string, exact?: boolean) =>
+    exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
+
+  // Telas públicas (login/setup) renderizam sem a sidebar/drawer
+  if (pathname === "/admin/login" || pathname === "/admin/setup") {
+    return <>{children}</>;
+  }
 
   return (
     <div className="theme-admin flex min-h-dvh-100">
@@ -60,7 +77,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <aside className="hidden lg:flex w-56 shrink-0 flex-col border-r border-palantir-border bg-palantir-surface">
         <SidebarBrand />
         <SidebarNav isActive={isActive} />
-        <SidebarFooter />
+        <SidebarFooter onLogout={logout} loggingOut={loggingOut} />
       </aside>
 
       {/* ─── Drawer mobile/tablet (<lg) ──────────────────────── */}
@@ -93,7 +110,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               </button>
             </div>
             <SidebarNav isActive={isActive} />
-            <SidebarFooter />
+            <SidebarFooter onLogout={logout} loggingOut={loggingOut} />
           </aside>
         </>
       )}
@@ -135,11 +152,11 @@ function SidebarBrand() {
   );
 }
 
-function SidebarNav({ isActive }: { isActive: (href: string) => boolean }) {
+function SidebarNav({ isActive }: { isActive: (href: string, exact?: boolean) => boolean }) {
   return (
     <nav className="flex-1 overflow-y-auto p-2" aria-label="Menu principal">
-      {NAV.map(({ href, label, Icon }) => {
-        const active = isActive(href);
+      {NAV.map(({ href, label, Icon, exact }) => {
+        const active = isActive(href, exact);
         return (
           <Link
             key={href}
@@ -166,11 +183,27 @@ function SidebarNav({ isActive }: { isActive: (href: string) => boolean }) {
   );
 }
 
-function SidebarFooter() {
+function SidebarFooter({
+  onLogout,
+  loggingOut,
+}: {
+  onLogout: () => void;
+  loggingOut: boolean;
+}) {
   return (
-    <div className="border-t border-palantir-border px-5 py-3 pb-safe">
-      <p className="mono text-[10px] text-palantir-muted">Somma Special Day</p>
-      <p className="mono text-[10px] text-palantir-green">● ONLINE</p>
+    <div className="border-t border-palantir-border px-4 py-3 pb-safe space-y-2">
+      <div>
+        <p className="mono text-[10px] text-palantir-muted">Somma Special Day</p>
+        <p className="mono text-[10px] text-palantir-green">● ONLINE</p>
+      </div>
+      <button
+        onClick={onLogout}
+        disabled={loggingOut}
+        className="mono inline-flex w-full items-center justify-center gap-2 min-h-touch rounded-admin border border-palantir-border px-2 text-[10px] uppercase text-palantir-muted hover:border-palantir-red hover:text-palantir-red disabled:opacity-40 focus-ring-admin"
+      >
+        <LogOut className="size-3.5" />
+        {loggingOut ? "..." : "Sair"}
+      </button>
     </div>
   );
 }

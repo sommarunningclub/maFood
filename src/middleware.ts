@@ -1,11 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifySession, PDV_COOKIE } from "@/lib/auth/session";
 import { verifyCustomer, CUSTOMER_COOKIE } from "@/lib/auth/customer-session";
+import { verifyAdmin, ADMIN_COOKIE } from "@/lib/auth/admin-session";
 
 const PDV_PUBLIC = [
   /^\/loja\/[^/]+\/login\/?$/,
   /^\/pdv\/login\/?$/,
 ];
+
+// Rotas /admin públicas: tela de login e bootstrap inicial
+const ADMIN_PUBLIC = [/^\/admin\/login\/?$/, /^\/admin\/setup\/?$/];
 
 // Rotas do cliente que podem ser acessadas sem login
 function isCustomerPublic(pathname: string, venue: string) {
@@ -23,8 +27,32 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/api/pdv/auth") ||
     pathname.startsWith("/api/customer/") ||
     pathname.startsWith("/api/landing/") ||
-    pathname.startsWith("/api/webhooks/")
+    pathname.startsWith("/api/webhooks/") ||
+    pathname.startsWith("/api/admin/auth/")
   ) {
+    return NextResponse.next();
+  }
+
+  // ── Backoffice /admin/* ─────────────────────────────────────────
+  if (pathname.startsWith("/admin")) {
+    if (ADMIN_PUBLIC.some((re) => re.test(pathname))) return NextResponse.next();
+
+    const token = req.cookies.get(ADMIN_COOKIE)?.value;
+    const session = token ? await verifyAdmin(token) : null;
+    if (!session) {
+      const url = req.nextUrl.clone();
+      url.pathname = "/admin/login";
+      url.searchParams.set("next", pathname);
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
+
+  // /api/admin/* (exceto /api/admin/auth/* já liberado acima) também exige sessão
+  if (pathname.startsWith("/api/admin/")) {
+    const token = req.cookies.get(ADMIN_COOKIE)?.value;
+    const session = token ? await verifyAdmin(token) : null;
+    if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     return NextResponse.next();
   }
 
