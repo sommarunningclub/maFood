@@ -28,7 +28,7 @@ export default async function PainelPdvLayout({
   if (!pdv) notFound();
 
   return (
-    <div className="theme-admin flex min-h-screen">
+    <div className="theme-admin flex min-h-dvh-100">
       <PdvSidebar
         pdv={{
           slug: pdv.slug,
@@ -39,7 +39,14 @@ export default async function PainelPdvLayout({
           is_open: pdv.is_open,
         }}
       />
-      <main className="palantir-grid flex-1 overflow-auto">{children}</main>
+      {/*
+        Em mobile (<md): top bar (3.25rem) + bottom nav (~3.5rem).
+        Reservamos espaço com padding para o conteúdo não ser coberto.
+        Em md+: sidebar fixa lateral, main ocupa o resto.
+      */}
+      <main className="palantir-grid flex-1 min-w-0 overflow-x-hidden pt-[3.25rem] pb-[3.75rem] md:pt-0 md:pb-0">
+        {children}
+      </main>
     </div>
   );
 }

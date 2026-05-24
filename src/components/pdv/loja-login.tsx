@@ -41,7 +41,7 @@ export function LojaLogin({ pdv, next }: { pdv: PdvLoginInfo; next?: string }) {
   }
 
   return (
-    <div className="theme-admin min-h-screen palantir-grid flex items-center justify-center p-6">
+    <div className="theme-admin min-h-dvh-100 palantir-grid flex items-center justify-center p-4 sm:p-6 pt-safe pb-safe">
       <div className="w-full max-w-sm">
         {/* Cartão de identidade do PDV */}
         <div className="mb-4 rounded-admin border border-palantir-border bg-palantir-surface p-5 text-center">
@@ -105,7 +105,7 @@ export function LojaLogin({ pdv, next }: { pdv: PdvLoginInfo; next?: string }) {
           <button
             type="submit"
             disabled={loading || noPin || pin.length < 4}
-            className="w-full rounded-admin bg-palantir-blue h-11 text-white font-medium disabled:opacity-40"
+            className="w-full rounded-admin bg-palantir-blue min-h-touch h-12 text-white font-medium disabled:opacity-40 focus-ring-admin"
           >
             {loading ? "Entrando..." : "Entrar"}
           </button>

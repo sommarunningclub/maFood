@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { X, Search, Plus, Minus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { brl, formatTime } from "@/lib/utils";
 
@@ -41,7 +42,7 @@ const COLUMNS: {
   { status: "paid", label: "NOVOS", accent: "text-palantir-yellow border-palantir-yellow", next: "preparing", cta: "ACEITAR" },
   { status: "preparing", label: "EM PREPARO", accent: "text-palantir-blue border-palantir-blue", next: "ready", cta: "MARCAR PRONTO" },
   { status: "ready", label: "PRONTOS", accent: "text-palantir-green border-palantir-green" },
-  { status: "partial", label: "PARCIAL", accent: "text-palantir-orange border-somma-orange" },
+  { status: "partial", label: "PARCIAL", accent: "text-somma-orange border-somma-orange" },
   { status: "delivered", label: "ENTREGUES", accent: "text-palantir-muted border-palantir-muted" },
 ];
 
@@ -51,13 +52,15 @@ export function Pedidos({ slug }: { slug: string }) {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [delivering, setDelivering] = useState<Order | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const beepRef = useRef<(() => void) | null>(null);
   const prevNewIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     beepRef.current = () => {
       try {
-        const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        const ctx = new (window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
         const o = ctx.createOscillator();
         const g = ctx.createGain();
         o.connect(g);
@@ -78,7 +81,6 @@ export function Pedidos({ slug }: { slug: string }) {
       const data = (await r.json()) as { orders: Order[] };
       setOrders(data.orders);
 
-      // beep quando aparecer pedido novo (status paid) que ainda não estava na lista
       const newPaidIds = data.orders.filter((o) => o.status === "paid").map((o) => o.id);
       const novosDesconhecidos = newPaidIds.filter((id) => !prevNewIds.current.has(id));
       if (prevNewIds.current.size > 0 && novosDesconhecidos.length > 0) {
@@ -94,7 +96,6 @@ export function Pedidos({ slug }: { slug: string }) {
 
   useEffect(() => {
     refresh();
-    // Realtime: assina mudanças em orders e order_items do schema mafood
     const supabase = createClient();
     const channel = supabase
       .channel("pdv-orders-" + slug)
@@ -153,34 +154,72 @@ export function Pedidos({ slug }: { slug: string }) {
   }
 
   return (
-    <div className="flex h-screen flex-col">
-      <header className="flex items-center justify-between border-b border-palantir-border bg-palantir-bg/80 px-6 py-3 backdrop-blur">
-        <div>
-          <h1 className="text-base font-semibold text-white">Pedidos</h1>
-          <p className="mono text-[10px] uppercase tracking-wider text-palantir-muted">
-            Kanban realtime · busca por CPF/nome/#
+    <div className="flex h-full min-h-[calc(100dvh-7rem)] md:min-h-dvh-100 flex-col">
+      <header className="flex items-center justify-between gap-2 border-b border-palantir-border bg-palantir-bg/85 px-3 sm:px-6 py-3 backdrop-blur">
+        <div className="min-w-0">
+          <h1 className="text-base sm:text-lg font-semibold text-white">Pedidos</h1>
+          <p className="mono text-[10px] uppercase tracking-wider text-palantir-muted truncate">
+            Kanban realtime · CPF/nome/#
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="CPF, nome ou #pedido"
-            className="mono rounded-admin border border-palantir-border bg-palantir-surface px-3 h-9 w-72 text-sm text-white outline-none focus:border-palantir-blue"
-          />
-          {query && (
-            <button onClick={() => setQuery("")} className="mono text-[10px] text-palantir-muted">
-              limpar
-            </button>
-          )}
-          <span className="mono text-[10px] uppercase tracking-wider text-palantir-muted">
+          {/* Search desktop */}
+          <div className="hidden md:flex items-center gap-2">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="CPF, nome ou #pedido"
+              className="mono rounded-admin border border-palantir-border bg-palantir-surface px-3 h-9 w-72 text-sm text-white outline-none focus:border-palantir-blue"
+            />
+            {query && (
+              <button onClick={() => setQuery("")} className="mono text-[10px] text-palantir-muted">
+                limpar
+              </button>
+            )}
+            <span className="mono text-[10px] uppercase tracking-wider text-palantir-muted">
+              {filtered.length}/{orders.length}
+            </span>
+          </div>
+          {/* Search mobile — ícone que abre overlay */}
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="md:hidden grid size-touch place-items-center rounded-admin border border-palantir-border text-palantir-text focus-ring-admin"
+            aria-label="Buscar pedidos"
+          >
+            <Search className="size-4" />
+          </button>
+          <span className="md:hidden mono text-[10px] uppercase tracking-wider text-palantir-muted">
             {filtered.length}/{orders.length}
           </span>
         </div>
       </header>
 
+      {/* Search overlay mobile */}
+      {searchOpen && (
+        <div className="md:hidden border-b border-palantir-border bg-palantir-surface px-3 py-2 flex items-center gap-2 animate-fade-in">
+          <Search className="size-4 text-palantir-muted shrink-0" />
+          <input
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="CPF, nome ou #pedido"
+            className="mono flex-1 bg-transparent text-sm text-white outline-none min-h-touch"
+          />
+          <button
+            onClick={() => {
+              setQuery("");
+              setSearchOpen(false);
+            }}
+            aria-label="Fechar busca"
+            className="grid size-touch place-items-center text-palantir-muted focus-ring-admin"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
       {error && (
-        <div className="mx-6 my-3 border border-palantir-red/40 bg-palantir-red/10 px-3 py-2 text-sm text-palantir-red">
+        <div className="mx-3 sm:mx-6 my-3 border border-palantir-red/40 bg-palantir-red/10 px-3 py-2 text-sm text-palantir-red">
           {error}
         </div>
       )}
@@ -190,7 +229,7 @@ export function Pedidos({ slug }: { slug: string }) {
           carregando pedidos...
         </div>
       ) : orders.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center">
+        <div className="flex flex-1 items-center justify-center p-6">
           <div className="text-center">
             <p className="text-palantir-muted">Nenhum pedido ainda.</p>
             <p className="mono mt-2 text-[10px] uppercase tracking-widest text-palantir-muted/60">
@@ -199,31 +238,49 @@ export function Pedidos({ slug }: { slug: string }) {
           </div>
         </div>
       ) : (
-        <div className="grid flex-1 grid-cols-5 gap-px overflow-hidden bg-palantir-border">
-          {COLUMNS.map((col) => (
-            <section key={col.status} className="flex min-h-0 flex-col bg-palantir-bg">
-              <div className={`flex items-center justify-between border-b-2 px-3 py-2 ${col.accent}`}>
-                <span className="mono text-xs font-bold tracking-wider">{col.label}</span>
-                <span className="mono rounded-admin bg-palantir-surface2 px-2 text-xs">
-                  {byStatus[col.status]?.length ?? 0}
-                </span>
-              </div>
-              <div className="term-scroll flex-1 space-y-2 overflow-y-auto p-2">
-                {byStatus[col.status]?.map((o) => (
-                  <OrderCard
-                    key={o.id}
-                    order={o}
-                    next={col.next}
-                    nextLabel={col.cta}
-                    onAdvance={() => col.next && advance(o.id, col.next)}
-                    onCancel={() => cancel(o.id)}
-                    onDeliver={() => setDelivering(o)}
-                    columnStatus={col.status}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
+        /*
+          Kanban:
+          - <lg: scroll horizontal com snap, colunas com min-w fixo
+          - lg+: grid 5 colunas
+          Cada coluna tem header sticky.
+        */
+        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden bg-palantir-border lg:overflow-hidden">
+          <div className="flex h-full gap-px lg:grid lg:grid-cols-5 scroll-snap-x">
+            {COLUMNS.map((col) => (
+              <section
+                key={col.status}
+                className="flex h-full min-w-[78vw] sm:min-w-[60vw] lg:min-w-0 flex-col bg-palantir-bg snap-start"
+              >
+                <div
+                  className={`sticky top-0 z-10 flex items-center justify-between border-b-2 bg-palantir-bg px-3 py-2 ${col.accent}`}
+                >
+                  <span className="mono text-xs font-bold tracking-wider">{col.label}</span>
+                  <span className="mono rounded-admin bg-palantir-surface2 px-2 text-xs">
+                    {byStatus[col.status]?.length ?? 0}
+                  </span>
+                </div>
+                <div className="term-scroll flex-1 space-y-2 overflow-y-auto p-2 pb-6">
+                  {byStatus[col.status]?.length === 0 && (
+                    <p className="mono text-center text-[10px] text-palantir-muted/60 py-4 uppercase">
+                      vazio
+                    </p>
+                  )}
+                  {byStatus[col.status]?.map((o) => (
+                    <OrderCard
+                      key={o.id}
+                      order={o}
+                      next={col.next}
+                      nextLabel={col.cta}
+                      onAdvance={() => col.next && advance(o.id, col.next)}
+                      onCancel={() => cancel(o.id)}
+                      onDeliver={() => setDelivering(o)}
+                      columnStatus={col.status}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         </div>
       )}
 
@@ -270,13 +327,9 @@ function OrderCard({
         <span className="mono font-bold text-white">#{order.number}</span>
         <span className="mono text-xs text-palantir-muted">{formatTime(order.created_at)}</span>
       </div>
-      <div className="mt-1 text-sm text-palantir-text truncate">
-        {order.customer_name}
-      </div>
+      <div className="mt-1 text-sm text-palantir-text truncate">{order.customer_name}</div>
       {order.customer_cpf && (
-        <div className="mono text-[10px] text-palantir-muted">
-          CPF: {order.customer_cpf}
-        </div>
+        <div className="mono text-[10px] text-palantir-muted">CPF: {order.customer_cpf}</div>
       )}
       <ul className="my-2 space-y-0.5">
         {order.items.map((it) => {
@@ -284,9 +337,15 @@ function OrderCard({
           const partial = it.delivered_qty > 0 && !fullyDelivered;
           return (
             <li key={it.id} className="text-sm text-palantir-text">
-              <span className={`mono ${
-                fullyDelivered ? "text-palantir-muted" : partial ? "text-somma-orange" : "text-palantir-blue"
-              }`}>
+              <span
+                className={`mono ${
+                  fullyDelivered
+                    ? "text-palantir-muted"
+                    : partial
+                    ? "text-somma-orange"
+                    : "text-palantir-blue"
+                }`}
+              >
                 {partial || fullyDelivered ? `${it.delivered_qty}/${it.qty}` : it.qty}×
               </span>{" "}
               <span className={fullyDelivered ? "line-through text-palantir-muted" : ""}>
@@ -311,7 +370,7 @@ function OrderCard({
         {next && (
           <button
             onClick={onAdvance}
-            className="flex-1 rounded-admin bg-palantir-blue py-1.5 text-xs font-semibold text-white hover:opacity-90"
+            className="flex-1 rounded-admin bg-palantir-blue min-h-touch py-2 text-xs font-semibold text-white hover:opacity-90 focus-ring-admin"
           >
             {nextLabel}
           </button>
@@ -319,7 +378,7 @@ function OrderCard({
         {canDeliver && (
           <button
             onClick={onDeliver}
-            className="flex-1 rounded-admin bg-palantir-green py-1.5 text-xs font-semibold text-black hover:opacity-90"
+            className="flex-1 rounded-admin bg-palantir-green min-h-touch py-2 text-xs font-semibold text-black hover:opacity-90 focus-ring-admin"
           >
             ENTREGAR
           </button>
@@ -327,9 +386,10 @@ function OrderCard({
         {columnStatus === "paid" && (
           <button
             onClick={onCancel}
-            className="rounded-admin border border-palantir-red px-2 text-xs text-palantir-red hover:bg-palantir-red/10"
+            aria-label="Cancelar pedido"
+            className="grid min-h-touch min-w-touch place-items-center rounded-admin border border-palantir-red text-palantir-red hover:bg-palantir-red/10 focus-ring-admin"
           >
-            ✕
+            <X className="size-4" />
           </button>
         )}
       </div>
@@ -337,7 +397,7 @@ function OrderCard({
   );
 }
 
-// ─── Deliver dialog ───────────────────────────────────────────────
+// ─── Deliver dialog (bottom-sheet em mobile) ──────────────────────
 
 function DeliverDialog({
   order,
@@ -348,7 +408,6 @@ function DeliverDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  // Estado: quantidades sendo entregues agora (default = restante de cada item)
   const initial = useMemo(() => {
     const m: Record<string, number> = {};
     for (const it of order.items) m[it.id] = it.qty - it.delivered_qty;
@@ -357,6 +416,17 @@ function DeliverDialog({
   const [qts, setQts] = useState<Record<string, number>>(initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
 
   function update(id: string, n: number) {
     const it = order.items.find((i) => i.id === id);
@@ -399,20 +469,37 @@ function DeliverDialog({
   const totalAgora = Object.values(qts).reduce((s, n) => s + n, 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Registrar entrega"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 sm:p-4 animate-fade-in"
+      onClick={onClose}
+    >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg rounded-admin border border-palantir-border bg-palantir-surface p-5"
+        className="w-full sm:max-w-lg max-h-[92dvh] sm:max-h-[85dvh] overflow-y-auto rounded-t-xl sm:rounded-admin border border-palantir-border bg-palantir-surface p-4 sm:p-5 pb-safe"
       >
-        <p className="mono text-[10px] tracking-widest text-palantir-muted">REGISTRAR ENTREGA</p>
-        <div className="flex items-center justify-between mt-1 mb-4">
-          <h2 className="text-lg font-semibold text-white">
-            #{order.number} · {order.customer_name}
-          </h2>
-          <span className="mono text-[10px] text-palantir-muted">{order.customer_cpf}</span>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="mono text-[10px] tracking-widest text-palantir-muted">REGISTRAR ENTREGA</p>
+            <h2 className="text-base sm:text-lg font-semibold text-white truncate">
+              #{order.number} · {order.customer_name}
+            </h2>
+            {order.customer_cpf && (
+              <p className="mono text-[10px] text-palantir-muted">CPF: {order.customer_cpf}</p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            aria-label="Fechar"
+            className="grid size-touch -mr-2 -mt-1 place-items-center text-palantir-muted hover:text-white focus-ring-admin"
+          >
+            <X className="size-5" />
+          </button>
         </div>
 
-        <div className="space-y-2 max-h-80 overflow-auto term-scroll">
+        <div className="mt-4 space-y-2">
           {order.items.map((it) => {
             const restante = it.qty - it.delivered_qty;
             const fullyDelivered = restante === 0;
@@ -426,34 +513,38 @@ function DeliverDialog({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-palantir-text truncate">{it.name}</p>
                   <p className="mono text-[10px] text-palantir-muted">
-                    Pedidos: <span className="text-palantir-text">{it.qty}</span>{" "}
-                    · Já entregues: <span className="text-somma-orange">{it.delivered_qty}</span>{" "}
-                    · Restante: <span className="text-palantir-blue">{restante}</span>
+                    Pedido <span className="text-palantir-text">{it.qty}</span> · Entr.{" "}
+                    <span className="text-somma-orange">{it.delivered_qty}</span> · Rest.{" "}
+                    <span className="text-palantir-blue">{restante}</span>
                   </p>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => update(it.id, (qts[it.id] ?? 0) - 1)}
                     disabled={fullyDelivered || (qts[it.id] ?? 0) <= 0}
-                    className="size-8 rounded-admin border border-palantir-border text-palantir-text disabled:opacity-30"
+                    aria-label="Diminuir"
+                    className="grid size-touch place-items-center rounded-admin border border-palantir-border text-palantir-text disabled:opacity-30 focus-ring-admin"
                   >
-                    −
+                    <Minus className="size-4" />
                   </button>
                   <input
                     type="number"
+                    inputMode="numeric"
                     value={qts[it.id] ?? 0}
                     onChange={(e) => update(it.id, Number(e.target.value) || 0)}
                     disabled={fullyDelivered}
                     min={0}
                     max={restante}
-                    className="mono w-14 rounded-admin border border-palantir-border bg-palantir-bg px-2 h-8 text-center text-white disabled:opacity-30"
+                    aria-label={`Quantidade ${it.name}`}
+                    className="mono w-14 rounded-admin border border-palantir-border bg-palantir-bg px-2 min-h-touch text-center text-white disabled:opacity-30 focus-ring-admin"
                   />
                   <button
                     onClick={() => update(it.id, (qts[it.id] ?? 0) + 1)}
                     disabled={fullyDelivered || (qts[it.id] ?? 0) >= restante}
-                    className="size-8 rounded-admin border border-palantir-border text-palantir-text disabled:opacity-30"
+                    aria-label="Aumentar"
+                    className="grid size-touch place-items-center rounded-admin border border-palantir-border text-palantir-text disabled:opacity-30 focus-ring-admin"
                   >
-                    +
+                    <Plus className="size-4" />
                   </button>
                 </div>
               </div>
@@ -461,34 +552,37 @@ function DeliverDialog({
           })}
         </div>
 
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             onClick={entregarTudo}
-            className="mono rounded-admin border border-palantir-border px-3 py-1.5 text-[10px] uppercase text-palantir-text hover:bg-palantir-surface2"
+            className="mono rounded-admin border border-palantir-border min-h-touch px-3 text-[10px] uppercase text-palantir-text hover:bg-palantir-surface2 focus-ring-admin"
           >
-            Entregar tudo restante
+            Tudo restante
           </button>
           <button
             onClick={limpar}
-            className="mono rounded-admin border border-palantir-border px-3 py-1.5 text-[10px] uppercase text-palantir-text hover:bg-palantir-surface2"
+            className="mono rounded-admin border border-palantir-border min-h-touch px-3 text-[10px] uppercase text-palantir-text hover:bg-palantir-surface2 focus-ring-admin"
           >
             Zerar
           </button>
-          <span className="ml-auto mono text-xs text-palantir-muted self-center">
-            Entregando agora: <span className="text-somma-orange">{totalAgora}</span>
+          <span className="ml-auto mono text-xs text-palantir-muted">
+            Agora: <span className="text-somma-orange">{totalAgora}</span>
           </span>
         </div>
 
         {error && <p className="mono mt-3 text-xs text-palantir-red">{error}</p>}
 
-        <div className="mt-5 flex justify-end gap-2">
-          <button onClick={onClose} className="mono text-xs text-palantir-muted px-3 py-2">
-            cancelar
+        <div className="mt-5 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="mono text-xs text-palantir-muted min-h-touch px-3 focus-ring-admin"
+          >
+            Cancelar
           </button>
           <button
             onClick={save}
             disabled={loading || totalAgora === 0}
-            className="rounded-admin bg-palantir-green px-4 py-2 text-sm text-black font-semibold disabled:opacity-40"
+            className="rounded-admin bg-palantir-green min-h-touch px-4 text-sm text-black font-semibold disabled:opacity-40 focus-ring-admin"
           >
             {loading ? "Salvando..." : "Confirmar entrega"}
           </button>
