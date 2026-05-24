@@ -8,6 +8,16 @@ const config: Config = {
     "./src/app/**/*.{ts,tsx}",
   ],
   theme: {
+    // Breakpoints semânticos: foco mobile-first
+    // xs = phone landscape, sm = phablet, md = tablet portrait, lg = tablet landscape / small laptop, xl = desktop, 2xl = wide
+    screens: {
+      xs: "420px",
+      sm: "640px",
+      md: "768px",
+      lg: "1024px",
+      xl: "1280px",
+      "2xl": "1536px",
+    },
     extend: {
       colors: {
         // Palantir — Admin / PDV (terminal operacional)
@@ -44,7 +54,43 @@ const config: Config = {
         body: ["var(--font-jakarta)", "sans-serif"],
         num: ["var(--font-plex-mono)", "monospace"],
       },
-      height: { "13": "3.25rem" },
+      // Tipografia fluida com clamp() — escala suave do mobile ao desktop
+      fontSize: {
+        "fluid-xs": "clamp(0.6875rem, 0.65rem + 0.18vw, 0.75rem)",
+        "fluid-sm": "clamp(0.8125rem, 0.78rem + 0.18vw, 0.875rem)",
+        "fluid-base": "clamp(0.9375rem, 0.9rem + 0.2vw, 1rem)",
+        "fluid-lg": "clamp(1.0625rem, 1rem + 0.3vw, 1.125rem)",
+        "fluid-xl": "clamp(1.1875rem, 1.1rem + 0.4vw, 1.375rem)",
+        "fluid-2xl": "clamp(1.5rem, 1.3rem + 1vw, 2rem)",
+        "fluid-3xl": "clamp(1.875rem, 1.5rem + 1.8vw, 2.75rem)",
+        "fluid-4xl": "clamp(2.25rem, 1.8rem + 2.4vw, 3.5rem)",
+        "fluid-5xl": "clamp(2.75rem, 2rem + 3.5vw, 4.5rem)",
+      },
+      spacing: {
+        // safe-area iOS (notch/home indicator)
+        "safe-t": "env(safe-area-inset-top)",
+        "safe-b": "env(safe-area-inset-bottom)",
+        "safe-l": "env(safe-area-inset-left)",
+        "safe-r": "env(safe-area-inset-right)",
+        // touch target mínimo (Apple HIG / WCAG AAA)
+        touch: "44px",
+      },
+      minHeight: {
+        touch: "44px",
+        "dvh-100": "100dvh",
+        "svh-100": "100svh",
+      },
+      minWidth: {
+        touch: "44px",
+      },
+      height: {
+        "13": "3.25rem",
+        "dvh-100": "100dvh",
+        "svh-100": "100svh",
+      },
+      maxWidth: {
+        "screen-mobile": "26rem", // 416px — limite confortável para mobile centralizado
+      },
       borderRadius: {
         admin: "0px",
         client: "6px",
@@ -58,10 +104,20 @@ const config: Config = {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        "slide-in-right": {
+          from: { opacity: "0", transform: "translateX(100%)" },
+          to: { opacity: "1", transform: "translateX(0)" },
+        },
+        "fade-in": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
       },
       animation: {
         "pulse-orange": "pulse-orange 1.6s infinite",
         "slide-in": "slide-in 0.25s ease-out",
+        "slide-in-right": "slide-in-right 0.25s ease-out",
+        "fade-in": "fade-in 0.2s ease-out",
       },
     },
   },

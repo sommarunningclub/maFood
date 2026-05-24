@@ -22,24 +22,49 @@ const plex = IBM_Plex_Mono({
   variable: "--font-plex-mono",
 });
 
+const APP_NAME = "maFood";
+const APP_DESC = "Praça de alimentação digital · Somma Special Day";
+
 export const metadata: Metadata = {
-  title: "maFood — Somma Special Day",
-  description: "Praça de alimentação digital · Somma Special Day",
+  applicationName: APP_NAME,
+  title: { default: `${APP_NAME} — Somma Special Day`, template: `%s · ${APP_NAME}` },
+  description: APP_DESC,
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: APP_NAME,
+  },
+  formatDetection: { telephone: false },
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-touch-icon.svg" }],
+  },
+  openGraph: {
+    type: "website",
+    siteName: APP_NAME,
+    title: `${APP_NAME} — Somma Special Day`,
+    description: APP_DESC,
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#080808",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#080808" },
+    { media: "(prefers-color-scheme: dark)", color: "#080808" },
+  ],
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" dir="ltr">
       <body
-        className={`${inter.variable} ${jetbrains.variable} ${barlow.variable} ${jakarta.variable} ${plex.variable} antialiased`}
+        className={`${inter.variable} ${jetbrains.variable} ${barlow.variable} ${jakarta.variable} ${plex.variable} antialiased min-h-[100dvh] bg-somma-bg text-somma-text`}
       >
         {children}
       </body>

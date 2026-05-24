@@ -1,17 +1,47 @@
 {
   "name": "maFood — Somma Special Day",
   "short_name": "maFood",
-  "description": "Praça de alimentação digital",
+  "description": "Praça de alimentação digital · peça, acompanhe e retire",
   "start_url": "/somma-special-day",
+  "scope": "/",
+  "id": "/somma-special-day",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
   "background_color": "#080808",
   "theme_color": "#080808",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": ["food", "shopping", "lifestyle"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Meus pedidos",
+      "short_name": "Pedidos",
+      "description": "Ver histórico e acompanhar pedidos",
+      "url": "/somma-special-day/history",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Carrinho",
+      "short_name": "Carrinho",
+      "description": "Continuar pedido",
+      "url": "/somma-special-day/cart",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
     }
   ]
 }

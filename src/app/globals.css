@@ -2,6 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Reset / global ──────────────────────────────────────── */
 * {
   -webkit-tap-highlight-color: transparent;
 }
@@ -10,6 +11,54 @@ html,
 body {
   margin: 0;
   padding: 0;
+  /* Prevenir scroll horizontal acidental em mobile */
+  overflow-x: hidden;
+}
+
+html {
+  /* Reduz pull-to-refresh quando em PWA standalone (mantém em browser) */
+  overscroll-behavior-y: none;
+  /* Tipografia mínima base — evita zoom em inputs no iOS Safari */
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  /* Suavização tipográfica */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Permite componente full-bleed dentro de safe-area sem cortar texto */
+  text-rendering: optimizeLegibility;
+}
+
+/* iOS Safari: respeitar safe-area mas permitir conteúdo "edge to edge" */
+@supports (padding: env(safe-area-inset-top)) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Inputs: tamanho mínimo 16px previne zoom automático no iOS Safari */
+input,
+select,
+textarea {
+  font-size: max(16px, 1rem);
+}
+/* Permite text-xs explícito quando necessário (filtros, etc) */
+input.text-xs,
+input.text-\[11px\],
+input.text-\[12px\],
+input.text-\[13px\] {
+  font-size: inherit;
+}
+
+/* Botões: cursor pointer + touch action otimizada */
+button,
+[role="button"],
+a {
+  touch-action: manipulation;
 }
 
 /* Scrollbars discretas (estética terminal/operacional) */
@@ -70,3 +119,58 @@ body {
 .term-scroll::-webkit-scrollbar-thumb { background: #30363d; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Utilities responsivas ─────────────────────────────────── */
+@layer utilities {
+  /* Safe-area paddings (combinam com env() definido no tailwind.config) */
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .pl-safe { padding-left: env(safe-area-inset-left); }
+  .pr-safe { padding-right: env(safe-area-inset-right); }
+  .p-safe {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  .mt-safe { margin-top: env(safe-area-inset-top); }
+  .mb-safe { margin-bottom: env(safe-area-inset-bottom); }
+
+  /* Combinações comuns: header sticky com safe-area top */
+  .top-safe { top: env(safe-area-inset-top); }
+  .bottom-safe { bottom: env(safe-area-inset-bottom); }
+
+  /* Texto que respeita orphan/widow básico */
+  .text-balance { text-wrap: balance; }
+  .text-pretty { text-wrap: pretty; }
+
+  /* Hide scrollbar on horizontal scroll containers (chips, kanban) */
+  .scroll-snap-x {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .snap-start { scroll-snap-align: start; }
+
+  /* Touch-friendly hit area aplicada a ícones pequenos */
+  .hit-target {
+    position: relative;
+  }
+  .hit-target::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Focus ring acessível — laranja Somma para cliente, azul Palantir para admin */
+  .focus-ring:focus-visible {
+    outline: 2px solid #F26522;
+    outline-offset: 2px;
+  }
+  .theme-admin .focus-ring:focus-visible,
+  .focus-ring-admin:focus-visible {
+    outline: 2px solid #58A6FF;
+    outline-offset: 2px;
+  }
+}
