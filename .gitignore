@@ -45,3 +45,8 @@ Thumbs.db
 .temp
 **/.supabase/
 *.swp
+
+# Serwist / PWA output (gerado em build)
+/public/sw.js
+/public/sw.js.map
+/public/workbox-*.js
