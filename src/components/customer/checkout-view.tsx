@@ -9,7 +9,7 @@ import { useCart } from "@/stores/cart-store";
 import { brl } from "@/lib/utils";
 import { IdentifyModal } from "@/components/customer/identify-modal";
 
-type Step = "form" | "card-form" | "submitting" | "pix";
+type Step = "form" | "card-form" | "submitting" | "pix" | "failed";
 type PaymentMethod = "pix" | "card";
 
 interface CardData {
@@ -148,15 +148,19 @@ export function CheckoutView({
       };
     }
 
-    const r = await fetch("/api/customer/orders", {
+    // Delay mínimo 5s — UX: garante que o usuário vê o "Processando..." mesmo
+    // se o Asaas responder muito rápido, evitando flash da tela de loading
+    const minDelay = new Promise<void>((res) => setTimeout(res, 5000));
+    const requestP = fetch("/api/customer/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    const [r] = await Promise.all([requestP, minDelay]);
     const data = await r.json();
     if (!r.ok) {
-      setError(data.error ?? "Erro ao processar pagamento");
-      setStep(method === "card" ? "card-form" : "form");
+      setError(data.error ?? "Não foi possível concluir o pagamento");
+      setStep("failed");
       return { ok: false };
     }
     setOrderNumber(data.order_number);
@@ -377,11 +381,70 @@ export function CheckoutView({
   if (step === "submitting") {
     return (
       <div className="min-h-dvh-100 flex items-center justify-center p-8 somma-grain pt-safe pb-safe">
-        <div className="text-center">
-          <div className="size-10 mx-auto mb-3 rounded-full border-2 border-somma-border border-t-somma-orange animate-spin" />
-          <p className="num text-sm text-somma-muted">
-            {method === "pix" ? "Gerando Pix..." : "Processando cartão..."}
+        <div className="text-center max-w-sm">
+          <div className="size-14 mx-auto mb-4 rounded-full border-4 border-somma-border border-t-somma-orange animate-spin" />
+          <h2 className="text-white font-display uppercase tracking-wide text-fluid-xl">
+            {method === "pix" ? "Gerando Pix" : "Processando pagamento"}
+          </h2>
+          <p className="num text-xs text-somma-muted mt-2">
+            Carregando dados do pagamento com segurança...
           </p>
+          <p className="num text-[10px] text-somma-muted/60 mt-1">
+            Não feche esta tela
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "failed") {
+    return (
+      <div className="min-h-dvh-100 flex items-center justify-center p-6 somma-grain pt-safe pb-safe">
+        <div className="text-center max-w-sm w-full">
+          <div className="size-20 mx-auto mb-5 rounded-full border-4 border-somma-red/40 bg-somma-red/10 grid place-items-center">
+            <span className="text-4xl">✕</span>
+          </div>
+          <h2 className="text-white font-display uppercase tracking-wide text-fluid-2xl">
+            Pagamento não foi concluído
+          </h2>
+          {error && (
+            <p
+              role="alert"
+              className="num text-sm text-somma-muted mt-3 border border-somma-red/20 bg-somma-red/5 px-3 py-2 rounded-client"
+            >
+              {error}
+            </p>
+          )}
+          <p className="num text-[11px] text-somma-muted/80 mt-3">
+            Nenhum valor foi cobrado. Você pode tentar novamente com outro método ou cartão.
+          </p>
+          <div className="mt-6 space-y-2">
+            <button
+              onClick={() => {
+                setError(null);
+                setStep(method === "card" ? "card-form" : "form");
+              }}
+              className="w-full rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide focus-ring"
+            >
+              Tentar novamente
+            </button>
+            <button
+              onClick={() => {
+                setError(null);
+                setMethod(method === "card" ? "pix" : "card");
+                setStep("form");
+              }}
+              className="w-full rounded-client border border-somma-border min-h-touch h-12 text-somma-text num text-xs uppercase tracking-widest focus-ring"
+            >
+              Trocar método de pagamento
+            </button>
+            <Link
+              href={`/${venue}`}
+              className="block num text-[11px] text-somma-muted underline underline-offset-4 pt-2 focus-ring"
+            >
+              Voltar à praça
+            </Link>
+          </div>
         </div>
       </div>
     );
