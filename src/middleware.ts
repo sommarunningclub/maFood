@@ -11,12 +11,12 @@ const PDV_PUBLIC = [
 // Rotas /admin públicas: tela de login e bootstrap inicial
 const ADMIN_PUBLIC = [/^\/admin\/login\/?$/, /^\/admin\/setup\/?$/];
 
-// Rotas do cliente que podem ser acessadas sem login
-function isCustomerPublic(pathname: string, venue: string) {
-  return (
-    pathname === `/${venue}/login` ||
-    pathname === `/${venue}/login/`
-  );
+// Rotas do cliente que exigem identificação (login). Tudo o mais é livre.
+// Marketplace (/[venue]) e cardápio (/[venue]/[pdv]) são públicos —
+// a identificação só acontece no checkout via modal.
+function isCustomerProtected(pathname: string, venue: string) {
+  const rest = pathname.slice(`/${venue}`.length).replace(/\/$/, "");
+  return rest === "/history" || rest.startsWith("/order/");
 }
 
 export async function middleware(req: NextRequest) {
@@ -86,7 +86,7 @@ export async function middleware(req: NextRequest) {
   const venue = venueMatch?.[1];
   const RESERVED = new Set(["admin", "loja", "pdv", "api", "_next", "favicon.ico"]);
   if (venue && !RESERVED.has(venue) && !venue.includes(".")) {
-    if (isCustomerPublic(pathname, venue)) return NextResponse.next();
+    if (!isCustomerProtected(pathname, venue)) return NextResponse.next();
 
     const token = req.cookies.get(CUSTOMER_COOKIE)?.value;
     const customer = token ? await verifyCustomer(token) : null;

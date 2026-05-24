@@ -7,11 +7,18 @@ import QRCode from "qrcode";
 import { ArrowLeft } from "lucide-react";
 import { useCart } from "@/stores/cart-store";
 import { brl } from "@/lib/utils";
+import { IdentifyModal } from "@/components/customer/identify-modal";
 
 type Step = "form" | "pix" | "card" | "submitting";
 type PaymentMethod = "pix" | "card";
 
-export function CheckoutView({ venue }: { venue: string }) {
+export function CheckoutView({
+  venue,
+  initialHasSession,
+}: {
+  venue: string;
+  initialHasSession: boolean;
+}) {
   const router = useRouter();
   const { items, pdvId, total, clear } = useCart();
   const [notes, setNotes] = useState("");
@@ -24,9 +31,19 @@ export function CheckoutView({ venue }: { venue: string }) {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [finalTotal, setFinalTotal] = useState(0);
   const [discount, setDiscount] = useState(0);
+  const [hasSession, setHasSession] = useState(initialHasSession);
+  const [identifyOpen, setIdentifyOpen] = useState(false);
 
   const subtotal = total();
   const empty = items.length === 0;
+
+  function handleSubmitClick() {
+    if (!hasSession) {
+      setIdentifyOpen(true);
+      return;
+    }
+    void submitOrder();
+  }
 
   async function submitOrder(): Promise<{ ok: boolean }> {
     setError(null);
@@ -243,13 +260,25 @@ export function CheckoutView({ venue }: { venue: string }) {
       <div className="fixed bottom-0 inset-x-0 z-30 bg-somma-bg/95 backdrop-blur border-t border-somma-border pb-safe">
         <div className="mx-auto max-w-screen-mobile p-3 sm:p-4">
           <button
-            onClick={submitOrder}
+            onClick={handleSubmitClick}
             className="w-full rounded-client bg-somma-orange min-h-touch h-13 text-white font-display uppercase tracking-wide active:scale-[0.98] transition-transform focus-ring"
           >
-            {method === "pix" ? "Gerar Pix" : "Ir para pagamento"} · {brl(subtotal)}
+            {hasSession
+              ? `${method === "pix" ? "Gerar Pix" : "Ir para pagamento"} · ${brl(subtotal)}`
+              : `Identificar e pagar · ${brl(subtotal)}`}
           </button>
         </div>
       </div>
+
+      <IdentifyModal
+        open={identifyOpen}
+        onClose={() => setIdentifyOpen(false)}
+        onSuccess={() => {
+          setIdentifyOpen(false);
+          setHasSession(true);
+          void submitOrder();
+        }}
+      />
     </div>
   );
 }
