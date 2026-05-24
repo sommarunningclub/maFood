@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCustomerSession } from "@/lib/auth/customer-session";
 import { CustomerHeader } from "@/components/customer/customer-header";
+import { InstagramChip } from "@/components/customer/instagram-chip";
 
 export const dynamic = "force-dynamic";
 
@@ -89,17 +90,7 @@ export default async function MarketplacePage({ params }: { params: { venue: str
                   <div className="flex items-center gap-3 mt-1.5 num text-[11px] text-somma-muted flex-wrap">
                     <span>⏱ {pdv.prep_time_min} min</span>
                     <span>· {available} {available === 1 ? "item" : "itens"}</span>
-                    {pdv.instagram_handle && (
-                      <a
-                        href={`https://instagram.com/${pdv.instagram_handle}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-somma-orange hover:underline"
-                      >
-                        @{pdv.instagram_handle}
-                      </a>
-                    )}
+                    {pdv.instagram_handle && <InstagramChip handle={pdv.instagram_handle} />}
                   </div>
                 </div>
                 <span className="text-somma-orange text-xl">→</span>
