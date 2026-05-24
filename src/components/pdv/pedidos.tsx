@@ -57,15 +57,13 @@ interface ColumnSpec {
 }
 
 /*
-  Fluxo permitido por DnD:
-  - paid → preparing
-  - preparing → ready
-  - ready/partial → delivered (abre dialog em vez de marcar direto,
-    porque entrega pode ser parcial)
-
-  Coluna "partial" é estado intermediário automático — não é drop target.
-  "delivered" e "cancelled" não são origem (terminal).
+  DnD totalmente livre — qualquer card (não-pending) pode ser solto em
+  qualquer coluna, inclusive voltando estados ou pulando direto pra entregue.
+  Drop em "delivered" continua abrindo DeliverDialog porque entrega precisa
+  registrar quantidade por item; demais drops são PATCH direto do status.
 */
+const ALL_DROPPABLE: Status[] = ["paid", "preparing", "ready", "partial", "delivered"];
+
 const COLUMNS: ColumnSpec[] = [
   {
     status: "paid",
@@ -73,7 +71,7 @@ const COLUMNS: ColumnSpec[] = [
     accent: "text-palantir-yellow border-palantir-yellow",
     next: "preparing",
     cta: "ACEITAR",
-    acceptsFrom: [],
+    acceptsFrom: ALL_DROPPABLE,
   },
   {
     status: "preparing",
@@ -81,29 +79,29 @@ const COLUMNS: ColumnSpec[] = [
     accent: "text-palantir-blue border-palantir-blue",
     next: "ready",
     cta: "MARCAR PRONTO",
-    acceptsFrom: ["paid"],
+    acceptsFrom: ALL_DROPPABLE,
   },
   {
     status: "ready",
     label: "PRONTOS",
     accent: "text-palantir-green border-palantir-green",
-    acceptsFrom: ["preparing"],
+    acceptsFrom: ALL_DROPPABLE,
   },
   {
     status: "partial",
     label: "PARCIAL",
     accent: "text-somma-orange border-somma-orange",
-    acceptsFrom: [], // intermediário automático
+    acceptsFrom: ALL_DROPPABLE,
   },
   {
     status: "delivered",
     label: "ENTREGUES",
     accent: "text-palantir-muted border-palantir-muted",
-    acceptsFrom: ["ready", "partial"], // dispara DeliverDialog
+    acceptsFrom: ALL_DROPPABLE, // dispara DeliverDialog
   },
 ];
 
-const DRAGGABLE_STATUSES: Status[] = ["paid", "preparing", "ready", "partial"];
+const DRAGGABLE_STATUSES: Status[] = ["paid", "preparing", "ready", "partial", "delivered"];
 
 export function Pedidos({ slug }: { slug: string }) {
   const [orders, setOrders] = useState<Order[]>([]);

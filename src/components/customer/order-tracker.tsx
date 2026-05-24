@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import QRCode from "qrcode";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { brl, formatTime } from "@/lib/utils";
+import { PizzaLoader } from "@/components/customer/pizza-loader";
 
 type Status = "pending" | "paid" | "preparing" | "ready" | "partial" | "delivered" | "cancelled";
 
@@ -54,6 +55,7 @@ const RANK: Record<Status, number> = {
 export function OrderTracker({ venue, orderId }: { venue: string; orderId: string }) {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
 
   const fetchOrder = useCallback(async () => {
@@ -170,8 +172,19 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
   const isReady = order.status === "ready" || order.status === "partial";
   const isPartial = order.status === "partial";
   const isPending = order.status === "pending";
+  const isPreparing = order.status === "preparing";
   const totalPedidos = order.items.reduce((s, i) => s + i.qty, 0);
   const totalEntregues = order.items.reduce((s, i) => s + i.delivered_qty, 0);
+
+  async function refreshNow() {
+    setRefreshing(true);
+    try {
+      await fetchOrder();
+    } finally {
+      // pequeno atraso pra UX (botão não pisca em conexão rápida)
+      setTimeout(() => setRefreshing(false), 400);
+    }
+  }
 
   async function copyPix() {
     if (!order?.pix_payload) return;
@@ -198,6 +211,8 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
         <h1 className="text-fluid-2xl text-white font-display uppercase mt-1">
           {isPending
             ? "Aguardando pagamento"
+            : isPreparing
+            ? "Em preparo"
             : isReady
             ? isPartial
               ? "Retirada parcial"
@@ -210,6 +225,30 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
           </p>
         )}
       </div>
+
+      {/* Bloco "aguarde + atualizar" — visível enquanto pedido não está pronto/entregue */}
+      {(order.status === "paid" || isPreparing) && (
+        <section className="mt-6 flex flex-col items-center text-center">
+          {isPreparing && (
+            <div className="opacity-90">
+              <PizzaLoader size={96} />
+            </div>
+          )}
+          <p className="num text-[11px] text-somma-muted mt-3 max-w-xs">
+            {isPreparing
+              ? "Atualize aqui para saber a hora de retirar o seu pedido"
+              : "Aguardando o PDV aceitar — atualize para saber se já começou o preparo"}
+          </p>
+          <button
+            onClick={refreshNow}
+            disabled={refreshing}
+            className="mt-3 inline-flex items-center gap-2 rounded-client bg-somma-orange/15 border border-somma-orange/40 text-somma-orange min-h-touch px-4 num text-xs uppercase tracking-wider focus-ring disabled:opacity-60"
+          >
+            <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
+            {refreshing ? "Atualizando..." : "Atualizar"}
+          </button>
+        </section>
+      )}
 
       {/* Bloco de pagamento Pix (status pending) */}
       {isPending && (

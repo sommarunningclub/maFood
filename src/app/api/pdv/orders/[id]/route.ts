@@ -3,8 +3,10 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPdvSession } from "@/lib/auth/session";
 
+// Aceita qualquer status (exceto pending — esse fica trancado, só webhook libera)
+// pra permitir DnD livre entre colunas no Kanban (incluindo voltar pra paid).
 const Body = z.object({
-  status: z.enum(["preparing", "ready", "delivered", "cancelled"]).optional(),
+  status: z.enum(["paid", "preparing", "ready", "partial", "delivered", "cancelled"]).optional(),
 });
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
