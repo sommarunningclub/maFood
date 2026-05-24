@@ -16,9 +16,10 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import Link from "next/link";
-import { X, Search, Plus, Minus, GripVertical, PlusCircle } from "lucide-react";
+import { X, Search, Plus, Minus, PlusCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { brl, formatTime } from "@/lib/utils";
+import { brl, cn, formatTime } from "@/lib/utils";
+import { OrderDetailModal } from "@/components/pdv/order-detail-modal";
 
 type Status = "pending" | "paid" | "preparing" | "ready" | "partial" | "delivered" | "cancelled";
 
@@ -109,6 +110,7 @@ export function Pedidos({ slug }: { slug: string }) {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [delivering, setDelivering] = useState<Order | null>(null);
+  const [detail, setDetail] = useState<Order | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const beepRef = useRef<(() => void) | null>(null);
@@ -117,8 +119,8 @@ export function Pedidos({ slug }: { slug: string }) {
   const sensors = useSensors(
     // distância em desktop evita ativar drag em micro-cliques
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    // delay em touch evita conflito com scroll horizontal das colunas
-    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 6 } }),
+    // long-press em touch (iPad/mobile): segura ~180ms pra arrastar; tap puro abre modal
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
     useSensor(KeyboardSensor)
   );
 
@@ -358,6 +360,7 @@ export function Pedidos({ slug }: { slug: string }) {
                   onAdvance={(id, next) => advance(id, next)}
                   onCancel={cancel}
                   onDeliver={(o) => setDelivering(o)}
+                  onOpen={(o) => setDetail(o)}
                 />
               ))}
             </div>
@@ -379,6 +382,8 @@ export function Pedidos({ slug }: { slug: string }) {
           }}
         />
       )}
+
+      {detail && <OrderDetailModal order={detail} onClose={() => setDetail(null)} />}
     </div>
   );
 }
@@ -392,6 +397,7 @@ function Column({
   onAdvance,
   onCancel,
   onDeliver,
+  onOpen,
 }: {
   col: ColumnSpec;
   orders: Order[];
@@ -399,6 +405,7 @@ function Column({
   onAdvance: (id: string, next: Status) => void;
   onCancel: (id: string) => void;
   onDeliver: (o: Order) => void;
+  onOpen: (o: Order) => void;
 }) {
   const accepts =
     activeOrderStatus !== undefined && col.acceptsFrom.includes(activeOrderStatus);
@@ -434,6 +441,7 @@ function Column({
             onAdvance={() => col.next && onAdvance(o.id, col.next)}
             onCancel={() => onCancel(o.id)}
             onDeliver={() => onDeliver(o)}
+            onOpen={() => onOpen(o)}
             columnStatus={col.status}
           />
         ))}
@@ -451,6 +459,7 @@ function DraggableCard({
   onAdvance,
   onCancel,
   onDeliver,
+  onOpen,
   columnStatus,
 }: {
   order: Order;
@@ -459,6 +468,7 @@ function DraggableCard({
   onAdvance: () => void;
   onCancel: () => void;
   onDeliver: () => void;
+  onOpen: () => void;
   columnStatus: Status;
 }) {
   const draggable = DRAGGABLE_STATUSES.includes(columnStatus);
@@ -467,10 +477,31 @@ function DraggableCard({
     disabled: !draggable,
   });
 
+  /*
+    Card inteiro vira drag handle (qualquer toque longo arrasta no iPad).
+    Tap puro abre o modal de detalhes; dnd-kit não dispara click se
+    activationConstraint for satisfeito (long-press OR move > tolerance).
+    Botões internos param a propagação pra não abrir modal junto.
+  */
   return (
     <div
       ref={setNodeRef}
-      className={isDragging ? "opacity-30" : ""}
+      {...(draggable ? { ...attributes, ...listeners } : {})}
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      aria-label={`Abrir pedido #${order.number} de ${order.customer_name}`}
+      className={cn(
+        "cursor-pointer focus:outline-none rounded-admin focus-visible:ring-2 focus-visible:ring-palantir-blue/60",
+        isDragging && "opacity-30",
+        draggable && "active:cursor-grabbing"
+      )}
       style={{ touchAction: draggable ? "none" : undefined }}
     >
       <OrderCard
@@ -481,18 +512,6 @@ function DraggableCard({
         onCancel={onCancel}
         onDeliver={onDeliver}
         columnStatus={columnStatus}
-        dragHandle={
-          draggable ? (
-            <button
-              {...attributes}
-              {...listeners}
-              aria-label={`Arrastar pedido #${order.number}`}
-              className="grid size-touch place-items-center -m-1 text-palantir-muted hover:text-palantir-text cursor-grab active:cursor-grabbing touch-none focus-ring-admin"
-            >
-              <GripVertical className="size-4" />
-            </button>
-          ) : null
-        }
       />
     </div>
   );
@@ -508,7 +527,6 @@ function OrderCard({
   onCancel,
   onDeliver,
   columnStatus,
-  dragHandle,
   dragging,
 }: {
   order: Order;
@@ -518,12 +536,14 @@ function OrderCard({
   onCancel?: () => void;
   onDeliver?: () => void;
   columnStatus: Status;
-  dragHandle?: React.ReactNode;
   dragging?: boolean;
 }) {
   const totalPedidos = order.items.reduce((s, i) => s + i.qty, 0);
   const totalEntregues = order.items.reduce((s, i) => s + i.delivered_qty, 0);
   const canDeliver = ["ready", "partial"].includes(columnStatus);
+
+  // Stop click no botão pra não abrir o modal de detalhes junto
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
 
   return (
     <article
@@ -532,15 +552,12 @@ function OrderCard({
       }`}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-1 min-w-0">
-          {dragHandle}
-          <div className="min-w-0">
-            <span className="mono font-bold text-white">#{order.number}</span>
-            <div className="text-sm text-palantir-text truncate">{order.customer_name}</div>
-            {order.customer_cpf && (
-              <div className="mono text-[10px] text-palantir-muted">CPF: {order.customer_cpf}</div>
-            )}
-          </div>
+        <div className="min-w-0">
+          <span className="mono font-bold text-white">#{order.number}</span>
+          <div className="text-sm text-palantir-text truncate">{order.customer_name}</div>
+          {order.customer_cpf && (
+            <div className="mono text-[10px] text-palantir-muted">CPF: {order.customer_cpf}</div>
+          )}
         </div>
         <span className="mono text-xs text-palantir-muted shrink-0">
           {formatTime(order.created_at)}
@@ -585,7 +602,7 @@ function OrderCard({
         <div className="flex gap-1">
           {next && onAdvance && (
             <button
-              onClick={onAdvance}
+              onClick={(e) => { stop(e); onAdvance(); }}
               className="flex-1 rounded-admin bg-palantir-blue min-h-touch py-2 text-xs font-semibold text-white hover:opacity-90 focus-ring-admin"
             >
               {nextLabel}
@@ -593,7 +610,7 @@ function OrderCard({
           )}
           {canDeliver && onDeliver && (
             <button
-              onClick={onDeliver}
+              onClick={(e) => { stop(e); onDeliver(); }}
               className="flex-1 rounded-admin bg-palantir-green min-h-touch py-2 text-xs font-semibold text-black hover:opacity-90 focus-ring-admin"
             >
               ENTREGAR
@@ -601,7 +618,7 @@ function OrderCard({
           )}
           {columnStatus === "paid" && onCancel && (
             <button
-              onClick={onCancel}
+              onClick={(e) => { stop(e); onCancel(); }}
               aria-label="Cancelar pedido"
               className="grid min-h-touch min-w-touch place-items-center rounded-admin border border-palantir-red text-palantir-red hover:bg-palantir-red/10 focus-ring-admin"
             >
