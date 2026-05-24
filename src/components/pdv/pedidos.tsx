@@ -383,7 +383,16 @@ export function Pedidos({ slug }: { slug: string }) {
         />
       )}
 
-      {detail && <OrderDetailModal order={detail} onClose={() => setDetail(null)} />}
+      {detail && (
+        <OrderDetailModal
+          order={detail}
+          onClose={() => setDetail(null)}
+          onSaved={() => {
+            setDetail(null);
+            refresh();
+          }}
+        />
+      )}
     </div>
   );
 }
