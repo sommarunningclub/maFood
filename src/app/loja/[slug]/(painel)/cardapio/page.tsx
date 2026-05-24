@@ -1,5 +1,7 @@
-import { Placeholder } from "@/components/pdv/placeholder";
+import { CardapioView } from "@/components/pdv/cardapio-view";
+
 export const dynamic = "force-dynamic";
-export default function CardapioPage() {
-  return <Placeholder title="Cardápio" subtitle="Em construção — CRUD de produtos + upload de imagens" icon="◳" />;
+
+export default function CardapioPage({ params }: { params: { slug: string } }) {
+  return <CardapioView slug={params.slug} />;
 }

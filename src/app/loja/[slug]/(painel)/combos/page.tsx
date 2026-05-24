@@ -1,5 +1,7 @@
-import { Placeholder } from "@/components/pdv/placeholder";
+import { CombosView } from "@/components/pdv/combos-view";
+
 export const dynamic = "force-dynamic";
-export default function CombosPage() {
-  return <Placeholder title="Combos" subtitle="Em construção — fixo, com escolhas e desconto agrupado" icon="▦" />;
+
+export default function CombosPage({ params }: { params: { slug: string } }) {
+  return <CombosView slug={params.slug} />;
 }
