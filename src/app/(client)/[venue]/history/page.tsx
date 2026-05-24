@@ -14,7 +14,7 @@ export default async function HistoryPage({ params }: { params: { venue: string 
   const supabase = createAdminClient();
   const { data: orders } = await supabase
     .from("orders")
-    .select("id, number, total, method, status, created_at, pdv_id")
+    .select("id, number, total, method, status, created_at, pdv_id, created_by")
     .eq("customer_id", session.customer_id)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -57,11 +57,16 @@ export default async function HistoryPage({ params }: { params: { venue: string 
         <div className="mt-5 space-y-3">
           {orders.map((o) => {
             const pdv = pdvById.get(o.pdv_id);
+            const isPending = o.status === "pending";
             return (
               <Link
                 key={o.id}
                 href={`/${params.venue}/order/${o.id}`}
-                className="block rounded-client border border-somma-border bg-somma-surface p-4 min-h-touch active:scale-[0.98] transition-transform focus-ring"
+                className={`block rounded-client border p-4 min-h-touch active:scale-[0.98] transition-transform focus-ring ${
+                  isPending
+                    ? "border-somma-orange/60 bg-somma-orange/10 animate-pulse-orange"
+                    : "border-somma-border bg-somma-surface"
+                }`}
               >
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-2">
@@ -75,11 +80,25 @@ export default async function HistoryPage({ params }: { params: { venue: string 
                   </div>
                   <StatusBadge status={o.status as Parameters<typeof StatusBadge>[0]["status"]} />
                 </div>
+                {isPending && (
+                  <p className="num text-[11px] text-somma-orange mt-2 font-semibold uppercase tracking-wide">
+                    💳 Pagar agora →
+                  </p>
+                )}
                 <div className="flex justify-between items-end mt-2">
                   <p className="num text-xs text-somma-muted">
                     {o.method.toUpperCase()}
+                    {(o as { created_by?: string }).created_by === "pdv" && (
+                      <span className="ml-2 text-somma-muted/60">· criado pelo PDV</span>
+                    )}
                   </p>
-                  <p className="num text-somma-orange font-semibold">{brl(Number(o.total))}</p>
+                  <p
+                    className={`num font-semibold ${
+                      isPending ? "text-somma-orange" : "text-somma-orange"
+                    }`}
+                  >
+                    {brl(Number(o.total))}
+                  </p>
                 </div>
               </Link>
             );

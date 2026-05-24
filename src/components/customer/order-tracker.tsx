@@ -30,6 +30,9 @@ interface Order {
   paid_at: string | null;
   ready_at: string | null;
   items: OrderItem[];
+  pix_payload: string | null;
+  pix_qr_code: string | null;
+  created_by: "customer" | "pdv";
 }
 
 const STEPS: { status: Status; label: string }[] = [
@@ -57,7 +60,9 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
     const supabase = createClient();
     const { data: o } = await supabase
       .from("orders")
-      .select("id, number, customer_name, total, status, created_at, paid_at, ready_at, pdv_id")
+      .select(
+        "id, number, customer_name, total, status, created_at, paid_at, ready_at, pdv_id, pix_payload, pix_qr_code, created_by"
+      )
       .eq("id", orderId)
       .maybeSingle();
     if (!o) {
@@ -89,6 +94,9 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
         unit_price: Number(i.unit_price),
         notes: i.notes,
       })),
+      pix_payload: o.pix_payload ?? null,
+      pix_qr_code: o.pix_qr_code ?? null,
+      created_by: (o.created_by ?? "customer") as "customer" | "pdv",
     });
     setLoading(false);
   }, [orderId]);
@@ -115,8 +123,22 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
   }, [fetchOrder, orderId]);
 
   useEffect(() => {
-    if (order)
+    if (!order) return;
+    // Status pending: gera QR do pix_payload (cobrança). Outros: QR de retirada.
+    if (order.status === "pending") {
+      if (order.pix_qr_code) {
+        // base64 vindo do Asaas — já é image data
+        setQr(
+          order.pix_qr_code.startsWith("data:")
+            ? order.pix_qr_code
+            : `data:image/png;base64,${order.pix_qr_code}`
+        );
+      } else if (order.pix_payload) {
+        QRCode.toDataURL(order.pix_payload, { width: 240, margin: 1 }).then(setQr);
+      }
+    } else {
       QRCode.toDataURL(`MAFOOD-PICKUP-${order.number}`, { width: 160, margin: 1 }).then(setQr);
+    }
   }, [order]);
 
   if (loading) {
@@ -147,8 +169,16 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
   const rank = RANK[order.status];
   const isReady = order.status === "ready" || order.status === "partial";
   const isPartial = order.status === "partial";
+  const isPending = order.status === "pending";
   const totalPedidos = order.items.reduce((s, i) => s + i.qty, 0);
   const totalEntregues = order.items.reduce((s, i) => s + i.delivered_qty, 0);
+
+  async function copyPix() {
+    if (!order?.pix_payload) return;
+    try {
+      await navigator.clipboard.writeText(order.pix_payload);
+    } catch {}
+  }
 
   return (
     <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe pb-safe somma-grain">
@@ -166,13 +196,57 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
       <div className="mt-4 text-center">
         <p className="num text-[11px] text-somma-muted">{order.pdv_name}</p>
         <h1 className="text-fluid-2xl text-white font-display uppercase mt-1">
-          {isReady
+          {isPending
+            ? "Aguardando pagamento"
+            : isReady
             ? isPartial
               ? "Retirada parcial"
               : "Pedido pronto!"
             : "Acompanhe seu pedido"}
         </h1>
+        {order.created_by === "pdv" && isPending && (
+          <p className="num text-[11px] text-somma-muted mt-1">
+            Pedido criado pelo balcão — pague para liberar o preparo
+          </p>
+        )}
       </div>
+
+      {/* Bloco de pagamento Pix (status pending) */}
+      {isPending && (
+        <section className="mt-6 rounded-client border border-somma-orange/40 bg-somma-orange/5 p-4 flex flex-col items-center">
+          <p className="num text-[11px] text-somma-orange tracking-widest uppercase">Pix · maFood</p>
+          <p className="num text-3xl text-white font-bold mt-1">{brl(order.total)}</p>
+          {qr ? (
+            <div className="bg-white p-3 rounded-client mt-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qr} alt="QR Code Pix" width={240} height={240} className="max-w-[60vw]" />
+            </div>
+          ) : (
+            <div className="size-60 grid place-items-center text-somma-muted text-sm mt-4">
+              gerando QR...
+            </div>
+          )}
+          {order.pix_payload && (
+            <div className="w-full mt-4">
+              <p className="num text-[10px] uppercase text-somma-muted mb-1">Pix copia-cola</p>
+              <div className="flex gap-2">
+                <code className="num flex-1 truncate rounded-client border border-somma-border bg-somma-bg px-2 py-2 text-[11px] text-somma-text">
+                  {order.pix_payload}
+                </code>
+                <button
+                  onClick={copyPix}
+                  className="num min-h-touch px-3 rounded-client bg-somma-orange text-white text-xs font-semibold focus-ring"
+                >
+                  Copiar
+                </button>
+              </div>
+            </div>
+          )}
+          <p className="text-xs text-somma-muted text-center mt-3">
+            Pague pelo app do seu banco. Esta tela atualiza sozinha quando a cobrança for confirmada.
+          </p>
+        </section>
+      )}
 
       {isReady && (
         <motion.div

@@ -1,7 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X, Search, Plus, Minus } from "lucide-react";
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  closestCorners,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import Link from "next/link";
+import { X, Search, Plus, Minus, GripVertical, PlusCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { brl, formatTime } from "@/lib/utils";
 
@@ -32,19 +47,63 @@ interface Order {
   items: OrderItem[];
 }
 
-const COLUMNS: {
+interface ColumnSpec {
   status: Status;
   label: string;
   accent: string;
-  next?: Status;
+  next?: Status; // próximo step lógico (usado pelo botão CTA)
   cta?: string;
-}[] = [
-  { status: "paid", label: "NOVOS", accent: "text-palantir-yellow border-palantir-yellow", next: "preparing", cta: "ACEITAR" },
-  { status: "preparing", label: "EM PREPARO", accent: "text-palantir-blue border-palantir-blue", next: "ready", cta: "MARCAR PRONTO" },
-  { status: "ready", label: "PRONTOS", accent: "text-palantir-green border-palantir-green" },
-  { status: "partial", label: "PARCIAL", accent: "text-somma-orange border-somma-orange" },
-  { status: "delivered", label: "ENTREGUES", accent: "text-palantir-muted border-palantir-muted" },
+  acceptsFrom: Status[]; // statuses que podem ser soltados nesta coluna
+}
+
+/*
+  Fluxo permitido por DnD:
+  - paid → preparing
+  - preparing → ready
+  - ready/partial → delivered (abre dialog em vez de marcar direto,
+    porque entrega pode ser parcial)
+
+  Coluna "partial" é estado intermediário automático — não é drop target.
+  "delivered" e "cancelled" não são origem (terminal).
+*/
+const COLUMNS: ColumnSpec[] = [
+  {
+    status: "paid",
+    label: "NOVOS",
+    accent: "text-palantir-yellow border-palantir-yellow",
+    next: "preparing",
+    cta: "ACEITAR",
+    acceptsFrom: [],
+  },
+  {
+    status: "preparing",
+    label: "EM PREPARO",
+    accent: "text-palantir-blue border-palantir-blue",
+    next: "ready",
+    cta: "MARCAR PRONTO",
+    acceptsFrom: ["paid"],
+  },
+  {
+    status: "ready",
+    label: "PRONTOS",
+    accent: "text-palantir-green border-palantir-green",
+    acceptsFrom: ["preparing"],
+  },
+  {
+    status: "partial",
+    label: "PARCIAL",
+    accent: "text-somma-orange border-somma-orange",
+    acceptsFrom: [], // intermediário automático
+  },
+  {
+    status: "delivered",
+    label: "ENTREGUES",
+    accent: "text-palantir-muted border-palantir-muted",
+    acceptsFrom: ["ready", "partial"], // dispara DeliverDialog
+  },
 ];
+
+const DRAGGABLE_STATUSES: Status[] = ["paid", "preparing", "ready", "partial"];
 
 export function Pedidos({ slug }: { slug: string }) {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -53,8 +112,17 @@ export function Pedidos({ slug }: { slug: string }) {
   const [query, setQuery] = useState("");
   const [delivering, setDelivering] = useState<Order | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const beepRef = useRef<(() => void) | null>(null);
   const prevNewIds = useRef<Set<string>>(new Set());
+
+  const sensors = useSensors(
+    // distância em desktop evita ativar drag em micro-cliques
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    // delay em touch evita conflito com scroll horizontal das colunas
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 6 } }),
+    useSensor(KeyboardSensor)
+  );
 
   useEffect(() => {
     beepRef.current = () => {
@@ -135,12 +203,14 @@ export function Pedidos({ slug }: { slug: string }) {
   }, [filtered]);
 
   async function advance(id: string, next: Status) {
-    await fetch(`/api/pdv/orders/${id}`, {
+    // Atualização otimista — UI move o card antes do round-trip
+    setOrders((curr) => curr.map((o) => (o.id === id ? { ...o, status: next } : o)));
+    const r = await fetch(`/api/pdv/orders/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: next }),
     });
-    refresh();
+    if (!r.ok) refresh(); // rollback via re-fetch
   }
 
   async function cancel(id: string) {
@@ -153,17 +223,53 @@ export function Pedidos({ slug }: { slug: string }) {
     refresh();
   }
 
+  const activeOrder = activeId ? orders.find((o) => o.id === activeId) ?? null : null;
+
+  function onDragStart(e: DragStartEvent) {
+    setActiveId(String(e.active.id));
+  }
+
+  function onDragEnd(e: DragEndEvent) {
+    const id = String(e.active.id);
+    setActiveId(null);
+    if (!e.over) return;
+
+    const order = orders.find((o) => o.id === id);
+    if (!order) return;
+
+    const targetStatus = String(e.over.id) as Status;
+    if (order.status === targetStatus) return;
+
+    const target = COLUMNS.find((c) => c.status === targetStatus);
+    if (!target || !target.acceptsFrom.includes(order.status)) return;
+
+    // Entrega passa pelo dialog (suporta retirada parcial)
+    if (targetStatus === "delivered") {
+      setDelivering(order);
+      return;
+    }
+
+    advance(id, targetStatus);
+  }
+
   return (
     <div className="flex h-full min-h-[calc(100dvh-7rem)] md:min-h-dvh-100 flex-col">
       <header className="flex items-center justify-between gap-2 border-b border-palantir-border bg-palantir-bg/85 px-3 sm:px-6 py-3 backdrop-blur">
         <div className="min-w-0">
           <h1 className="text-base sm:text-lg font-semibold text-white">Pedidos</h1>
           <p className="mono text-[10px] uppercase tracking-wider text-palantir-muted truncate">
-            Kanban realtime · CPF/nome/#
+            Kanban realtime · arraste entre colunas
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Search desktop */}
+          <Link
+            href={`/loja/${slug}/pedidos/novo`}
+            className="inline-flex items-center gap-1.5 rounded-admin bg-palantir-blue min-h-touch px-3 text-xs font-semibold text-white focus-ring-admin"
+            aria-label="Criar novo pedido manual"
+          >
+            <PlusCircle className="size-4" />
+            <span className="hidden sm:inline">NOVO PEDIDO</span>
+          </Link>
           <div className="hidden md:flex items-center gap-2">
             <input
               value={query}
@@ -180,7 +286,6 @@ export function Pedidos({ slug }: { slug: string }) {
               {filtered.length}/{orders.length}
             </span>
           </div>
-          {/* Search mobile — ícone que abre overlay */}
           <button
             onClick={() => setSearchOpen(true)}
             className="md:hidden grid size-touch place-items-center rounded-admin border border-palantir-border text-palantir-text focus-ring-admin"
@@ -194,7 +299,6 @@ export function Pedidos({ slug }: { slug: string }) {
         </div>
       </header>
 
-      {/* Search overlay mobile */}
       {searchOpen && (
         <div className="md:hidden border-b border-palantir-border bg-palantir-surface px-3 py-2 flex items-center gap-2 animate-fade-in">
           <Search className="size-4 text-palantir-muted shrink-0" />
@@ -238,50 +342,33 @@ export function Pedidos({ slug }: { slug: string }) {
           </div>
         </div>
       ) : (
-        /*
-          Kanban:
-          - <lg: scroll horizontal com snap, colunas com min-w fixo
-          - lg+: grid 5 colunas
-          Cada coluna tem header sticky.
-        */
-        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden bg-palantir-border lg:overflow-hidden">
-          <div className="flex h-full gap-px lg:grid lg:grid-cols-5 scroll-snap-x">
-            {COLUMNS.map((col) => (
-              <section
-                key={col.status}
-                className="flex h-full min-w-[78vw] sm:min-w-[60vw] lg:min-w-0 flex-col bg-palantir-bg snap-start"
-              >
-                <div
-                  className={`sticky top-0 z-10 flex items-center justify-between border-b-2 bg-palantir-bg px-3 py-2 ${col.accent}`}
-                >
-                  <span className="mono text-xs font-bold tracking-wider">{col.label}</span>
-                  <span className="mono rounded-admin bg-palantir-surface2 px-2 text-xs">
-                    {byStatus[col.status]?.length ?? 0}
-                  </span>
-                </div>
-                <div className="term-scroll flex-1 space-y-2 overflow-y-auto p-2 pb-6">
-                  {byStatus[col.status]?.length === 0 && (
-                    <p className="mono text-center text-[10px] text-palantir-muted/60 py-4 uppercase">
-                      vazio
-                    </p>
-                  )}
-                  {byStatus[col.status]?.map((o) => (
-                    <OrderCard
-                      key={o.id}
-                      order={o}
-                      next={col.next}
-                      nextLabel={col.cta}
-                      onAdvance={() => col.next && advance(o.id, col.next)}
-                      onCancel={() => cancel(o.id)}
-                      onDeliver={() => setDelivering(o)}
-                      columnStatus={col.status}
-                    />
-                  ))}
-                </div>
-              </section>
-            ))}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          onDragCancel={() => setActiveId(null)}
+        >
+          <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden bg-palantir-border lg:overflow-hidden">
+            <div className="flex h-full gap-px lg:grid lg:grid-cols-5 scroll-snap-x">
+              {COLUMNS.map((col) => (
+                <Column
+                  key={col.status}
+                  col={col}
+                  orders={byStatus[col.status] ?? []}
+                  activeOrderStatus={activeOrder?.status}
+                  onAdvance={(id, next) => advance(id, next)}
+                  onCancel={cancel}
+                  onDeliver={(o) => setDelivering(o)}
+                />
+              ))}
+            </div>
           </div>
-        </div>
+
+          <DragOverlay dropAnimation={null}>
+            {activeOrder ? <OrderCard order={activeOrder} columnStatus={activeOrder.status} dragging /> : null}
+          </DragOverlay>
+        </DndContext>
       )}
 
       {delivering && (
@@ -298,9 +385,68 @@ export function Pedidos({ slug }: { slug: string }) {
   );
 }
 
-// ─── Card ─────────────────────────────────────────────────────────
+// ─── Coluna (droppable) ────────────────────────────────────────────
 
-function OrderCard({
+function Column({
+  col,
+  orders,
+  activeOrderStatus,
+  onAdvance,
+  onCancel,
+  onDeliver,
+}: {
+  col: ColumnSpec;
+  orders: Order[];
+  activeOrderStatus: Status | undefined;
+  onAdvance: (id: string, next: Status) => void;
+  onCancel: (id: string) => void;
+  onDeliver: (o: Order) => void;
+}) {
+  const accepts =
+    activeOrderStatus !== undefined && col.acceptsFrom.includes(activeOrderStatus);
+  const { setNodeRef, isOver } = useDroppable({ id: col.status, disabled: !accepts });
+
+  return (
+    <section
+      ref={setNodeRef}
+      className={`flex h-full min-w-[78vw] sm:min-w-[60vw] lg:min-w-0 flex-col bg-palantir-bg snap-start transition-colors ${
+        accepts ? "ring-1 ring-inset ring-palantir-blue/40" : ""
+      } ${isOver && accepts ? "bg-palantir-blue/10" : ""}`}
+    >
+      <div
+        className={`sticky top-0 z-10 flex items-center justify-between border-b-2 bg-palantir-bg px-3 py-2 ${col.accent}`}
+      >
+        <span className="mono text-xs font-bold tracking-wider">{col.label}</span>
+        <span className="mono rounded-admin bg-palantir-surface2 px-2 text-xs">
+          {orders.length}
+        </span>
+      </div>
+      <div className="term-scroll flex-1 space-y-2 overflow-y-auto p-2 pb-6">
+        {orders.length === 0 && (
+          <p className="mono text-center text-[10px] text-palantir-muted/60 py-4 uppercase">
+            {accepts ? "solte aqui" : "vazio"}
+          </p>
+        )}
+        {orders.map((o) => (
+          <DraggableCard
+            key={o.id}
+            order={o}
+            next={col.next}
+            nextLabel={col.cta}
+            onAdvance={() => col.next && onAdvance(o.id, col.next)}
+            onCancel={() => onCancel(o.id)}
+            onDeliver={() => onDeliver(o)}
+            columnStatus={col.status}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ─── Card draggable wrapper ────────────────────────────────────────
+
+function DraggableCard({
   order,
   next,
   nextLabel,
@@ -317,20 +463,91 @@ function OrderCard({
   onDeliver: () => void;
   columnStatus: Status;
 }) {
+  const draggable = DRAGGABLE_STATUSES.includes(columnStatus);
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: order.id,
+    disabled: !draggable,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={isDragging ? "opacity-30" : ""}
+      style={{ touchAction: draggable ? "none" : undefined }}
+    >
+      <OrderCard
+        order={order}
+        next={next}
+        nextLabel={nextLabel}
+        onAdvance={onAdvance}
+        onCancel={onCancel}
+        onDeliver={onDeliver}
+        columnStatus={columnStatus}
+        dragHandle={
+          draggable ? (
+            <button
+              {...attributes}
+              {...listeners}
+              aria-label={`Arrastar pedido #${order.number}`}
+              className="grid size-touch place-items-center -m-1 text-palantir-muted hover:text-palantir-text cursor-grab active:cursor-grabbing touch-none focus-ring-admin"
+            >
+              <GripVertical className="size-4" />
+            </button>
+          ) : null
+        }
+      />
+    </div>
+  );
+}
+
+// ─── Card visual ──────────────────────────────────────────────────
+
+function OrderCard({
+  order,
+  next,
+  nextLabel,
+  onAdvance,
+  onCancel,
+  onDeliver,
+  columnStatus,
+  dragHandle,
+  dragging,
+}: {
+  order: Order;
+  next?: Status;
+  nextLabel?: string;
+  onAdvance?: () => void;
+  onCancel?: () => void;
+  onDeliver?: () => void;
+  columnStatus: Status;
+  dragHandle?: React.ReactNode;
+  dragging?: boolean;
+}) {
   const totalPedidos = order.items.reduce((s, i) => s + i.qty, 0);
   const totalEntregues = order.items.reduce((s, i) => s + i.delivered_qty, 0);
   const canDeliver = ["ready", "partial"].includes(columnStatus);
 
   return (
-    <article className="animate-slide-in rounded-admin border border-palantir-border bg-palantir-surface p-3">
-      <div className="flex items-center justify-between">
-        <span className="mono font-bold text-white">#{order.number}</span>
-        <span className="mono text-xs text-palantir-muted">{formatTime(order.created_at)}</span>
+    <article
+      className={`animate-slide-in rounded-admin border border-palantir-border bg-palantir-surface p-3 ${
+        dragging ? "shadow-xl ring-2 ring-palantir-blue/60 rotate-1" : ""
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-1 min-w-0">
+          {dragHandle}
+          <div className="min-w-0">
+            <span className="mono font-bold text-white">#{order.number}</span>
+            <div className="text-sm text-palantir-text truncate">{order.customer_name}</div>
+            {order.customer_cpf && (
+              <div className="mono text-[10px] text-palantir-muted">CPF: {order.customer_cpf}</div>
+            )}
+          </div>
+        </div>
+        <span className="mono text-xs text-palantir-muted shrink-0">
+          {formatTime(order.created_at)}
+        </span>
       </div>
-      <div className="mt-1 text-sm text-palantir-text truncate">{order.customer_name}</div>
-      {order.customer_cpf && (
-        <div className="mono text-[10px] text-palantir-muted">CPF: {order.customer_cpf}</div>
-      )}
       <ul className="my-2 space-y-0.5">
         {order.items.map((it) => {
           const fullyDelivered = it.delivered_qty >= it.qty;
@@ -366,33 +583,35 @@ function OrderCard({
       <div className="mono mb-2 text-xs text-palantir-muted">
         {order.method.toUpperCase()} · {brl(order.total)}
       </div>
-      <div className="flex gap-1">
-        {next && (
-          <button
-            onClick={onAdvance}
-            className="flex-1 rounded-admin bg-palantir-blue min-h-touch py-2 text-xs font-semibold text-white hover:opacity-90 focus-ring-admin"
-          >
-            {nextLabel}
-          </button>
-        )}
-        {canDeliver && (
-          <button
-            onClick={onDeliver}
-            className="flex-1 rounded-admin bg-palantir-green min-h-touch py-2 text-xs font-semibold text-black hover:opacity-90 focus-ring-admin"
-          >
-            ENTREGAR
-          </button>
-        )}
-        {columnStatus === "paid" && (
-          <button
-            onClick={onCancel}
-            aria-label="Cancelar pedido"
-            className="grid min-h-touch min-w-touch place-items-center rounded-admin border border-palantir-red text-palantir-red hover:bg-palantir-red/10 focus-ring-admin"
-          >
-            <X className="size-4" />
-          </button>
-        )}
-      </div>
+      {(onAdvance || onDeliver || onCancel) && !dragging && (
+        <div className="flex gap-1">
+          {next && onAdvance && (
+            <button
+              onClick={onAdvance}
+              className="flex-1 rounded-admin bg-palantir-blue min-h-touch py-2 text-xs font-semibold text-white hover:opacity-90 focus-ring-admin"
+            >
+              {nextLabel}
+            </button>
+          )}
+          {canDeliver && onDeliver && (
+            <button
+              onClick={onDeliver}
+              className="flex-1 rounded-admin bg-palantir-green min-h-touch py-2 text-xs font-semibold text-black hover:opacity-90 focus-ring-admin"
+            >
+              ENTREGAR
+            </button>
+          )}
+          {columnStatus === "paid" && onCancel && (
+            <button
+              onClick={onCancel}
+              aria-label="Cancelar pedido"
+              className="grid min-h-touch min-w-touch place-items-center rounded-admin border border-palantir-red text-palantir-red hover:bg-palantir-red/10 focus-ring-admin"
+            >
+              <X className="size-4" />
+            </button>
+          )}
+        </div>
+      )}
     </article>
   );
 }
