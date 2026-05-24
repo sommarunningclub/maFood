@@ -1,17 +1,30 @@
 /*
   Cliente Asaas para cobrança Pix.
-  - Se ASAAS_API_KEY não estiver configurada → modo simulado (não chama HTTP,
-    devolve payload falso para desenvolvimento/teste).
-  - Em produção: criar customer (idempotente por externalReference=cpf),
-    criar payment Pix, buscar QR code.
+  Padrões adotados a partir da integração de referência (somma-site-assessoria-esportiva):
+    - URL normalizada (aceita "https://api.asaas.com" ou "...api.asaas.com/v3")
+    - Header `access_token` (não Bearer)
+    - Erros mapeados pra `errors[0].description` quando presente
+    - CPF/telefone sanitizados (apenas dígitos) antes de mandar
+
+  Produção:  ASAAS_BASE_URL=https://api.asaas.com/v3
+  Sandbox:   ASAAS_BASE_URL=https://api-sandbox.asaas.com/v3
+  Sem chave  → modo simulado (devolve payload falso para dev local).
 
   Docs: https://docs.asaas.com/
 */
 
-const BASE_URL = process.env.ASAAS_BASE_URL ?? "https://api-sandbox.asaas.com/v3";
+function normalizeBaseUrl(raw: string | undefined): string {
+  const base = (raw || "https://api.asaas.com/v3").replace(/\/+$/, "");
+  return base.endsWith("/v3") ? base : `${base}/v3`;
+}
+
+const BASE_URL = normalizeBaseUrl(process.env.ASAAS_BASE_URL);
 const API_KEY = process.env.ASAAS_API_KEY ?? "";
 
 export const asaasEnabled = !!API_KEY;
+export const asaasIsProd = BASE_URL.includes("api.asaas.com") && !BASE_URL.includes("sandbox");
+
+const onlyDigits = (s?: string | null) => (s ? s.replace(/\D/g, "") : "");
 
 interface AsaasCustomerInput {
   name: string;
@@ -31,7 +44,7 @@ interface AsaasPaymentInput {
   customerId: string;
   value: number;
   description: string;
-  externalReference: string; // order.id
+  externalReference: string;
   dueDate: string; // YYYY-MM-DD
 }
 
@@ -43,9 +56,14 @@ export interface AsaasPayment {
 }
 
 export interface AsaasPixQr {
-  encodedImage: string; // base64 PNG
-  payload: string; // copia-cola Pix
+  encodedImage: string;
+  payload: string;
   expirationDate?: string;
+}
+
+interface AsaasErrorBody {
+  errors?: Array<{ code?: string; description?: string }>;
+  message?: string;
 }
 
 async function asaasFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -54,8 +72,8 @@ async function asaasFetch<T>(path: string, init?: RequestInit): Promise<T> {
     headers: {
       "Content-Type": "application/json",
       access_token: API_KEY,
-      ...(init?.headers ?? {}),
       "user-agent": "maFood/1.0",
+      ...(init?.headers ?? {}),
     },
     cache: "no-store",
   });
@@ -67,32 +85,41 @@ async function asaasFetch<T>(path: string, init?: RequestInit): Promise<T> {
     body = text;
   }
   if (!res.ok) {
+    const err = body as AsaasErrorBody | null;
     const detail =
-      typeof body === "object" && body !== null && "errors" in body
-        ? JSON.stringify((body as { errors: unknown }).errors)
-        : String(body);
-    throw new Error(`Asaas ${res.status}: ${detail}`);
+      err?.errors?.[0]?.description ||
+      err?.message ||
+      (typeof body === "string" ? body : `HTTP ${res.status}`);
+    const e = new Error(`Asaas ${res.status}: ${detail}`);
+    // anexa contexto pra logs
+    (e as Error & { status?: number; body?: unknown }).status = res.status;
+    (e as Error & { status?: number; body?: unknown }).body = body;
+    throw e;
   }
   return body as T;
 }
 
 export async function findOrCreateCustomer(input: AsaasCustomerInput): Promise<AsaasCustomer> {
+  const cpf = onlyDigits(input.cpfCnpj);
   if (!asaasEnabled) {
-    return { id: `sim_cus_${input.cpfCnpj}`, name: input.name, cpfCnpj: input.cpfCnpj };
+    return { id: `sim_cus_${cpf}`, name: input.name, cpfCnpj: cpf };
   }
   // Busca por cpfCnpj evita duplicar
   const list = await asaasFetch<{ data: AsaasCustomer[] }>(
-    `/customers?cpfCnpj=${encodeURIComponent(input.cpfCnpj)}&limit=1`
+    `/customers?cpfCnpj=${encodeURIComponent(cpf)}&limit=1`
   );
   if (list.data?.[0]) return list.data[0];
 
+  const phone = onlyDigits(input.phone);
   return asaasFetch<AsaasCustomer>(`/customers`, {
     method: "POST",
     body: JSON.stringify({
       name: input.name,
-      cpfCnpj: input.cpfCnpj,
-      email: input.email ?? undefined,
-      mobilePhone: input.phone ?? undefined,
+      cpfCnpj: cpf,
+      email: input.email || undefined,
+      // Asaas usa `mobilePhone` para celular (11 dígitos) e `phone` para fixo
+      mobilePhone: phone.length === 11 ? phone : undefined,
+      phone: phone && phone.length !== 11 ? phone : undefined,
       externalReference: input.externalReference,
       notificationDisabled: false,
     }),
@@ -102,7 +129,7 @@ export async function findOrCreateCustomer(input: AsaasCustomerInput): Promise<A
 export async function createPixPayment(input: AsaasPaymentInput): Promise<AsaasPayment> {
   if (!asaasEnabled) {
     return {
-      id: `sim_pay_${input.externalReference}`,
+      id: `sim_pay_${input.externalReference}_${Date.now()}`,
       status: "PENDING",
       value: input.value,
       invoiceUrl: undefined,
@@ -133,11 +160,11 @@ export async function getPixQr(paymentId: string): Promise<AsaasPixQr> {
 
 /*
   Webhook helper: valida o token enviado pelo Asaas via header
-  `asaas-access-token`. Em modo simulado, aceita qualquer token
-  (apenas pra facilitar dev local).
+  `asaas-access-token`. Em modo simulado (sem chave), aceita qualquer token
+  pra facilitar dev local.
 */
 export function isValidWebhookToken(received: string | null): boolean {
   const expected = process.env.ASAAS_WEBHOOK_TOKEN ?? "";
-  if (!expected) return !asaasEnabled; // sem token configurado, só aceita em dev/simulado
+  if (!expected) return !asaasEnabled;
   return received === expected;
 }
