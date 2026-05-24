@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCustomerSession } from "@/lib/auth/customer-session";
 import { CustomerHeader } from "@/components/customer/customer-header";
-import { InstagramChip } from "@/components/customer/instagram-chip";
 
 export const dynamic = "force-dynamic";
 
@@ -17,102 +16,127 @@ export default async function MarketplacePage({ params }: { params: { venue: str
     .maybeSingle();
   if (!venue) notFound();
 
-  const [pdvsRes, productsRes] = await Promise.all([
-    supabase
-      .from("pdvs")
-      .select("id, slug, name, category, logo_url, prep_time_min, is_open, sort_order, instagram_handle")
-      .eq("venue_id", venue.id)
-      .order("sort_order", { ascending: true }),
-    supabase
-      .from("products")
-      .select("pdv_id, status")
-      .eq("status", "active"),
-  ]);
+  const { data: pdvsData } = await supabase
+    .from("pdvs")
+    .select("id, slug, name, category, logo_url, is_open, sort_order")
+    .eq("venue_id", venue.id)
+    .order("sort_order", { ascending: true });
 
-  const pdvs = pdvsRes.data ?? [];
-  const products = productsRes.data ?? [];
-  const countByPdv = products.reduce<Record<string, number>>((acc, p) => {
-    acc[p.pdv_id] = (acc[p.pdv_id] ?? 0) + 1;
-    return acc;
-  }, {});
-
+  const pdvs = pdvsData ?? [];
   const session = await getCustomerSession();
 
   return (
-    <div className="pb-10 pb-safe somma-grain min-h-dvh-100">
+    <div className="min-h-dvh-100 bg-somma-orange text-white pb-10 pb-safe">
       <CustomerHeader session={session} venue={params.venue} />
 
-      {/* Hero */}
-      <header className="relative px-4 sm:px-5 pt-6 pb-7 bg-gradient-to-b from-somma-orange/15 to-transparent">
-        <p className="num text-[11px] text-somma-orange tracking-[0.25em] mb-2">
-          18 JUL 2026 · COPMDF · BRASÍLIA
+      {/* Hero — minimal, sem bloco/card */}
+      <header className="px-5 pt-10 pb-12 text-center">
+        <p className="num text-[11px] text-white/70 tracking-[0.3em] uppercase mb-3">
+          18 jul 2026 · COPMDF · Brasília
         </p>
-        <h1 className="text-fluid-3xl leading-[0.95] text-white font-display uppercase text-balance">
+        <h1 className="text-fluid-3xl leading-[0.95] text-white font-display uppercase">
           {venue.name}
         </h1>
         {venue.description && (
-          <p className="text-somma-muted text-sm mt-2 text-pretty">{venue.description}</p>
+          <p className="text-white/80 text-sm mt-3 max-w-xs mx-auto text-pretty">
+            {venue.description}
+          </p>
         )}
       </header>
 
-      {/* Lista de PDVs */}
-      <section className="px-4 sm:px-5 space-y-3">
-        <h2 className="text-lg text-white font-display uppercase tracking-wide">
-          Escolha um ponto
-        </h2>
-        {pdvs.map((pdv) => {
-          const available = countByPdv[pdv.id] ?? 0;
-          return (
-            <Link
-              key={pdv.id}
-              href={pdv.is_open ? `/${params.venue}/${pdv.slug}` : "#"}
-              aria-disabled={!pdv.is_open}
-              className={`block rounded-client border border-somma-border bg-somma-surface p-4 min-h-touch transition-all focus-ring ${
-                pdv.is_open
-                  ? "active:scale-[0.98] hover:border-somma-orange/50"
-                  : "opacity-50 pointer-events-none"
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                <div className="text-4xl">{pdv.logo_url || "🍽"}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-white font-display uppercase tracking-wide text-lg">
-                      {pdv.name}
-                    </h3>
-                    {!pdv.is_open && (
-                      <span className="num text-[10px] text-somma-red bg-somma-red/10 px-1.5 py-0.5">
-                        FECHADO
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-somma-muted text-xs">{pdv.category}</p>
-                  <div className="flex items-center gap-3 mt-1.5 num text-[11px] text-somma-muted flex-wrap">
-                    <span>⏱ {pdv.prep_time_min} min</span>
-                    <span>· {available} {available === 1 ? "item" : "itens"}</span>
-                    {pdv.instagram_handle && <InstagramChip handle={pdv.instagram_handle} />}
-                  </div>
-                </div>
-                <span className="text-somma-orange text-xl">→</span>
-              </div>
-            </Link>
-          );
-        })}
-        {pdvs.length === 0 && (
-          <p className="text-somma-muted text-sm text-center py-6">
+      {/* Grid 2 cols — cards grandes, dark sobre laranja */}
+      <section className="px-4 sm:px-6">
+        <p className="num text-[10px] text-white/60 uppercase tracking-[0.25em] mb-4 text-center">
+          escolha um ponto
+        </p>
+
+        {pdvs.length === 0 ? (
+          <p className="text-white/70 text-sm text-center py-10">
             Nenhum PDV cadastrado ainda neste evento.
           </p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 max-w-md mx-auto">
+            {pdvs.map((pdv) => (
+              <PdvCard
+                key={pdv.id}
+                venue={params.venue}
+                slug={pdv.slug}
+                name={pdv.name}
+                category={pdv.category}
+                logo={pdv.logo_url}
+                isOpen={pdv.is_open}
+              />
+            ))}
+          </div>
         )}
       </section>
 
-      <footer className="px-5 mt-8 num text-[10px] text-somma-muted text-center">
+      <footer className="mt-10 text-center">
         <Link
           href={`/${params.venue}/history`}
-          className="underline inline-flex items-center min-h-touch px-2 focus-ring"
+          className="num text-[11px] text-white/80 underline underline-offset-4 inline-flex items-center min-h-touch px-3 focus-ring"
         >
           Ver meus pedidos
         </Link>
       </footer>
     </div>
+  );
+}
+
+function PdvCard({
+  venue,
+  slug,
+  name,
+  category,
+  logo,
+  isOpen,
+}: {
+  venue: string;
+  slug: string;
+  name: string;
+  category: string | null;
+  logo: string | null;
+  isOpen: boolean;
+}) {
+  const inner = (
+    <>
+      <div
+        className="text-6xl sm:text-7xl mb-3 select-none"
+        aria-hidden="true"
+      >
+        {logo || "🍽"}
+      </div>
+      <h3 className="text-white font-display uppercase tracking-wide text-base sm:text-lg leading-tight text-balance">
+        {name}
+      </h3>
+      {category && (
+        <p className="num text-[10px] text-somma-muted uppercase tracking-wider mt-1">
+          {category}
+        </p>
+      )}
+      {!isOpen && (
+        <span className="absolute top-2 right-2 num text-[9px] text-somma-red bg-somma-red/15 px-1.5 py-0.5 rounded uppercase tracking-wider">
+          Fechado
+        </span>
+      )}
+    </>
+  );
+
+  const baseClass =
+    "relative aspect-square flex flex-col items-center justify-center text-center px-3 py-4 rounded-2xl bg-somma-bg border border-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.25)] transition-all focus-ring";
+
+  if (!isOpen) {
+    return (
+      <div className={`${baseClass} opacity-40 pointer-events-none`}>{inner}</div>
+    );
+  }
+
+  return (
+    <Link
+      href={`/${venue}/${slug}`}
+      className={`${baseClass} active:scale-[0.97] hover:border-white/25 hover:shadow-[0_12px_32px_rgba(0,0,0,0.35)]`}
+    >
+      {inner}
+    </Link>
   );
 }
