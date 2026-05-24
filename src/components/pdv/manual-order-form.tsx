@@ -12,7 +12,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import QRCode from "qrcode";
-import { ArrowLeft, Search, Plus, Minus, Copy, ExternalLink, Trash2 } from "lucide-react";
+import { ArrowLeft, Search, Plus, Minus, Copy, ExternalLink, Trash2, Mail, MessageCircle, Link2, Check } from "lucide-react";
 import { brl } from "@/lib/utils";
 
 function maskCpf(v: string) {
@@ -52,11 +52,13 @@ interface Result {
   order_id: string;
   order_number: number;
   total: number;
+  method: "pix" | "card";
   pix_payload: string | null;
   pix_qr_code: string | null;
   invoice_url: string | null;
+  pay_url: string | null;
   simulated: boolean;
-  customer: { id: string; name: string; cpf: string };
+  customer: { id: string; name: string; cpf: string; email: string | null; phone: string | null };
 }
 
 export function ManualOrderForm({ slug }: { slug: string }) {
@@ -70,6 +72,7 @@ export function ManualOrderForm({ slug }: { slug: string }) {
   const [qts, setQts] = useState<Record<string, number>>({});
   const [productSearch, setProductSearch] = useState("");
   const [notes, setNotes] = useState("");
+  const [method, setMethod] = useState<"pix" | "card">("pix");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
@@ -196,6 +199,7 @@ export function ManualOrderForm({ slug }: { slug: string }) {
                 phone: newPhone.replace(/\D/g, "") || null,
               },
           notes: notes.trim() || null,
+          method,
           items: cartLines.map((l) => ({ product_id: l.product.id, qty: l.qty })),
         }),
       });
@@ -412,6 +416,33 @@ export function ManualOrderForm({ slug }: { slug: string }) {
           </section>
         )}
 
+        {/* ── Método de pagamento ─────────────────────────────── */}
+        {customer && cartLines.length > 0 && (
+          <section className="border border-palantir-border bg-palantir-surface p-3 sm:p-4">
+            <p className="mono text-[10px] tracking-widest text-palantir-muted mb-2">PAGAMENTO</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(["pix", "card"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMethod(m)}
+                  className={`mono text-xs uppercase tracking-wider min-h-touch rounded-admin border focus-ring-admin ${
+                    method === m
+                      ? "border-palantir-blue bg-palantir-blue/10 text-palantir-blue"
+                      : "border-palantir-border text-palantir-muted"
+                  }`}
+                >
+                  {m === "pix" ? "Pix (QR)" : "Cartão (link)"}
+                </button>
+              ))}
+            </div>
+            {method === "card" && (
+              <p className="mono text-[10px] text-palantir-muted mt-2">
+                Cliente recebe link pra pagar com cartão. Envie por email ou WhatsApp na próxima tela.
+              </p>
+            )}
+          </section>
+        )}
+
         {/* ── Resumo + observações ─────────────────────────────── */}
         {customer && cartLines.length > 0 && (
           <section className="border border-palantir-border bg-palantir-surface p-3 sm:p-4">
@@ -471,7 +502,9 @@ export function ManualOrderForm({ slug }: { slug: string }) {
               disabled={submitting || (!customer.isExisting && !newName.trim())}
               className="ml-auto rounded-admin bg-palantir-green min-h-touch px-5 text-sm text-black font-semibold disabled:opacity-40 focus-ring-admin"
             >
-              {submitting ? "Gerando Pix..." : "Gerar Pix"}
+              {submitting
+                ? method === "pix" ? "Gerando Pix..." : "Gerando link..."
+                : method === "pix" ? "Gerar Pix" : "Gerar link de cartão"}
             </button>
           </div>
         </div>
@@ -495,23 +528,25 @@ function ResultView({
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    // Se o Asaas devolveu imagem base64, usa-a. Senão (modo simulado), gera local
-    // a partir do payload.
     if (qrImg) return;
-    if (result.pix_payload) {
+    if (result.method === "pix" && result.pix_payload) {
       QRCode.toDataURL(result.pix_payload, { width: 280, margin: 1 }).then((url) =>
         setQrImg(url)
       );
     }
-  }, [qrImg, result.pix_payload]);
+  }, [qrImg, result.pix_payload, result.method]);
 
-  async function copy() {
-    if (!result.pix_payload) return;
+  async function copy(text: string | null) {
+    if (!text) return;
     try {
-      await navigator.clipboard.writeText(result.pix_payload);
+      await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {}
+  }
+
+  if (result.method === "card") {
+    return <CardLinkResult slug={slug} result={result} onNew={onNew} />;
   }
 
   return (
@@ -573,7 +608,7 @@ function ResultView({
                 {result.pix_payload}
               </code>
               <button
-                onClick={copy}
+                onClick={() => copy(result.pix_payload)}
                 aria-label="Copiar Pix"
                 className="grid size-touch place-items-center rounded-admin border border-palantir-border text-palantir-text hover:bg-palantir-surface2 focus-ring-admin"
               >
@@ -600,6 +635,212 @@ function ResultView({
         <p className="text-sm text-palantir-muted mt-4">
           Mostre o QR ao cliente. Assim que ele pagar, o pedido entra automaticamente
           na fila &ldquo;NOVOS&rdquo; do Kanban.
+        </p>
+      </div>
+
+      <div className="mt-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+        <Link
+          href={`/loja/${slug}/pedidos`}
+          className="mono text-xs text-palantir-muted text-center min-h-touch px-3 inline-flex items-center justify-center focus-ring-admin"
+        >
+          Voltar ao Kanban
+        </Link>
+        <button
+          onClick={onNew}
+          className="rounded-admin bg-palantir-blue min-h-touch px-4 text-sm text-white focus-ring-admin"
+        >
+          + Novo pedido
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Resultado quando method=card: envio do link ─────────────────
+
+function CardLinkResult({
+  slug,
+  result,
+  onNew,
+}: {
+  slug: string;
+  result: Result;
+  onNew: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [emailMode, setEmailMode] = useState(false);
+  const [waMode, setWaMode] = useState(false);
+  const [email, setEmail] = useState(result.customer.email ?? "");
+  const [phone, setPhone] = useState(result.customer.phone ?? "");
+  const [sending, setSending] = useState(false);
+  const [sendStatus, setSendStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  const payUrl = result.pay_url ?? "";
+
+  async function copyLink() {
+    if (!payUrl) return;
+    try {
+      await navigator.clipboard.writeText(payUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  }
+
+  async function sendEmail() {
+    setSending(true);
+    setSendStatus(null);
+    const r = await fetch(`/api/pdv/orders/${result.order_id}/send-payment-link`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channel: "email", email }),
+    });
+    const data = await r.json();
+    setSending(false);
+    setSendStatus(
+      r.ok
+        ? { ok: true, msg: `E-mail enviado pra ${email}` }
+        : { ok: false, msg: data.error ?? "Falha ao enviar" }
+    );
+  }
+
+  function openWhatsApp() {
+    const onlyDigits = phone.replace(/\D/g, "");
+    if (onlyDigits.length < 10) {
+      setSendStatus({ ok: false, msg: "Telefone inválido" });
+      return;
+    }
+    // wa.me precisa do DDI; assume 55 (BR) se vier só DDD+número
+    const intl = onlyDigits.startsWith("55") ? onlyDigits : `55${onlyDigits}`;
+    const text = encodeURIComponent(
+      `Olá ${result.customer.name}! Aqui está o link pra pagar seu pedido #${result.order_number} (${brl(result.total)}):\n\n${payUrl}\n\n— maFood`
+    );
+    window.open(`https://wa.me/${intl}?text=${text}`, "_blank", "noopener,noreferrer");
+    setSendStatus({ ok: true, msg: "WhatsApp aberto em nova aba" });
+  }
+
+  return (
+    <div className="min-h-full p-4 sm:p-6 max-w-xl mx-auto">
+      <header className="flex items-center gap-3 mb-6">
+        <Link
+          href={`/loja/${slug}/pedidos`}
+          aria-label="Voltar ao Kanban"
+          className="grid size-touch -ml-2 place-items-center text-palantir-muted hover:text-white focus-ring-admin"
+        >
+          <ArrowLeft className="size-5" />
+        </Link>
+        <div>
+          <h1 className="text-lg font-semibold text-white">Pedido criado</h1>
+          <p className="mono text-[11px] text-palantir-muted">
+            #{result.order_number} · link de cartão · aguardando pagamento
+          </p>
+        </div>
+      </header>
+
+      <div className="border border-palantir-border bg-palantir-surface p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-white font-medium">{result.customer.name}</p>
+            <p className="mono text-[11px] text-palantir-muted">CPF {result.customer.cpf}</p>
+          </div>
+          <p className="mono text-2xl font-bold text-palantir-green">{brl(result.total)}</p>
+        </div>
+
+        {result.simulated && (
+          <div className="mb-3 rounded-admin border border-palantir-yellow/40 bg-palantir-yellow/10 px-3 py-2 mono text-[11px] text-palantir-yellow">
+            ⚠ Modo simulado — ASAAS_API_KEY não configurada. Link funcional mas não cobra.
+          </div>
+        )}
+
+        <div>
+          <p className="mono text-[10px] uppercase text-palantir-muted mb-1">Link de pagamento</p>
+          <div className="flex gap-2">
+            <code className="mono flex-1 truncate rounded-admin border border-palantir-border bg-palantir-bg px-2 py-2 text-[11px] text-palantir-blue">
+              {payUrl}
+            </code>
+            <button
+              onClick={copyLink}
+              aria-label="Copiar link"
+              title="Copiar link"
+              className="grid size-touch place-items-center rounded-admin border border-palantir-border text-palantir-text hover:bg-palantir-surface2 focus-ring-admin"
+            >
+              {copied ? <Check className="size-4 text-palantir-green" /> : <Link2 className="size-4" />}
+            </button>
+          </div>
+          {copied && <p className="mono text-[10px] text-palantir-green mt-1">copiado!</p>}
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button
+            onClick={() => { setEmailMode(true); setWaMode(false); setSendStatus(null); }}
+            className="inline-flex items-center justify-center gap-2 rounded-admin border border-palantir-border min-h-touch px-3 text-xs text-palantir-text hover:bg-palantir-surface2 focus-ring-admin"
+          >
+            <Mail className="size-4" /> E-mail
+          </button>
+          <button
+            onClick={() => { setWaMode(true); setEmailMode(false); setSendStatus(null); }}
+            className="inline-flex items-center justify-center gap-2 rounded-admin border border-palantir-border min-h-touch px-3 text-xs text-palantir-text hover:bg-palantir-surface2 focus-ring-admin"
+          >
+            <MessageCircle className="size-4" /> WhatsApp
+          </button>
+        </div>
+
+        {emailMode && (
+          <div className="mt-3 space-y-2">
+            <label className="block">
+              <span className="mono text-[10px] text-palantir-muted">E-mail do cliente</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="email@exemplo.com"
+                className="mt-1 w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
+              />
+            </label>
+            <button
+              onClick={sendEmail}
+              disabled={!email.includes("@") || sending}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-admin bg-palantir-blue min-h-touch text-sm text-white font-semibold disabled:opacity-40 focus-ring-admin"
+            >
+              {sending ? "Enviando..." : "Confirmar e enviar e-mail"}
+            </button>
+          </div>
+        )}
+
+        {waMode && (
+          <div className="mt-3 space-y-2">
+            <label className="block">
+              <span className="mono text-[10px] text-palantir-muted">
+                Telefone (cadastrado: {phone ? maskPhone(phone) : "—"})
+              </span>
+              <input
+                value={maskPhone(phone)}
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                inputMode="numeric"
+                placeholder="(00) 00000-0000"
+                className="mono mt-1 w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
+              />
+            </label>
+            <button
+              onClick={openWhatsApp}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-admin bg-palantir-green min-h-touch text-sm text-black font-semibold focus-ring-admin"
+            >
+              <MessageCircle className="size-4" /> Abrir WhatsApp com link
+            </button>
+          </div>
+        )}
+
+        {sendStatus && (
+          <p
+            className={`mt-3 mono text-[11px] ${
+              sendStatus.ok ? "text-palantir-green" : "text-palantir-red"
+            }`}
+          >
+            {sendStatus.ok ? "✓" : "✕"} {sendStatus.msg}
+          </p>
+        )}
+
+        <p className="text-sm text-palantir-muted mt-5">
+          Quando o cliente pagar, o pedido entra automaticamente na fila NOVOS do Kanban.
         </p>
       </div>
 

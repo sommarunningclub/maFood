@@ -26,6 +26,7 @@ const Body = z.object({
     })
     .optional(),
   notes: z.string().max(500).optional().nullable(),
+  method: z.enum(["pix", "card"]).default("pix"),
   items: z
     .array(
       z.object({
@@ -121,36 +122,40 @@ export async function POST(req: Request) {
 
   if (total <= 0) return NextResponse.json({ error: "Total inválido" }, { status: 400 });
 
-  // Asaas: customer + payment + QR
+  // Pix → cria cobrança Asaas agora; Cartão (link) → cria order shell,
+  // cobrança é gerada quando cliente abre /pay/[order_id] e digita cartão
   let asaasPaymentId: string | null = null;
   let pixPayload: string | null = null;
   let pixQrCode: string | null = null;
   let invoiceUrl: string | null = null;
-  try {
-    const asaasCustomer = await findOrCreateCustomer({
-      name: customer.name,
-      cpfCnpj: customer.cpf,
-      email: customer.email,
-      phone: customer.phone,
-      externalReference: customer.id,
-    });
-    const payment = await createPixPayment({
-      customerId: asaasCustomer.id,
-      value: total,
-      description: `maFood · ${pdv.name} · pedido manual`,
-      externalReference: customer.id, // sobrescrito depois com order.id se preciso
-      dueDate: tomorrow(),
-    });
-    const qr = await getPixQr(payment.id);
-    asaasPaymentId = payment.id;
-    pixPayload = qr.payload;
-    pixQrCode = qr.encodedImage || null;
-    invoiceUrl = payment.invoiceUrl ?? null;
-  } catch (err) {
-    return NextResponse.json(
-      { error: `Falha no Asaas: ${err instanceof Error ? err.message : "erro"}` },
-      { status: 502 }
-    );
+
+  if (body.method === "pix") {
+    try {
+      const asaasCustomer = await findOrCreateCustomer({
+        name: customer.name,
+        cpfCnpj: customer.cpf,
+        email: customer.email,
+        phone: customer.phone,
+        externalReference: customer.id,
+      });
+      const payment = await createPixPayment({
+        customerId: asaasCustomer.id,
+        value: total,
+        description: `maFood · ${pdv.name} · pedido manual`,
+        externalReference: customer.id,
+        dueDate: tomorrow(),
+      });
+      const qr = await getPixQr(payment.id);
+      asaasPaymentId = payment.id;
+      pixPayload = qr.payload;
+      pixQrCode = qr.encodedImage || null;
+      invoiceUrl = payment.invoiceUrl ?? null;
+    } catch (err) {
+      return NextResponse.json(
+        { error: `Falha no Asaas: ${err instanceof Error ? err.message : "erro"}` },
+        { status: 502 }
+      );
+    }
   }
 
   // Cria pedido pending
@@ -163,7 +168,7 @@ export async function POST(req: Request) {
       customer_name: customer.name,
       customer_cpf: customer.cpf,
       total,
-      method: "pix",
+      method: body.method,
       status: "pending",
       created_by: "pdv",
       notes: body.notes ?? null,
@@ -196,15 +201,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: eItems.message }, { status: 500 });
   }
 
+  // Para cartão (link), monta a URL pública que o operador vai enviar
+  const origin = req.headers.get("origin") ?? new URL(req.url).origin;
+  const payUrl = body.method === "card" ? `${origin}/pay/${order.id}` : null;
+
   return NextResponse.json({
     ok: true,
     simulated: !asaasEnabled,
     order_id: order.id,
     order_number: order.number,
     total,
+    method: body.method,
     pix_payload: pixPayload,
     pix_qr_code: pixQrCode,
     invoice_url: invoiceUrl,
-    customer: { id: customer.id, name: customer.name, cpf: customer.cpf },
+    pay_url: payUrl,
+    customer: {
+      id: customer.id,
+      name: customer.name,
+      cpf: customer.cpf,
+      email: customer.email,
+      phone: customer.phone,
+    },
   });
 }

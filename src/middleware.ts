@@ -28,8 +28,14 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/api/customer/") ||
     pathname.startsWith("/api/landing/") ||
     pathname.startsWith("/api/webhooks/") ||
-    pathname.startsWith("/api/admin/auth/")
+    pathname.startsWith("/api/admin/auth/") ||
+    pathname.startsWith("/api/pay/")
   ) {
+    return NextResponse.next();
+  }
+
+  // Página pública /pay/[id] (link de pagamento por cartão)
+  if (pathname.startsWith("/pay/")) {
     return NextResponse.next();
   }
 
@@ -84,7 +90,7 @@ export async function middleware(req: NextRequest) {
   // Match /<venue>[/...] mas exclui rotas conhecidas (admin, loja, pdv, api, _next)
   const venueMatch = pathname.match(/^\/([^/]+)(?:\/|$)/);
   const venue = venueMatch?.[1];
-  const RESERVED = new Set(["admin", "loja", "pdv", "api", "_next", "favicon.ico"]);
+  const RESERVED = new Set(["admin", "loja", "pdv", "api", "_next", "favicon.ico", "pay"]);
   if (venue && !RESERVED.has(venue) && !venue.includes(".")) {
     if (!isCustomerProtected(pathname, venue)) return NextResponse.next();
 
