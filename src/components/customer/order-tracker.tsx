@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import QRCode from "qrcode";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { brl, formatTime } from "@/lib/utils";
 
@@ -120,17 +121,23 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-somma-muted">
-        carregando pedido...
+      <div className="min-h-dvh-100 flex items-center justify-center text-somma-muted pt-safe pb-safe">
+        <div className="text-center">
+          <div className="size-10 mx-auto mb-3 rounded-full border-2 border-somma-border border-t-somma-orange animate-spin" />
+          carregando pedido...
+        </div>
       </div>
     );
   }
 
   if (!order) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 p-8 text-center">
+      <div className="min-h-dvh-100 flex flex-col items-center justify-center gap-3 p-8 text-center pt-safe pb-safe">
         <p className="text-somma-muted">Pedido não encontrado</p>
-        <Link href={`/${venue}`} className="text-somma-orange num text-sm underline">
+        <Link
+          href={`/${venue}`}
+          className="text-somma-orange num text-sm underline min-h-touch inline-flex items-center px-3 focus-ring"
+        >
           Voltar à praça
         </Link>
       </div>
@@ -144,17 +151,21 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
   const totalEntregues = order.items.reduce((s, i) => s + i.delivered_qty, 0);
 
   return (
-    <div className="min-h-screen p-5 somma-grain">
+    <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe pb-safe somma-grain">
       <header className="flex items-center justify-between">
-        <Link href={`/${venue}`} className="text-somma-muted text-xl">
-          ←
+        <Link
+          href={`/${venue}`}
+          aria-label="Voltar à praça"
+          className="grid size-touch -ml-2 place-items-center text-somma-muted hover:text-white focus-ring"
+        >
+          <ArrowLeft className="size-5" />
         </Link>
         <p className="num text-[11px] text-somma-muted">#{order.number}</p>
       </header>
 
       <div className="mt-4 text-center">
         <p className="num text-[11px] text-somma-muted">{order.pdv_name}</p>
-        <h1 className="text-3xl text-white font-display uppercase mt-1">
+        <h1 className="text-fluid-2xl text-white font-display uppercase mt-1">
           {isReady
             ? isPartial
               ? "Retirada parcial"

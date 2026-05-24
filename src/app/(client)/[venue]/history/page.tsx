@@ -27,12 +27,17 @@ export default async function HistoryPage({ params }: { params: { venue: string 
   const pdvById = new Map((pdvs ?? []).map((p) => [p.id, p]));
 
   return (
-    <div className="min-h-screen p-5 somma-grain">
+    <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe pb-safe somma-grain">
       <header className="flex items-center gap-3">
-        <Link href={`/${params.venue}`} className="text-somma-muted text-xl">
-          ←
+        <Link
+          href={`/${params.venue}`}
+          aria-label="Voltar à praça"
+          className="grid size-touch -ml-2 place-items-center text-somma-muted hover:text-white focus-ring"
+        >
+          <span className="sr-only">Voltar</span>
+          <span aria-hidden>←</span>
         </Link>
-        <h1 className="text-2xl text-white font-display uppercase tracking-wide">
+        <h1 className="text-fluid-2xl text-white font-display uppercase tracking-wide">
           Meus pedidos
         </h1>
       </header>
@@ -56,7 +61,7 @@ export default async function HistoryPage({ params }: { params: { venue: string 
               <Link
                 key={o.id}
                 href={`/${params.venue}/order/${o.id}`}
-                className="block rounded-client border border-somma-border bg-somma-surface p-4 active:scale-[0.98] transition-transform"
+                className="block rounded-client border border-somma-border bg-somma-surface p-4 min-h-touch active:scale-[0.98] transition-transform focus-ring"
               >
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-2">

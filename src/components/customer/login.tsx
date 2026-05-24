@@ -103,18 +103,18 @@ export function CustomerLogin({
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-5 py-10">
+    <main className="min-h-dvh-100 flex flex-col items-center justify-center px-4 sm:px-5 py-10 pt-safe pb-safe">
       <div className="w-full max-w-md">
         {/* Hero */}
         <header className="mb-6 text-center">
           <p className="num text-[11px] text-somma-orange tracking-[0.25em] mb-2">
             18 JUL 2026 · COPMDF · BRASÍLIA
           </p>
-          <h1 className="text-4xl leading-[0.95] text-white font-display uppercase">
+          <h1 className="text-fluid-3xl leading-[0.95] text-white font-display uppercase text-balance">
             {venueName}
           </h1>
           {venueDescription && (
-            <p className="text-somma-muted text-sm mt-2">{venueDescription}</p>
+            <p className="text-somma-muted text-sm mt-2 text-pretty">{venueDescription}</p>
           )}
         </header>
 
@@ -140,7 +140,7 @@ export function CustomerLogin({
                 placeholder="000.000.000-00"
                 autoFocus
                 required
-                className="num mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 h-12 text-xl tracking-wider text-white outline-none focus:border-somma-orange"
+                className="num mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 min-h-touch h-12 text-xl tracking-wider text-white outline-none focus:border-somma-orange focus-ring"
               />
             </label>
 
@@ -149,7 +149,7 @@ export function CustomerLogin({
             <button
               type="submit"
               disabled={cpf.replace(/\D/g, "").length !== 11}
-              className="mt-4 w-full rounded-client bg-somma-orange h-12 text-white font-display uppercase tracking-wide disabled:opacity-40"
+              className="mt-4 w-full rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide disabled:opacity-40 focus-ring"
             >
               Continuar
             </button>
@@ -186,7 +186,7 @@ export function CustomerLogin({
             <button
               type="submit"
               disabled={!name.trim()}
-              className="mt-4 w-full rounded-client bg-somma-orange h-12 text-white font-display uppercase tracking-wide disabled:opacity-40"
+              className="mt-4 w-full rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide disabled:opacity-40 focus-ring"
             >
               Entrar no evento
             </button>
@@ -200,7 +200,7 @@ export function CustomerLogin({
                 setEmail("");
                 setPhone("");
               }}
-              className="mt-2 w-full num text-xs text-somma-muted"
+              className="mt-2 w-full num text-xs text-somma-muted min-h-touch focus-ring"
             >
               ← Usar outro CPF
             </button>
@@ -232,7 +232,7 @@ export function CustomerLogin({
             <button
               type="submit"
               disabled={!name.trim()}
-              className="mt-4 w-full rounded-client bg-somma-orange h-12 text-white font-display uppercase tracking-wide disabled:opacity-40"
+              className="mt-4 w-full rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide disabled:opacity-40 focus-ring"
             >
               Criar cadastro e entrar
             </button>
@@ -246,7 +246,7 @@ export function CustomerLogin({
                 setEmail("");
                 setPhone("");
               }}
-              className="mt-2 w-full num text-xs text-somma-muted"
+              className="mt-2 w-full num text-xs text-somma-muted min-h-touch focus-ring"
             >
               ← Usar outro CPF
             </button>
@@ -282,7 +282,7 @@ function PrefillFields({
         <input
           value={maskCpf(cpf)}
           disabled
-          className="num mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 h-10 text-white opacity-60"
+          className="num mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 min-h-touch h-11 text-white opacity-60"
         />
       </label>
       <label className="block">
@@ -292,7 +292,7 @@ function PrefillFields({
           onChange={(e) => setName(e.target.value)}
           required
           autoFocus
-          className="mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 h-10 text-white outline-none focus:border-somma-orange"
+          className="mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 min-h-touch h-11 text-white outline-none focus:border-somma-orange focus-ring"
         />
       </label>
       <label className="block">
@@ -301,7 +301,7 @@ function PrefillFields({
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 h-10 text-white outline-none focus:border-somma-orange"
+          className="mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 min-h-touch h-11 text-white outline-none focus:border-somma-orange focus-ring"
         />
       </label>
       <label className="block">

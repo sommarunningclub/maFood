@@ -38,24 +38,24 @@ export default async function MarketplacePage({ params }: { params: { venue: str
   const session = await getCustomerSession();
 
   return (
-    <div className="pb-10 somma-grain">
+    <div className="pb-10 pb-safe somma-grain min-h-dvh-100">
       <CustomerHeader session={session} venue={params.venue} />
 
       {/* Hero */}
-      <header className="relative px-5 pt-6 pb-7 bg-gradient-to-b from-somma-orange/15 to-transparent">
+      <header className="relative px-4 sm:px-5 pt-6 pb-7 bg-gradient-to-b from-somma-orange/15 to-transparent">
         <p className="num text-[11px] text-somma-orange tracking-[0.25em] mb-2">
           18 JUL 2026 · COPMDF · BRASÍLIA
         </p>
-        <h1 className="text-4xl leading-[0.95] text-white font-display uppercase">
+        <h1 className="text-fluid-3xl leading-[0.95] text-white font-display uppercase text-balance">
           {venue.name}
         </h1>
         {venue.description && (
-          <p className="text-somma-muted text-sm mt-2">{venue.description}</p>
+          <p className="text-somma-muted text-sm mt-2 text-pretty">{venue.description}</p>
         )}
       </header>
 
       {/* Lista de PDVs */}
-      <section className="px-5 space-y-3">
+      <section className="px-4 sm:px-5 space-y-3">
         <h2 className="text-lg text-white font-display uppercase tracking-wide">
           Escolha um ponto
         </h2>
@@ -66,7 +66,7 @@ export default async function MarketplacePage({ params }: { params: { venue: str
               key={pdv.id}
               href={pdv.is_open ? `/${params.venue}/${pdv.slug}` : "#"}
               aria-disabled={!pdv.is_open}
-              className={`block rounded-client border border-somma-border bg-somma-surface p-4 transition-all ${
+              className={`block rounded-client border border-somma-border bg-somma-surface p-4 min-h-touch transition-all focus-ring ${
                 pdv.is_open
                   ? "active:scale-[0.98] hover:border-somma-orange/50"
                   : "opacity-50 pointer-events-none"
@@ -115,7 +115,10 @@ export default async function MarketplacePage({ params }: { params: { venue: str
       </section>
 
       <footer className="px-5 mt-8 num text-[10px] text-somma-muted text-center">
-        <Link href={`/${params.venue}/history`} className="underline">
+        <Link
+          href={`/${params.venue}/history`}
+          className="underline inline-flex items-center min-h-touch px-2 focus-ring"
+        >
           Ver meus pedidos
         </Link>
       </footer>
