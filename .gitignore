@@ -44,3 +44,4 @@ Thumbs.db
 .branches
 .temp
 **/.supabase/
+*.swp
