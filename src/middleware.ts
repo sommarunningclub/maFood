@@ -19,7 +19,12 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // APIs auth-públicas
-  if (pathname.startsWith("/api/pdv/auth") || pathname.startsWith("/api/customer/")) {
+  if (
+    pathname.startsWith("/api/pdv/auth") ||
+    pathname.startsWith("/api/customer/") ||
+    pathname.startsWith("/api/landing/") ||
+    pathname.startsWith("/api/webhooks/")
+  ) {
     return NextResponse.next();
   }
 
