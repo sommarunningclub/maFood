@@ -1,0 +1,46 @@
+# ── Dependências ──────────────────────────────
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# ── Build / Next.js ───────────────────────────
+/.next/
+/out/
+/build
+/dist
+next-env.d.ts
+*.tsbuildinfo
+
+# ── Variáveis de ambiente (TODAS) ─────────────
+.env
+.env.*
+!.env.example
+
+# ── Logs ──────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── Testes / cobertura ────────────────────────
+/coverage
+
+# ── Sistema operacional ───────────────────────
+.DS_Store
+*.pem
+Thumbs.db
+
+# ── Editores / IDE ────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# ── Vercel / deploy ───────────────────────────
+.vercel
+
+# ── Supabase (local CLI) ──────────────────────
+.branches
+.temp
+**/.supabase/
