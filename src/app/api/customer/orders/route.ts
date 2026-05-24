@@ -1,7 +1,40 @@
+/*
+  Criação de pedido pelo cliente (PWA). Sempre integra com Asaas:
+  - Pix: createPixPayment + getPixQr → devolve payload + QR base64 (frente exibe)
+  - Cartão de crédito (checkout transparente): createCardPayment + holderInfo
+    + remoteIp. Se Asaas retorna CONFIRMED/RECEIVED na hora, marca order como
+    paid imediatamente; caso contrário deixa pending até o webhook confirmar.
+
+  Asaas falhou (erro de validação ou rejeição): NÃO cria pedido — devolve 4xx
+  com a mensagem que o Asaas retornou (`errors[0].description`).
+*/
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCustomerSession } from "@/lib/auth/customer-session";
+import {
+  asaasEnabled,
+  createCardPayment,
+  createPixPayment,
+  findOrCreateCustomer,
+  getPixQr,
+} from "@/lib/asaas";
+
+const CardSchema = z.object({
+  holderName: z.string().min(2).max(120),
+  number: z.string().min(13).max(25),
+  expiryMonth: z.string().regex(/^\d{1,2}$/),
+  expiryYear: z.string().regex(/^\d{2}|\d{4}$/),
+  ccv: z.string().regex(/^\d{3,4}$/),
+});
+
+const HolderInfoSchema = z.object({
+  email: z.string().email(),
+  postalCode: z.string().min(8).max(9),
+  addressNumber: z.string().min(1).max(20),
+  addressComplement: z.string().max(60).optional().nullable(),
+  phone: z.string().optional().nullable(),
+});
 
 const Body = z.object({
   pdv_id: z.string().uuid(),
@@ -17,25 +50,45 @@ const Body = z.object({
       })
     )
     .min(1),
+  card: CardSchema.optional(),
+  holder_info: HolderInfoSchema.optional(),
 });
+
+function tomorrow(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+function getClientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0].trim();
+  return req.headers.get("x-real-ip") ?? "127.0.0.1";
+}
 
 export async function POST(req: Request) {
   const session = await getCustomerSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  let body;
+  let body: z.infer<typeof Body>;
   try { body = Body.parse(await req.json()); }
   catch (e) {
     const msg = e instanceof z.ZodError ? e.issues[0]?.message : "Dados invalidos";
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 
+  if (body.method === "card" && (!body.card || !body.holder_info)) {
+    return NextResponse.json(
+      { error: "Cartão e dados do titular são obrigatórios para pagamento com cartão" },
+      { status: 400 }
+    );
+  }
+
   const supabase = createAdminClient();
 
-  // Busca PDV (precisa de venue_id) e produtos (preço autoritativo do banco)
   const { data: pdv, error: ePdv } = await supabase
     .from("pdvs")
-    .select("id, venue_id, is_open")
+    .select("id, venue_id, name, is_open")
     .eq("id", body.pdv_id)
     .maybeSingle();
   if (ePdv || !pdv) return NextResponse.json({ error: "PDV invalido" }, { status: 400 });
@@ -48,7 +101,6 @@ export async function POST(req: Request) {
     .in("id", productIds);
   if (ePr) return NextResponse.json({ error: ePr.message }, { status: 500 });
 
-  // Validações por item
   const byId = new Map((products ?? []).map((p) => [p.id, p]));
   for (const it of body.items) {
     const p = byId.get(it.product_id);
@@ -59,10 +111,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `Produto indisponivel: ${p.name}` }, { status: 400 });
   }
 
-  // Cupom (opcional)
+  // Subtotal + cupom
   let couponId: string | null = null;
   let discount = 0;
-  let subtotal = body.items.reduce((s, it) => {
+  const subtotal = body.items.reduce((s, it) => {
     const p = byId.get(it.product_id)!;
     return s + Number(p.price) * it.qty;
   }, 0);
@@ -89,11 +141,82 @@ export async function POST(req: Request) {
   }
 
   const total = Math.max(0, subtotal - discount);
+  if (total <= 0) return NextResponse.json({ error: "Total inválido" }, { status: 400 });
 
-  // Cria pedido com status "paid" (simulado: pagamento fingido)
-  // Em produção: status="pending" + criar cobrança Asaas + webhook muda pra "paid"
-  const fakePixPayload = `00020126BR.GOV.BCB.PIX maFood ${total.toFixed(2)} ${Date.now()}`;
+  // Cliente completo do banco (precisamos do email pra holderInfo)
+  const { data: customer } = await supabase
+    .from("customers")
+    .select("id, name, email, phone, cpf")
+    .eq("id", session.customer_id)
+    .maybeSingle();
+  if (!customer) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
 
+  // Email pra Asaas — pega do cadastro; se cartão, usa o do form (sobrescreve)
+  const customerEmail =
+    body.method === "card" && body.holder_info?.email
+      ? body.holder_info.email
+      : customer.email ?? null;
+
+  // Asaas: cria/recupera cliente, cria cobrança
+  let asaasPaymentId: string | null = null;
+  let pixPayload: string | null = null;
+  let pixQrCode: string | null = null;
+  let cardInstantlyConfirmed = false;
+
+  try {
+    const asaasCustomer = await findOrCreateCustomer({
+      name: customer.name,
+      cpfCnpj: customer.cpf,
+      email: customerEmail,
+      phone: customer.phone,
+      externalReference: customer.id,
+    });
+
+    if (body.method === "pix") {
+      const payment = await createPixPayment({
+        customerId: asaasCustomer.id,
+        value: total,
+        description: `maFood · ${pdv.name}`,
+        externalReference: customer.id,
+        dueDate: tomorrow(),
+      });
+      const qr = await getPixQr(payment.id);
+      asaasPaymentId = payment.id;
+      pixPayload = qr.payload;
+      pixQrCode = qr.encodedImage || null;
+    } else {
+      // Asaas exige email no holderInfo — garantido pelo schema do form
+      if (!customerEmail) {
+        return NextResponse.json({ error: "E-mail é obrigatório para cartão" }, { status: 400 });
+      }
+      const payment = await createCardPayment({
+        customerId: asaasCustomer.id,
+        value: total,
+        description: `maFood · ${pdv.name}`,
+        externalReference: customer.id,
+        dueDate: tomorrow(),
+        remoteIp: getClientIp(req),
+        creditCard: body.card!,
+        creditCardHolderInfo: {
+          name: customer.name,
+          email: customerEmail,
+          cpfCnpj: customer.cpf,
+          postalCode: body.holder_info!.postalCode,
+          addressNumber: body.holder_info!.addressNumber,
+          addressComplement: body.holder_info!.addressComplement ?? undefined,
+          phone: body.holder_info!.phone ?? customer.phone ?? undefined,
+        },
+      });
+      asaasPaymentId = payment.id;
+      cardInstantlyConfirmed = payment.status === "CONFIRMED" || payment.status === "RECEIVED";
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erro ao processar pagamento";
+    return NextResponse.json({ error: msg }, { status: 502 });
+  }
+
+  // Cria pedido (pending por padrão; paid se cartão já confirmou)
+  const orderStatus = cardInstantlyConfirmed ? "paid" : "pending";
   const { data: order, error: eOrder } = await supabase
     .from("orders")
     .insert({
@@ -104,11 +227,13 @@ export async function POST(req: Request) {
       customer_cpf: session.cpf,
       total,
       method: body.method,
-      status: "paid", // simulado
-      paid_at: new Date().toISOString(),
+      status: orderStatus,
+      paid_at: cardInstantlyConfirmed ? new Date().toISOString() : null,
       notes: body.notes ?? null,
       coupon_id: couponId,
-      pix_payload: body.method === "pix" ? fakePixPayload : null,
+      asaas_payment_id: asaasPaymentId,
+      pix_payload: pixPayload,
+      pix_qr_code: pixQrCode,
     })
     .select("id, number")
     .single();
@@ -117,7 +242,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: eOrder?.message ?? "Erro ao criar pedido" }, { status: 500 });
   }
 
-  // Cria items
   const itemsToInsert = body.items.map((it) => {
     const p = byId.get(it.product_id)!;
     return {
@@ -132,12 +256,10 @@ export async function POST(req: Request) {
 
   const { error: eItems } = await supabase.from("order_items").insert(itemsToInsert);
   if (eItems) {
-    // rollback: apaga pedido
     await supabase.from("orders").delete().eq("id", order.id);
     return NextResponse.json({ error: eItems.message }, { status: 500 });
   }
 
-  // Incrementa "used" do cupom (best-effort)
   if (couponId) {
     const { data: cur } = await supabase
       .from("coupons")
@@ -151,10 +273,14 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     ok: true,
+    simulated: !asaasEnabled,
     order_id: order.id,
     order_number: order.number,
     total,
     discount,
-    pix_payload: fakePixPayload,
+    method: body.method,
+    status: orderStatus,
+    pix_payload: pixPayload,
+    pix_qr_code: pixQrCode,
   });
 }

@@ -61,6 +61,40 @@ export interface AsaasPixQr {
   expirationDate?: string;
 }
 
+export interface AsaasCardInput {
+  customerId: string;
+  value: number;
+  description: string;
+  externalReference: string;
+  dueDate: string;
+  remoteIp: string;
+  creditCard: {
+    holderName: string;
+    number: string;
+    expiryMonth: string;
+    expiryYear: string;
+    ccv: string;
+  };
+  creditCardHolderInfo: {
+    name: string;
+    email: string;
+    cpfCnpj: string;
+    postalCode: string;
+    addressNumber: string;
+    phone?: string;
+    addressComplement?: string;
+  };
+}
+
+export interface AsaasCardPayment extends AsaasPayment {
+  // status para cartão pode vir CONFIRMED na hora se aprovado
+  creditCard?: {
+    creditCardBrand?: string;
+    creditCardNumber?: string;
+    creditCardToken?: string;
+  };
+}
+
 interface AsaasErrorBody {
   errors?: Array<{ code?: string; description?: string }>;
   message?: string;
@@ -156,6 +190,55 @@ export async function getPixQr(paymentId: string): Promise<AsaasPixQr> {
     };
   }
   return asaasFetch<AsaasPixQr>(`/payments/${paymentId}/pixQrCode`);
+}
+
+/*
+  Cobrança com cartão de crédito (checkout transparente).
+  Asaas processa na hora; status final pode vir CONFIRMED, RECEIVED, ou
+  AWAITING_RISK_ANALYSIS — só CONFIRMED/RECEIVED dispensa esperar webhook.
+  Em falha de validação do cartão, Asaas retorna 4xx com errors[0].description
+  (ex: "O CCV informado é inválido"). Repasse a mensagem pro usuário.
+*/
+export async function createCardPayment(input: AsaasCardInput): Promise<AsaasCardPayment> {
+  if (!asaasEnabled) {
+    return {
+      id: `sim_card_${input.externalReference}_${Date.now()}`,
+      status: "CONFIRMED",
+      value: input.value,
+      invoiceUrl: undefined,
+    };
+  }
+  const sanitize = (s: string) => s.replace(/\D/g, "");
+  return asaasFetch<AsaasCardPayment>(`/payments`, {
+    method: "POST",
+    body: JSON.stringify({
+      customer: input.customerId,
+      billingType: "CREDIT_CARD",
+      value: input.value,
+      dueDate: input.dueDate,
+      description: input.description,
+      externalReference: input.externalReference,
+      remoteIp: input.remoteIp,
+      creditCard: {
+        holderName: input.creditCard.holderName.trim(),
+        number: sanitize(input.creditCard.number),
+        expiryMonth: input.creditCard.expiryMonth.padStart(2, "0"),
+        expiryYear: input.creditCard.expiryYear.length === 2
+          ? `20${input.creditCard.expiryYear}`
+          : input.creditCard.expiryYear,
+        ccv: sanitize(input.creditCard.ccv),
+      },
+      creditCardHolderInfo: {
+        name: input.creditCardHolderInfo.name.trim(),
+        email: input.creditCardHolderInfo.email.trim(),
+        cpfCnpj: sanitize(input.creditCardHolderInfo.cpfCnpj),
+        postalCode: sanitize(input.creditCardHolderInfo.postalCode),
+        addressNumber: input.creditCardHolderInfo.addressNumber.trim(),
+        addressComplement: input.creditCardHolderInfo.addressComplement?.trim() || undefined,
+        phone: input.creditCardHolderInfo.phone ? sanitize(input.creditCardHolderInfo.phone) : undefined,
+      },
+    }),
+  });
 }
 
 /*
