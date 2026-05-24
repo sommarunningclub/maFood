@@ -1,0 +1,63 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+const ProductInput = z.object({
+  pdv_id: z.string().uuid(),
+  category_id: z.string().uuid().nullable().optional(),
+  category: z.string().max(80).optional().default(""),
+  name: z.string().min(1).max(160),
+  description: z.string().max(400).optional().default(""),
+  price: z.coerce.number().min(0).max(99999),
+  image_url: z.string().max(500).optional().default(""),
+  status: z.enum(["active", "paused", "out_of_stock"]).optional().default("active"),
+});
+
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const pdvId = searchParams.get("pdv_id");
+
+  const supabase = createAdminClient();
+  let query = supabase
+    .from("products")
+    .select(
+      "id, pdv_id, category_id, category, name, description, price, image_url, status, created_at"
+    )
+    .order("created_at", { ascending: false });
+  if (pdvId) query = query.eq("pdv_id", pdvId);
+
+  const { data, error } = await query;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ items: data ?? [] });
+}
+
+export async function POST(req: Request) {
+  let body;
+  try {
+    body = ProductInput.parse(await req.json());
+  } catch (e) {
+    const msg = e instanceof z.ZodError ? e.issues[0]?.message : "Dados invalidos";
+    return NextResponse.json({ error: msg }, { status: 400 });
+  }
+
+  const supabase = createAdminClient();
+
+  // Se enviou category_id mas não category (texto), preenche o texto pela categoria
+  let categoryText = body.category;
+  if (body.category_id && !categoryText) {
+    const { data: cat } = await supabase
+      .from("product_categories")
+      .select("name")
+      .eq("id", body.category_id)
+      .maybeSingle();
+    if (cat) categoryText = cat.name;
+  }
+
+  const { data, error } = await supabase
+    .from("products")
+    .insert({ ...body, category: categoryText })
+    .select("id")
+    .single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true, id: data.id });
+}
