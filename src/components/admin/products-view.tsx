@@ -27,6 +27,7 @@ interface ProductRow {
   image_url: string | null;
   status: "active" | "paused" | "out_of_stock";
   stock_quantity: number | null;
+  supplier_cost: number | null;
 }
 
 interface Category {
@@ -324,6 +325,9 @@ function ProductDialog({
   const [imageUrl, setImageUrl] = useState(product?.image_url ?? "");
   const [trackStock, setTrackStock] = useState<boolean>(product?.stock_quantity != null);
   const [stockQty, setStockQty] = useState<number>(product?.stock_quantity ?? 0);
+  const [supplierCost, setSupplierCost] = useState<string>(
+    product?.supplier_cost != null ? String(product.supplier_cost) : ""
+  );
   const [uploading, setUploading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCategory, setNewCategory] = useState("");
@@ -391,6 +395,7 @@ function ProductDialog({
       image_url: imageUrl,
       status,
       stock_quantity: trackStock ? Math.max(0, Math.floor(stockQty)) : null,
+      supplier_cost: supplierCost.trim() === "" ? null : Number(supplierCost.replace(",", ".")),
     };
     const url = editing ? `/api/admin/products/${product!.id}` : "/api/admin/products";
     const method = editing ? "PATCH" : "POST";
@@ -562,6 +567,57 @@ function ProductDialog({
               )}
             </div>
           </Field>
+
+          {pdvs.find((p) => p.id === pdvId)?.slug === "somma-bear" && (
+            <div className="rounded-admin border border-palantir-blue/40 bg-palantir-blue/5 p-3 space-y-3">
+              <div className="mono text-[10px] uppercase tracking-wider text-palantir-blue">
+                Precificação Somma Bear
+              </div>
+              <Field label="Custo Fornecedor (R$)">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={supplierCost}
+                  onChange={(e) => setSupplierCost(e.target.value.replace(/[^\d.,]/g, ""))}
+                  placeholder="0,00"
+                  className="mono w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
+                />
+              </Field>
+              {(() => {
+                const cost = Number(supplierCost.replace(",", "."));
+                const sale = Number(price);
+                if (!cost || !sale || cost <= 0 || sale <= 0) {
+                  return (
+                    <p className="mono text-[10px] text-palantir-muted">
+                      Informe custo e preço de venda pra ver lucro e margens.
+                    </p>
+                  );
+                }
+                const profit = sale - cost;
+                const marginCost = (profit / cost) * 100;
+                const marginSale = (profit / sale) * 100;
+                const fmt = (n: number) =>
+                  n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const profitCls = profit < 0 ? "text-palantir-red" : "text-palantir-green";
+                return (
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-admin border border-palantir-border bg-palantir-bg p-2">
+                      <div className="mono text-[9px] uppercase text-palantir-muted">Lucro</div>
+                      <div className={`mono text-sm font-semibold ${profitCls}`}>R$ {fmt(profit)}</div>
+                    </div>
+                    <div className="rounded-admin border border-palantir-border bg-palantir-bg p-2">
+                      <div className="mono text-[9px] uppercase text-palantir-muted">Margem custo</div>
+                      <div className={`mono text-sm font-semibold ${profitCls}`}>{fmt(marginCost)}%</div>
+                    </div>
+                    <div className="rounded-admin border border-palantir-border bg-palantir-bg p-2">
+                      <div className="mono text-[9px] uppercase text-palantir-muted">Margem venda</div>
+                      <div className={`mono text-sm font-semibold ${profitCls}`}>{fmt(marginSale)}%</div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
 
           <Field label="Categoria">
             <div className="space-y-2">
