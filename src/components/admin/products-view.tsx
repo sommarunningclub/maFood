@@ -212,7 +212,10 @@ export function ProductsView({
                 return (
                   <tr
                     key={p.id}
-                    onClick={() => setSelectedPrice(p.price)}
+                    onClick={() => {
+                      setSelectedPrice(p.price);
+                      setEditTarget(p);
+                    }}
                     className={`cursor-pointer border-t border-palantir-border hover:bg-palantir-surface2 ${
                       selected.has(p.id) ? "bg-palantir-blue/5" : ""
                     }`}
@@ -297,7 +300,8 @@ export function ProductsView({
             return (
               <li
                 key={p.id}
-                className={`border border-palantir-border p-3 flex gap-3 ${
+                onClick={() => setEditTarget(p)}
+                className={`border border-palantir-border p-3 flex gap-3 cursor-pointer ${
                   selected.has(p.id) ? "bg-palantir-blue/10" : "bg-palantir-surface"
                 }`}
               >
@@ -306,6 +310,7 @@ export function ProductsView({
                   aria-label={`Selecionar ${p.name}`}
                   checked={selected.has(p.id)}
                   onChange={() => toggle(p.id)}
+                  onClick={(e) => e.stopPropagation()}
                   className="size-5 accent-palantir-blue cursor-pointer self-center"
                 />
                 <div className="size-16 shrink-0 rounded-admin bg-palantir-surface2 border border-palantir-border overflow-hidden flex items-center justify-center">
@@ -326,7 +331,10 @@ export function ProductsView({
                       </p>
                     </div>
                     <button
-                      onClick={() => setEditTarget(p)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditTarget(p);
+                      }}
                       aria-label={`Editar ${p.name}`}
                       className="grid size-touch shrink-0 place-items-center rounded-admin border border-palantir-border text-palantir-text hover:bg-palantir-surface2 focus-ring-admin"
                     >
@@ -390,7 +398,7 @@ export function ProductsView({
             onClick={() => setBulkAction("category")}
             className="mono rounded-admin border border-palantir-border px-3 min-h-touch text-[10px] uppercase text-palantir-text hover:bg-palantir-surface focus-ring-admin"
           >
-            Mover p/ categoria
+            Adicionar à categoria
           </button>
           <button
             onClick={() => setBulkAction("pdv")}
@@ -1117,6 +1125,8 @@ function BulkMoveDialog({
   const [targetPdv, setTargetPdv] = useState<string>(sourcePdvId ?? pdvs[0]?.id ?? "");
   const [targetCategory, setTargetCategory] = useState<string>("");
   const [categories, setCategories] = useState<Category[]>([]);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [creatingCat, setCreatingCat] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -1130,6 +1140,31 @@ function BulkMoveDialog({
       .then((d) => setCategories(d.items ?? []))
       .catch(() => setCategories([]));
   }, [catPdvId]);
+
+  async function createNewCategory() {
+    const trimmed = newCategoryName.trim();
+    if (!trimmed || !catPdvId) return;
+    setCreatingCat(true);
+    const r = await fetch("/api/admin/categories", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pdv_id: catPdvId, name: trimmed }),
+    });
+    setCreatingCat(false);
+    if (r.ok) {
+      const data = await r.json();
+      const item: Category = {
+        id: data.id,
+        pdv_id: catPdvId,
+        name: trimmed,
+        sort_order: 999,
+        is_active: true,
+      };
+      setCategories((c) => [...c, item]);
+      setTargetCategory(data.id);
+      setNewCategoryName("");
+    }
+  }
 
   async function run() {
     setLoading(true);
@@ -1163,7 +1198,7 @@ function BulkMoveDialog({
   return (
     <Modal
       onClose={onClose}
-      title={mode === "category" ? `Mover ${ids.length} para categoria` : `Mover ${ids.length} para PDV`}
+      title={mode === "category" ? `Adicionar ${ids.length} à categoria` : `Mover ${ids.length} para PDV`}
     >
       {mode === "category" && !samePdv ? (
         <p className="mono text-xs text-palantir-yellow">
@@ -1191,6 +1226,36 @@ function BulkMoveDialog({
                 ))}
             </select>
           </Field>
+
+          <div className="rounded-admin border border-palantir-border bg-palantir-bg p-2 space-y-2">
+            <div className="mono text-[10px] uppercase tracking-wider text-palantir-muted">
+              Ou criar uma nova categoria
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="Ex.: Promoções, Combos…"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    createNewCategory();
+                  }
+                }}
+                className="flex-1 rounded-admin border border-palantir-border bg-palantir-surface px-3 min-h-touch text-sm text-white focus-ring-admin"
+              />
+              <button
+                onClick={createNewCategory}
+                disabled={!newCategoryName.trim() || creatingCat}
+                className="mono rounded-admin border border-palantir-blue px-3 min-h-touch text-[10px] uppercase text-palantir-blue disabled:opacity-40 focus-ring-admin"
+              >
+                {creatingCat ? "..." : "Criar"}
+              </button>
+            </div>
+            <p className="mono text-[9px] text-palantir-muted">
+              A categoria criada será pré-selecionada acima.
+            </p>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
@@ -1227,7 +1292,7 @@ function BulkMoveDialog({
           disabled={loading || (mode === "category" && !samePdv)}
           className="rounded-admin bg-palantir-blue min-h-touch px-4 text-sm text-white disabled:opacity-40 focus-ring-admin"
         >
-          {loading ? "Movendo..." : `Mover ${ids.length}`}
+          {loading ? "Aplicando..." : mode === "category" ? `Adicionar à categoria` : `Mover ${ids.length}`}
         </button>
       </div>
     </Modal>
