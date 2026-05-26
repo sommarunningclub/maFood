@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCustomerSession } from "@/lib/auth/customer-session";
 import { StatusBadge } from "@/components/ui/badge";
+import { PdvLogo } from "@/components/pdv-logo";
 import { brl, formatTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -70,7 +71,7 @@ export default async function HistoryPage({ params }: { params: { venue: string 
               >
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-2">
-                    {pdv && <span className="text-xl">{pdv.logo_url}</span>}
+                    {pdv && <PdvLogo logoUrl={pdv.logo_url} size={28} />}
                     <div>
                       <p className="text-white font-medium">{pdv?.name ?? "PDV"}</p>
                       <p className="num text-[11px] text-somma-muted">

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { PdvLogo } from "@/components/pdv-logo";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export default async function PdvSelectPage() {
                 className="rounded-admin border border-palantir-border bg-palantir-surface p-4 hover:border-palantir-blue/50 transition-colors group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="text-3xl">{p.logo_url || "🍽"}</div>
+                  <PdvLogo logoUrl={p.logo_url} size={44} />
                   <div className="min-w-0 flex-1">
                     <h2 className="text-white font-medium truncate">{p.name}</h2>
                     <p className="mono text-[10px] uppercase tracking-wider text-palantir-muted">

@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { PdvLogo } from "@/components/pdv-logo";
 
 interface PdvLoginInfo {
   slug: string;
@@ -45,7 +46,7 @@ export function LojaLogin({ pdv, next }: { pdv: PdvLoginInfo; next?: string }) {
       <div className="w-full max-w-sm">
         {/* Cartão de identidade do PDV */}
         <div className="mb-4 rounded-admin border border-palantir-border bg-palantir-surface p-5 text-center">
-          <div className="text-5xl mb-2">{pdv.logo_url || "🍽"}</div>
+          <div className="mb-2 grid place-items-center"><PdvLogo logoUrl={pdv.logo_url} size={72} /></div>
           <h1 className="text-xl font-semibold text-white">{pdv.name}</h1>
           {pdv.category && (
             <p className="mono text-[10px] uppercase tracking-wider text-palantir-muted mt-1">

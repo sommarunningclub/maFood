@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCustomerSession } from "@/lib/auth/customer-session";
 import { CustomerHeader } from "@/components/customer/customer-header";
+import { PdvLogo } from "@/components/pdv-logo";
 
 export const dynamic = "force-dynamic";
 
@@ -100,11 +101,8 @@ function PdvCard({
 }) {
   const inner = (
     <>
-      <div
-        className="text-6xl sm:text-7xl mb-3 select-none"
-        aria-hidden="true"
-      >
-        {logo || "🍽"}
+      <div className="mb-3 grid place-items-center" aria-hidden="true">
+        <PdvLogo logoUrl={logo} size={88} className="select-none" />
       </div>
       <h3 className="text-white font-display uppercase tracking-wide text-base sm:text-lg leading-tight text-balance">
         {name}

@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const Body = z.object({
   name: z.string().min(1).max(120).optional(),
   category: z.string().max(80).optional(),
-  logo_url: z.string().max(8).optional(),
+  logo_url: z.string().max(500).optional(),
   prep_time_min: z.coerce.number().int().min(1).max(180).optional(),
   commission_pct: z.coerce.number().min(0).max(50).optional(),
   gateway_pct: z.coerce.number().min(0).max(20).optional(),

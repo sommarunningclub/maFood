@@ -23,6 +23,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Pencil, ExternalLink, Check, X } from "lucide-react";
 import { brl } from "@/lib/utils";
 import type { Pdv } from "@/types";
+import { PdvLogo, isImageLogo } from "@/components/pdv-logo";
 
 export interface AdminPdvRow extends Pdv {
   pin_set_at: string | null;
@@ -204,7 +205,7 @@ function RowDesktop({
         <GripVertical className="size-4" />
       </button>
       <span className="flex items-center gap-2 text-palantir-text min-w-0">
-        <span className="text-lg shrink-0">{pdv.logo_url}</span>
+        <PdvLogo logoUrl={pdv.logo_url} size={24} />
         <span className="truncate">{pdv.name}</span>
         <span className="mono text-[10px] text-palantir-muted shrink-0">{pdv.category}</span>
         {pdv.instagram_handle && (
@@ -311,7 +312,7 @@ function CardMobile({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-xl shrink-0">{pdv.logo_url}</span>
+            <PdvLogo logoUrl={pdv.logo_url} size={28} />
             <div className="min-w-0">
               <p className="text-palantir-text font-medium truncate">{pdv.name}</p>
               <p className="mono text-[10px] text-palantir-muted truncate">
@@ -563,9 +564,33 @@ function EditPdvDialog({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [logoMode, setLogoMode] = useState<"emoji" | "image">(
+    isImageLogo(pdv.logo_url) ? "image" : "emoji"
+  );
+  const [uploading, setUploading] = useState(false);
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  async function handleLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("pdv_id", pdv.id);
+    fd.append("kind", "logo");
+    const r = await fetch("/api/admin/upload", { method: "POST", body: fd });
+    setUploading(false);
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      setError(d.error ?? "Falha no upload");
+      return;
+    }
+    const data = await r.json();
+    set("logo_url", data.url);
   }
 
   async function save() {
@@ -596,22 +621,83 @@ function EditPdvDialog({
         <span className="ml-2 text-palantir-muted/60">(não editável)</span>
       </p>
 
-      <div className="grid grid-cols-[80px_1fr] gap-3">
-        <Field label="Emoji">
-          <input
-            value={form.logo_url}
-            onChange={(e) => set("logo_url", e.target.value.slice(0, 4))}
-            className="mono w-full rounded-admin border border-palantir-border bg-palantir-bg px-2 min-h-touch text-2xl text-center text-white focus-ring-admin"
-          />
-        </Field>
-        <Field label="Nome">
-          <input
-            value={form.name}
-            onChange={(e) => set("name", e.target.value)}
-            className="w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
-          />
-        </Field>
-      </div>
+      <Field label="Logo">
+        <div className="flex items-center gap-3">
+          <div className="size-16 shrink-0 rounded-admin border border-palantir-border bg-palantir-bg overflow-hidden grid place-items-center">
+            <PdvLogo logoUrl={form.logo_url} size={64} />
+          </div>
+          <div className="flex-1 space-y-2">
+            <div className="flex gap-1 rounded-admin border border-palantir-border p-1 bg-palantir-bg w-fit">
+              <button
+                type="button"
+                onClick={() => {
+                  setLogoMode("emoji");
+                  if (isImageLogo(form.logo_url)) set("logo_url", "🍽");
+                }}
+                className={`mono px-3 py-1 text-[10px] uppercase rounded ${
+                  logoMode === "emoji"
+                    ? "bg-palantir-blue text-white"
+                    : "text-palantir-muted hover:text-palantir-text"
+                }`}
+              >
+                Emoji
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLogoMode("image");
+                  if (!isImageLogo(form.logo_url)) set("logo_url", "");
+                }}
+                className={`mono px-3 py-1 text-[10px] uppercase rounded ${
+                  logoMode === "image"
+                    ? "bg-palantir-blue text-white"
+                    : "text-palantir-muted hover:text-palantir-text"
+                }`}
+              >
+                Imagem
+              </button>
+            </div>
+            {logoMode === "emoji" ? (
+              <input
+                value={isImageLogo(form.logo_url) ? "" : form.logo_url}
+                onChange={(e) => set("logo_url", e.target.value.slice(0, 4))}
+                placeholder="🍽"
+                className="mono w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-2xl text-white focus-ring-admin"
+              />
+            ) : (
+              <div className="flex items-center gap-2">
+                <label className="mono cursor-pointer rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch grid place-items-center text-[10px] uppercase text-palantir-text hover:bg-palantir-surface2 focus-within:outline focus-within:outline-2 focus-within:outline-palantir-blue">
+                  {uploading ? "Enviando..." : form.logo_url ? "Trocar imagem" : "Enviar imagem"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoFile}
+                    disabled={uploading}
+                  />
+                </label>
+                {isImageLogo(form.logo_url) && (
+                  <button
+                    type="button"
+                    onClick={() => set("logo_url", "")}
+                    className="mono min-h-touch px-2 text-[10px] uppercase text-palantir-red focus-ring-admin"
+                  >
+                    Remover
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </Field>
+
+      <Field label="Nome">
+        <input
+          value={form.name}
+          onChange={(e) => set("name", e.target.value)}
+          className="w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
+        />
+      </Field>
 
       <Field label="Categoria">
         <input

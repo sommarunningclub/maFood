@@ -7,6 +7,7 @@ import { ArrowLeft, Plus, Minus } from "lucide-react";
 import { useCart } from "@/stores/cart-store";
 import { brl } from "@/lib/utils";
 import type { Pdv, Product } from "@/types";
+import { PdvLogo } from "@/components/pdv-logo";
 
 const STATUS_LABEL: Record<Product["status"], string> = {
   active: "",
@@ -41,7 +42,7 @@ export function MenuView({
         >
           <ArrowLeft className="size-5" />
         </Link>
-        <div className="text-2xl sm:text-3xl shrink-0">{pdv.logo_url}</div>
+        <PdvLogo logoUrl={pdv.logo_url} size={40} />
         <div className="min-w-0">
           <h1 className="text-white font-display uppercase tracking-wide text-fluid-lg leading-none truncate">
             {pdv.name}

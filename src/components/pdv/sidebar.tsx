@@ -15,6 +15,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PdvLogo } from "@/components/pdv-logo";
 
 interface PdvHeader {
   slug: string;
@@ -99,7 +100,7 @@ export function PdvSidebar({ pdv }: { pdv: PdvHeader }) {
           <Menu className="size-5" />
         </button>
         <div className="min-w-0 flex items-center gap-2">
-          <span className="text-lg shrink-0">{pdv.logo_url || "🍽"}</span>
+          <PdvLogo logoUrl={pdv.logo_url} size={24} />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-white">{pdv.name}</p>
             <p
@@ -206,8 +207,8 @@ function SidebarBody({
             collapsed ? "justify-center" : "gap-3"
           )}
         >
-          <div className="text-2xl" title={collapsed ? pdv.name : undefined}>
-            {pdv.logo_url || "🍽"}
+          <div title={collapsed ? pdv.name : undefined}>
+            <PdvLogo logoUrl={pdv.logo_url} size={32} />
           </div>
           {!collapsed && (
             <div className="min-w-0 flex-1">

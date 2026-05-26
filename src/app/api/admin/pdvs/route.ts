@@ -7,7 +7,7 @@ const Body = z.object({
   slug: z.string().min(2).max(80).regex(/^[a-z0-9-]+$/, "use kebab-case (a-z, 0-9, -)"),
   name: z.string().min(1).max(120),
   category: z.string().max(80).optional().default(""),
-  logo_url: z.string().max(8).optional().default("🍽"), // emoji por enquanto
+  logo_url: z.string().max(500).optional().default("🍽"), // emoji ou URL de imagem
   prep_time_min: z.coerce.number().int().min(1).max(180).default(10),
   commission_pct: z.coerce.number().min(0).max(50).default(15),
   gateway_pct: z.coerce.number().min(0).max(20).default(3.6),

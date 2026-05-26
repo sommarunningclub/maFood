@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pencil, Plus, X, Trash2 } from "lucide-react";
 import { brl } from "@/lib/utils";
 import { PriceEngine } from "@/components/admin/price-engine";
+import { isImageLogo } from "@/components/pdv-logo";
 
 interface PdvLite {
   id: string;
@@ -77,7 +78,7 @@ export function ProductsView({
             <option value="all">Todos os PDVs</option>
             {pdvs.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.logo_url} {p.name}
+                {isImageLogo(p.logo_url) ? "🖼" : p.logo_url} {p.name}
               </option>
             ))}
           </select>
@@ -146,7 +147,7 @@ export function ProductsView({
                       )}
                     </td>
                     <td className="mono px-4 py-2 text-palantir-muted whitespace-nowrap">
-                      {pdv ? `${pdv.logo_url} ${pdv.name}` : "—"}
+                      {pdv ? `${isImageLogo(pdv.logo_url) ? "🖼" : pdv.logo_url} ${pdv.name}` : "—"}
                     </td>
                     <td className="mono px-4 py-2 text-palantir-muted">{p.category || "—"}</td>
                     <td className="mono px-4 py-2 text-palantir-text whitespace-nowrap">{brl(p.price)}</td>
@@ -210,7 +211,7 @@ export function ProductsView({
                     <div className="min-w-0">
                       <p className="text-palantir-text text-sm font-medium truncate">{p.name}</p>
                       <p className="mono text-[10px] text-palantir-muted truncate">
-                        {pdv ? `${pdv.logo_url} ${pdv.name}` : "—"}
+                        {pdv ? `${isImageLogo(pdv.logo_url) ? "🖼" : pdv.logo_url} ${pdv.name}` : "—"}
                         {p.category && <> · {p.category}</>}
                       </p>
                     </div>
@@ -463,7 +464,7 @@ function ProductDialog({
             >
               {pdvs.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.logo_url} {p.name}
+                  {isImageLogo(p.logo_url) ? "🖼" : p.logo_url} {p.name}
                 </option>
               ))}
             </select>
@@ -700,7 +701,7 @@ function CategoriesDialog({
   return (
     <Modal onClose={onClose} title={`Categorias — ${pdv.name}`}>
       <p className="mono text-[11px] text-palantir-muted -mt-1 mb-3">
-        {pdv.logo_url} {pdv.slug}
+        {isImageLogo(pdv.logo_url) ? "🖼" : pdv.logo_url} {pdv.slug}
       </p>
 
       <div className="space-y-1.5 max-h-72 overflow-auto term-scroll">
