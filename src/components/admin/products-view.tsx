@@ -6,6 +6,7 @@ import { Pencil, Plus, X, Trash2 } from "lucide-react";
 import { brl } from "@/lib/utils";
 import { PriceEngine } from "@/components/admin/price-engine";
 import { isImageLogo } from "@/components/pdv-logo";
+import { MoneyInput } from "@/components/money-input";
 
 interface PdvLite {
   id: string;
@@ -382,9 +383,7 @@ function ProductDialog({
   const [imageUrl, setImageUrl] = useState(product?.image_url ?? "");
   const [trackStock, setTrackStock] = useState<boolean>(product?.stock_quantity != null);
   const [stockQty, setStockQty] = useState<number>(product?.stock_quantity ?? 0);
-  const [supplierCost, setSupplierCost] = useState<string>(
-    product?.supplier_cost != null ? String(product.supplier_cost) : ""
-  );
+  const [supplierCost, setSupplierCost] = useState<number>(product?.supplier_cost ?? 0);
   const [boxSize, setBoxSize] = useState<number>(12);
   const [boxQty, setBoxQty] = useState<number>(0);
   const [uploading, setUploading] = useState(false);
@@ -454,7 +453,7 @@ function ProductDialog({
       image_url: imageUrl,
       status,
       stock_quantity: trackStock ? Math.max(0, Math.floor(stockQty)) : null,
-      supplier_cost: supplierCost.trim() === "" ? null : Number(supplierCost.replace(",", ".")),
+      supplier_cost: supplierCost > 0 ? supplierCost : null,
     };
     const url = editing ? `/api/admin/products/${product!.id}` : "/api/admin/products";
     const method = editing ? "PATCH" : "POST";
@@ -554,13 +553,9 @@ function ProductDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Preço (R$)">
-              <input
-                type="number"
-                inputMode="decimal"
+              <MoneyInput
                 value={price}
-                onChange={(e) => setPrice(Number(e.target.value))}
-                min={0}
-                step={0.5}
+                onChange={setPrice}
                 className="mono w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
               />
             </Field>
@@ -687,17 +682,14 @@ function ProductDialog({
                 Precificação Somma Bear
               </div>
               <Field label="Custo Fornecedor (R$)">
-                <input
-                  type="text"
-                  inputMode="decimal"
+                <MoneyInput
                   value={supplierCost}
-                  onChange={(e) => setSupplierCost(e.target.value.replace(/[^\d.,]/g, ""))}
-                  placeholder="0,00"
+                  onChange={setSupplierCost}
                   className="mono w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
                 />
               </Field>
               {(() => {
-                const cost = Number(supplierCost.replace(",", "."));
+                const cost = supplierCost;
                 const sale = Number(price);
                 if (!cost || !sale || cost <= 0 || sale <= 0) {
                   return (

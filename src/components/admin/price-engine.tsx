@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { breakdownFromFinal, finalFromNet } from "@/lib/pricing";
 import { brl } from "@/lib/utils";
+import { MoneyInput } from "@/components/money-input";
 
 const RATES = { commissionPct: 15, gatewayPct: 3.6, taxPct: 0 };
 
@@ -35,10 +36,9 @@ export function PriceEngine({ initial = 38 }: { initial?: number }) {
 
       <label className="mono mb-3 block text-[11px] text-palantir-muted">
         {mode === "final" ? "Preço ao cliente (R$)" : "Líquido para o PDV (R$)"}
-        <input
-          type="number"
+        <MoneyInput
           value={input}
-          onChange={(e) => setInput(Number(e.target.value) || 0)}
+          onChange={setInput}
           className="mono mt-1 w-full rounded-admin border border-palantir-border bg-palantir-surface px-3 py-2 text-base text-white"
         />
       </label>
