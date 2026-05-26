@@ -328,6 +328,8 @@ function ProductDialog({
   const [supplierCost, setSupplierCost] = useState<string>(
     product?.supplier_cost != null ? String(product.supplier_cost) : ""
   );
+  const [boxSize, setBoxSize] = useState<number>(12);
+  const [boxQty, setBoxQty] = useState<number>(0);
   const [uploading, setUploading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCategory, setNewCategory] = useState("");
@@ -564,6 +566,60 @@ function ProductDialog({
                 <p className="mono text-[10px] text-palantir-muted">
                   Sem controle de estoque (ilimitado)
                 </p>
+              )}
+
+              {trackStock && (
+                <div className="rounded-admin border border-palantir-border bg-palantir-bg p-2 space-y-2">
+                  <div className="mono text-[10px] uppercase tracking-wider text-palantir-muted">
+                    Entrada por caixa (consignado)
+                  </div>
+                  <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-end gap-1">
+                    <label className="block">
+                      <span className="mono text-[9px] text-palantir-muted block mb-1">Unid/caixa</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={boxSize}
+                        onChange={(e) => setBoxSize(Math.max(1, Number(e.target.value) || 1))}
+                        min={1}
+                        className="mono w-full rounded-admin border border-palantir-border bg-palantir-surface px-2 min-h-touch text-center text-white focus-ring-admin"
+                      />
+                    </label>
+                    <span className="mono text-palantir-muted pb-2">×</span>
+                    <label className="block">
+                      <span className="mono text-[9px] text-palantir-muted block mb-1">Caixas</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={boxQty}
+                        onChange={(e) => setBoxQty(Math.max(0, Number(e.target.value) || 0))}
+                        min={0}
+                        className="mono w-full rounded-admin border border-palantir-border bg-palantir-surface px-2 min-h-touch text-center text-white focus-ring-admin"
+                      />
+                    </label>
+                    <span className="mono text-palantir-muted pb-2">=</span>
+                    <div className="text-center pb-1">
+                      <span className="mono text-[9px] text-palantir-muted block mb-1">Total</span>
+                      <span className="mono text-base font-semibold text-palantir-blue">
+                        {boxSize * boxQty}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const add = boxSize * boxQty;
+                      if (add > 0) {
+                        setStockQty((q) => q + add);
+                        setBoxQty(0);
+                      }
+                    }}
+                    disabled={boxSize * boxQty === 0}
+                    className="mono w-full rounded-admin border border-palantir-blue bg-palantir-blue/10 min-h-touch text-[10px] uppercase tracking-wider text-palantir-blue hover:bg-palantir-blue/20 disabled:opacity-40 disabled:hover:bg-palantir-blue/10 focus-ring-admin"
+                  >
+                    + Somar {boxSize * boxQty} ao estoque
+                  </button>
+                </div>
               )}
             </div>
           </Field>
