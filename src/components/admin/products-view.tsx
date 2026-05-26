@@ -58,6 +58,26 @@ export function ProductsView({
   const [creating, setCreating] = useState(false);
   const [managingCats, setManagingCats] = useState<PdvLite | null>(null);
   const [selectedPrice, setSelectedPrice] = useState<number>(initialProducts[0]?.price ?? 38);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState<"category" | "pdv" | null>(null);
+
+  function toggle(id: string) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function toggleAll(ids: string[]) {
+    setSelected((s) => {
+      const allOn = ids.every((id) => s.has(id));
+      return allOn ? new Set() : new Set(ids);
+    });
+  }
+  function clearSelection() {
+    setSelected(new Set());
+  }
 
   const visible = useMemo(
     () =>
@@ -159,6 +179,22 @@ export function ProductsView({
           <table className="w-full text-sm">
             <thead>
               <tr className="mono border-b border-palantir-border text-left text-[10px] uppercase tracking-wider text-palantir-muted">
+                <th className="w-10 px-3 py-2">
+                  <input
+                    type="checkbox"
+                    aria-label="Selecionar todos"
+                    checked={visible.length > 0 && visible.every((p) => selected.has(p.id))}
+                    ref={(el) => {
+                      if (el) {
+                        const some = visible.some((p) => selected.has(p.id));
+                        const all = visible.length > 0 && visible.every((p) => selected.has(p.id));
+                        el.indeterminate = some && !all;
+                      }
+                    }}
+                    onChange={() => toggleAll(visible.map((p) => p.id))}
+                    className="size-4 accent-palantir-blue cursor-pointer"
+                  />
+                </th>
                 <th className="w-12 px-3 py-2"></th>
                 <th className="px-4 py-2">Produto</th>
                 <th className="px-4 py-2">PDV</th>
@@ -177,8 +213,19 @@ export function ProductsView({
                   <tr
                     key={p.id}
                     onClick={() => setSelectedPrice(p.price)}
-                    className="cursor-pointer border-t border-palantir-border hover:bg-palantir-surface2"
+                    className={`cursor-pointer border-t border-palantir-border hover:bg-palantir-surface2 ${
+                      selected.has(p.id) ? "bg-palantir-blue/5" : ""
+                    }`}
                   >
+                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        aria-label={`Selecionar ${p.name}`}
+                        checked={selected.has(p.id)}
+                        onChange={() => toggle(p.id)}
+                        className="size-4 accent-palantir-blue cursor-pointer"
+                      />
+                    </td>
                     <td className="px-3 py-2">
                       <div className="size-9 rounded-admin bg-palantir-surface2 border border-palantir-border overflow-hidden flex items-center justify-center">
                         {p.image_url ? (
@@ -234,7 +281,7 @@ export function ProductsView({
               })}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-palantir-muted text-sm">
+                  <td colSpan={10} className="px-4 py-8 text-center text-palantir-muted text-sm">
                     Nenhum produto. Clique em &ldquo;+ Novo Produto&rdquo; para começar.
                   </td>
                 </tr>
@@ -250,8 +297,17 @@ export function ProductsView({
             return (
               <li
                 key={p.id}
-                className="border border-palantir-border bg-palantir-surface p-3 flex gap-3"
+                className={`border border-palantir-border p-3 flex gap-3 ${
+                  selected.has(p.id) ? "bg-palantir-blue/10" : "bg-palantir-surface"
+                }`}
               >
+                <input
+                  type="checkbox"
+                  aria-label={`Selecionar ${p.name}`}
+                  checked={selected.has(p.id)}
+                  onChange={() => toggle(p.id)}
+                  className="size-5 accent-palantir-blue cursor-pointer self-center"
+                />
                 <div className="size-16 shrink-0 rounded-admin bg-palantir-surface2 border border-palantir-border overflow-hidden flex items-center justify-center">
                   {p.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -322,6 +378,50 @@ export function ProductsView({
           <PriceEngine key={selectedPrice} initial={selectedPrice} />
         </div>
       </div>
+
+      {/* Barra de ações em massa — sticky no rodapé */}
+      {selected.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 flex items-center gap-2 rounded-admin border border-palantir-blue bg-palantir-bg px-3 py-2 shadow-lg pb-safe">
+          <span className="mono text-xs text-palantir-text whitespace-nowrap">
+            {selected.size} selecionado{selected.size > 1 ? "s" : ""}
+          </span>
+          <span className="text-palantir-border">|</span>
+          <button
+            onClick={() => setBulkAction("category")}
+            className="mono rounded-admin border border-palantir-border px-3 min-h-touch text-[10px] uppercase text-palantir-text hover:bg-palantir-surface focus-ring-admin"
+          >
+            Mover p/ categoria
+          </button>
+          <button
+            onClick={() => setBulkAction("pdv")}
+            className="mono rounded-admin border border-palantir-border px-3 min-h-touch text-[10px] uppercase text-palantir-text hover:bg-palantir-surface focus-ring-admin"
+          >
+            Mover p/ PDV
+          </button>
+          <button
+            onClick={clearSelection}
+            aria-label="Cancelar seleção"
+            className="grid size-touch place-items-center text-palantir-muted hover:text-palantir-text focus-ring-admin"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
+      {bulkAction && (
+        <BulkMoveDialog
+          mode={bulkAction}
+          ids={Array.from(selected)}
+          products={initialProducts}
+          pdvs={pdvs}
+          onClose={() => setBulkAction(null)}
+          onDone={() => {
+            setBulkAction(null);
+            clearSelection();
+            router.refresh();
+          }}
+        />
+      )}
 
       {creating && (
         <ProductDialog
@@ -989,6 +1089,148 @@ function Modal({
         {children}
       </div>
     </div>
+  );
+}
+
+// ─── Bulk move dialog ─────────────────────────────────────────────
+
+function BulkMoveDialog({
+  mode,
+  ids,
+  products,
+  pdvs,
+  onClose,
+  onDone,
+}: {
+  mode: "category" | "pdv";
+  ids: string[];
+  products: ProductRow[];
+  pdvs: PdvLite[];
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const selectedProducts = products.filter((p) => ids.includes(p.id));
+  const distinctPdvIds = Array.from(new Set(selectedProducts.map((p) => p.pdv_id)));
+  const samePdv = distinctPdvIds.length === 1;
+  const sourcePdvId = distinctPdvIds[0];
+
+  const [targetPdv, setTargetPdv] = useState<string>(sourcePdvId ?? pdvs[0]?.id ?? "");
+  const [targetCategory, setTargetCategory] = useState<string>("");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Pra mover categoria: precisa do PDV de origem (mesmo PDV em todos)
+  const catPdvId = mode === "category" ? sourcePdvId : targetPdv;
+
+  useEffect(() => {
+    if (!catPdvId) return;
+    fetch(`/api/admin/categories?pdv_id=${catPdvId}`)
+      .then((r) => r.json())
+      .then((d) => setCategories(d.items ?? []))
+      .catch(() => setCategories([]));
+  }, [catPdvId]);
+
+  async function run() {
+    setLoading(true);
+    setError(null);
+    const patch: Record<string, unknown> = {};
+    if (mode === "category") {
+      patch.category_id = targetCategory || null;
+    } else {
+      patch.pdv_id = targetPdv;
+      // Ao trocar de PDV, a categoria antiga pode não existir no novo — zera
+      patch.category_id = null;
+    }
+    const results = await Promise.all(
+      ids.map((id) =>
+        fetch(`/api/admin/products/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        })
+      )
+    );
+    const failed = results.filter((r) => !r.ok).length;
+    setLoading(false);
+    if (failed > 0) {
+      setError(`${failed} de ${ids.length} falharam`);
+      return;
+    }
+    onDone();
+  }
+
+  return (
+    <Modal
+      onClose={onClose}
+      title={mode === "category" ? `Mover ${ids.length} para categoria` : `Mover ${ids.length} para PDV`}
+    >
+      {mode === "category" && !samePdv ? (
+        <p className="mono text-xs text-palantir-yellow">
+          Selecione produtos de um único PDV pra mover de categoria. Sua seleção
+          tem produtos de {distinctPdvIds.length} PDVs diferentes.
+        </p>
+      ) : mode === "category" ? (
+        <div className="space-y-3">
+          <p className="mono text-[11px] text-palantir-muted">
+            PDV: {pdvs.find((p) => p.id === sourcePdvId)?.name ?? "—"}
+          </p>
+          <Field label="Categoria de destino">
+            <select
+              value={targetCategory}
+              onChange={(e) => setTargetCategory(e.target.value)}
+              className="w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
+            >
+              <option value="">— Sem categoria —</option>
+              {categories
+                .filter((c) => c.is_active)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+            </select>
+          </Field>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <Field label="PDV de destino">
+            <select
+              value={targetPdv}
+              onChange={(e) => setTargetPdv(e.target.value)}
+              className="w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
+            >
+              {pdvs.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <p className="mono text-[10px] text-palantir-muted">
+            A categoria atual será removida (categorias são por PDV).
+          </p>
+        </div>
+      )}
+
+      {error && <p className="mono mt-3 text-xs text-palantir-red">{error}</p>}
+
+      <div className="mt-5 flex justify-end gap-2">
+        <button
+          onClick={onClose}
+          className="mono text-xs text-palantir-muted min-h-touch px-3 focus-ring-admin"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={run}
+          disabled={loading || (mode === "category" && !samePdv)}
+          className="rounded-admin bg-palantir-blue min-h-touch px-4 text-sm text-white disabled:opacity-40 focus-ring-admin"
+        >
+          {loading ? "Movendo..." : `Mover ${ids.length}`}
+        </button>
+      </div>
+    </Modal>
   );
 }
 

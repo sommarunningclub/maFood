@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const Patch = z.object({
+  pdv_id: z.string().uuid().optional(),
   category_id: z.string().uuid().nullable().optional(),
   category: z.string().max(80).optional(),
   name: z.string().min(1).max(160).optional(),
