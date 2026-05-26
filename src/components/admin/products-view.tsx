@@ -66,6 +66,21 @@ export function ProductsView({
     [pdvFilter, initialProducts]
   );
 
+  const stockSummary = useMemo(() => {
+    let cost = 0;
+    let sale = 0;
+    let units = 0;
+    let tracked = 0;
+    for (const p of visible) {
+      if (p.stock_quantity == null) continue;
+      tracked += 1;
+      units += p.stock_quantity;
+      sale += p.price * p.stock_quantity;
+      if (p.supplier_cost != null) cost += p.supplier_cost * p.stock_quantity;
+    }
+    return { cost, sale, profit: sale - cost, units, tracked };
+  }, [visible]);
+
   return (
     <>
       {/* Toolbar — empilha em mobile */}
@@ -103,6 +118,39 @@ export function ProductsView({
         </button>
       </div>
 
+      {/* Resumo financeiro do estoque visível */}
+      {stockSummary.tracked > 0 && (
+        <div className="mb-4 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+          <SummaryCard
+            label="Itens com estoque"
+            value={`${stockSummary.tracked}`}
+            sub={`${stockSummary.units} un total`}
+          />
+          <SummaryCard
+            label="Valor em estoque"
+            value={brl(stockSummary.cost)}
+            sub="custo de aquisição"
+            tone="muted"
+          />
+          <SummaryCard
+            label="Previsão de venda"
+            value={brl(stockSummary.sale)}
+            sub="se vender tudo"
+            tone="blue"
+          />
+          <SummaryCard
+            label="Lucro previsto"
+            value={brl(stockSummary.profit)}
+            sub={
+              stockSummary.cost > 0
+                ? `${((stockSummary.profit / stockSummary.cost) * 100).toFixed(1)}% sobre custo`
+                : "—"
+            }
+            tone={stockSummary.profit >= 0 ? "green" : "red"}
+          />
+        </div>
+      )}
+
       {/* Grid: produtos + price engine. Price engine empurra para baixo em <xl */}
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-4 xl:gap-6">
         {/* ── Tabela desktop ──────────────────────────────── */}
@@ -116,6 +164,7 @@ export function ProductsView({
                 <th className="px-4 py-2">Categoria</th>
                 <th className="px-4 py-2">Preço</th>
                 <th className="px-4 py-2">Estoque</th>
+                <th className="px-4 py-2">Prev. venda</th>
                 <th className="px-4 py-2">Status</th>
                 <th className="w-16 px-3 py-2">Ações</th>
               </tr>
@@ -161,6 +210,9 @@ export function ProductsView({
                         </span>
                       )}
                     </td>
+                    <td className="mono px-4 py-2 whitespace-nowrap text-palantir-muted">
+                      {p.stock_quantity != null ? brl(p.price * p.stock_quantity) : "—"}
+                    </td>
                     <td className={`mono px-4 py-2 whitespace-nowrap ${STATUS_META[p.status].cls}`}>
                       {STATUS_META[p.status].label}
                     </td>
@@ -181,7 +233,7 @@ export function ProductsView({
               })}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-palantir-muted text-sm">
+                  <td colSpan={9} className="px-4 py-8 text-center text-palantir-muted text-sm">
                     Nenhum produto. Clique em &ldquo;+ Novo Produto&rdquo; para começar.
                   </td>
                 </tr>
@@ -228,9 +280,14 @@ export function ProductsView({
                     <span className="mono text-sm text-palantir-text">
                       {brl(p.price)}
                       {p.stock_quantity != null && (
-                        <span className={`ml-2 text-[10px] ${p.stock_quantity === 0 ? "text-palantir-red" : p.stock_quantity <= 5 ? "text-palantir-yellow" : "text-palantir-muted"}`}>
-                          · {p.stock_quantity} un
-                        </span>
+                        <>
+                          <span className={`ml-2 text-[10px] ${p.stock_quantity === 0 ? "text-palantir-red" : p.stock_quantity <= 5 ? "text-palantir-yellow" : "text-palantir-muted"}`}>
+                            · {p.stock_quantity} un
+                          </span>
+                          <span className="ml-2 text-[10px] text-palantir-blue">
+                            · {brl(p.price * p.stock_quantity)}
+                          </span>
+                        </>
                       )}
                     </span>
                     <span className={`mono text-[10px] uppercase ${STATUS_META[p.status].cls}`}>
@@ -939,6 +996,39 @@ function Modal({
         </div>
         {children}
       </div>
+    </div>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  sub,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: "default" | "muted" | "blue" | "green" | "red";
+}) {
+  const toneCls = {
+    default: "text-palantir-text",
+    muted: "text-palantir-muted",
+    blue: "text-palantir-blue",
+    green: "text-palantir-green",
+    red: "text-palantir-red",
+  }[tone];
+  return (
+    <div className="rounded-admin border border-palantir-border bg-palantir-surface p-3">
+      <div className="mono text-[9px] uppercase tracking-wider text-palantir-muted truncate">
+        {label}
+      </div>
+      <div className={`mono mt-1 text-base sm:text-lg font-semibold ${toneCls} truncate`}>
+        {value}
+      </div>
+      {sub && (
+        <div className="mono text-[9px] text-palantir-muted truncate mt-0.5">{sub}</div>
+      )}
     </div>
   );
 }
