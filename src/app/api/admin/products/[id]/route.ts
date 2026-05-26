@@ -10,6 +10,7 @@ const Patch = z.object({
   price: z.coerce.number().min(0).max(99999).optional(),
   image_url: z.string().max(500).optional(),
   status: z.enum(["active", "paused", "out_of_stock"]).optional(),
+  stock_quantity: z.coerce.number().int().min(0).max(999999).nullable().optional(),
 });
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {

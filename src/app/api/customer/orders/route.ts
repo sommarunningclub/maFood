@@ -19,6 +19,7 @@ import {
   findOrCreateCustomer,
   getPixQr,
 } from "@/lib/asaas";
+import { validateStock, decrementStockForOrder } from "@/lib/stock";
 
 const CardSchema = z.object({
   holderName: z.string().min(2).max(120),
@@ -110,6 +111,9 @@ export async function POST(req: Request) {
     if (p.status !== "active")
       return NextResponse.json({ error: `Produto indisponivel: ${p.name}` }, { status: 400 });
   }
+
+  const stockError = await validateStock(supabase, body.items);
+  if (stockError) return NextResponse.json({ error: stockError }, { status: 400 });
 
   // Subtotal + cupom
   let couponId: string | null = null;
@@ -258,6 +262,10 @@ export async function POST(req: Request) {
   if (eItems) {
     await supabase.from("orders").delete().eq("id", order.id);
     return NextResponse.json({ error: eItems.message }, { status: 500 });
+  }
+
+  if (cardInstantlyConfirmed) {
+    await decrementStockForOrder(supabase, order.id);
   }
 
   if (couponId) {

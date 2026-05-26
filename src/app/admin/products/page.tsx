@@ -14,7 +14,7 @@ export default async function ProductsPage() {
       .order("sort_order", { ascending: true }),
     supabase
       .from("products")
-      .select("id, pdv_id, category_id, category, name, description, price, image_url, status")
+      .select("id, pdv_id, category_id, category, name, description, price, image_url, status, stock_quantity")
       .order("created_at", { ascending: false }),
   ]);
 

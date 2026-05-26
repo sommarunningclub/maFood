@@ -11,6 +11,7 @@ const ProductInput = z.object({
   price: z.coerce.number().min(0).max(99999),
   image_url: z.string().max(500).optional().default(""),
   status: z.enum(["active", "paused", "out_of_stock"]).optional().default("active"),
+  stock_quantity: z.coerce.number().int().min(0).max(999999).nullable().optional(),
 });
 
 export async function GET(req: Request) {
@@ -21,7 +22,7 @@ export async function GET(req: Request) {
   let query = supabase
     .from("products")
     .select(
-      "id, pdv_id, category_id, category, name, description, price, image_url, status, created_at"
+      "id, pdv_id, category_id, category, name, description, price, image_url, status, stock_quantity, created_at"
     )
     .order("created_at", { ascending: false });
   if (pdvId) query = query.eq("pdv_id", pdvId);

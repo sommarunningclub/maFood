@@ -17,6 +17,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidWebhookToken } from "@/lib/asaas";
+import { decrementStockForOrder } from "@/lib/stock";
 
 interface AsaasWebhookEvent {
   id?: string;
@@ -82,6 +83,7 @@ export async function POST(req: Request) {
             console.error("[asaas-webhook] DB update failed", { id: order.id, error });
             return ack({ db_error: true });
           }
+          await decrementStockForOrder(supabase, order.id);
         }
         return ack({ action: "marked_paid", order_id: order.id });
       }

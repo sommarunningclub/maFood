@@ -14,6 +14,7 @@ import {
   findOrCreateCustomer,
   getPixQr,
 } from "@/lib/asaas";
+import { validateStock } from "@/lib/stock";
 
 const Body = z.object({
   cpf: z.string().regex(/^\d{11}$/, "CPF deve ter 11 dígitos"),
@@ -114,6 +115,9 @@ export async function POST(req: Request) {
     if (p.status !== "active")
       return NextResponse.json({ error: `Indisponível: ${p.name}` }, { status: 400 });
   }
+
+  const stockError = await validateStock(supabase, body.items);
+  if (stockError) return NextResponse.json({ error: stockError }, { status: 400 });
 
   const total = body.items.reduce((s, it) => {
     const p = byId.get(it.product_id)!;

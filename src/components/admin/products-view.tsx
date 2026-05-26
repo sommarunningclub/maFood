@@ -25,6 +25,7 @@ interface ProductRow {
   price: number;
   image_url: string | null;
   status: "active" | "paused" | "out_of_stock";
+  stock_quantity: number | null;
 }
 
 interface Category {
@@ -112,6 +113,7 @@ export function ProductsView({
                 <th className="px-4 py-2">PDV</th>
                 <th className="px-4 py-2">Categoria</th>
                 <th className="px-4 py-2">Preço</th>
+                <th className="px-4 py-2">Estoque</th>
                 <th className="px-4 py-2">Status</th>
                 <th className="w-16 px-3 py-2">Ações</th>
               </tr>
@@ -148,6 +150,15 @@ export function ProductsView({
                     </td>
                     <td className="mono px-4 py-2 text-palantir-muted">{p.category || "—"}</td>
                     <td className="mono px-4 py-2 text-palantir-text whitespace-nowrap">{brl(p.price)}</td>
+                    <td className="mono px-4 py-2 whitespace-nowrap">
+                      {p.stock_quantity == null ? (
+                        <span className="text-palantir-muted">∞</span>
+                      ) : (
+                        <span className={p.stock_quantity === 0 ? "text-palantir-red" : p.stock_quantity <= 5 ? "text-palantir-yellow" : "text-palantir-text"}>
+                          {p.stock_quantity}
+                        </span>
+                      )}
+                    </td>
                     <td className={`mono px-4 py-2 whitespace-nowrap ${STATUS_META[p.status].cls}`}>
                       {STATUS_META[p.status].label}
                     </td>
@@ -168,7 +179,7 @@ export function ProductsView({
               })}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-palantir-muted text-sm">
+                  <td colSpan={8} className="px-4 py-8 text-center text-palantir-muted text-sm">
                     Nenhum produto. Clique em &ldquo;+ Novo Produto&rdquo; para começar.
                   </td>
                 </tr>
@@ -212,7 +223,14 @@ export function ProductsView({
                     </button>
                   </div>
                   <div className="mt-1.5 flex items-center justify-between gap-2">
-                    <span className="mono text-sm text-palantir-text">{brl(p.price)}</span>
+                    <span className="mono text-sm text-palantir-text">
+                      {brl(p.price)}
+                      {p.stock_quantity != null && (
+                        <span className={`ml-2 text-[10px] ${p.stock_quantity === 0 ? "text-palantir-red" : p.stock_quantity <= 5 ? "text-palantir-yellow" : "text-palantir-muted"}`}>
+                          · {p.stock_quantity} un
+                        </span>
+                      )}
+                    </span>
                     <span className={`mono text-[10px] uppercase ${STATUS_META[p.status].cls}`}>
                       {STATUS_META[p.status].label}
                     </span>
@@ -303,6 +321,8 @@ function ProductDialog({
   const [price, setPrice] = useState<number>(product?.price ?? 0);
   const [status, setStatus] = useState<ProductRow["status"]>(product?.status ?? "active");
   const [imageUrl, setImageUrl] = useState(product?.image_url ?? "");
+  const [trackStock, setTrackStock] = useState<boolean>(product?.stock_quantity != null);
+  const [stockQty, setStockQty] = useState<number>(product?.stock_quantity ?? 0);
   const [uploading, setUploading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCategory, setNewCategory] = useState("");
@@ -369,6 +389,7 @@ function ProductDialog({
       price,
       image_url: imageUrl,
       status,
+      stock_quantity: trackStock ? Math.max(0, Math.floor(stockQty)) : null,
     };
     const url = editing ? `/api/admin/products/${product!.id}` : "/api/admin/products";
     const method = editing ? "PATCH" : "POST";
@@ -490,6 +511,56 @@ function ProductDialog({
               </select>
             </Field>
           </div>
+
+          <Field label="Estoque">
+            <div className="space-y-2">
+              <label className="mono flex items-center gap-2 text-[11px] text-palantir-text">
+                <input
+                  type="checkbox"
+                  checked={trackStock}
+                  onChange={(e) => setTrackStock(e.target.checked)}
+                  className="size-4 accent-palantir-blue"
+                />
+                Controlar quantidade em estoque
+              </label>
+              {trackStock ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setStockQty((q) => Math.max(0, q - 1))}
+                    className="mono grid size-touch place-items-center rounded-admin border border-palantir-border text-palantir-text hover:bg-palantir-surface2 focus-ring-admin"
+                    aria-label="Diminuir"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={stockQty}
+                    onChange={(e) => setStockQty(Math.max(0, Number(e.target.value) || 0))}
+                    min={0}
+                    step={1}
+                    className="mono w-24 rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-center text-white focus-ring-admin"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setStockQty((q) => q + 1)}
+                    className="mono grid size-touch place-items-center rounded-admin border border-palantir-border text-palantir-text hover:bg-palantir-surface2 focus-ring-admin"
+                    aria-label="Aumentar"
+                  >
+                    +
+                  </button>
+                  <span className="mono text-[10px] text-palantir-muted">
+                    unidades disponíveis
+                  </span>
+                </div>
+              ) : (
+                <p className="mono text-[10px] text-palantir-muted">
+                  Sem controle de estoque (ilimitado)
+                </p>
+              )}
+            </div>
+          </Field>
 
           <Field label="Categoria">
             <div className="space-y-2">

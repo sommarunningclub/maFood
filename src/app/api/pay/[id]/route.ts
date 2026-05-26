@@ -14,6 +14,7 @@ import {
   createCardPayment,
   findOrCreateCustomer,
 } from "@/lib/asaas";
+import { decrementStockForOrder } from "@/lib/stock";
 
 interface Params { params: { id: string } }
 
@@ -164,6 +165,10 @@ export async function POST(req: Request, { params }: Params) {
     patch.paid_at = new Date().toISOString();
   }
   await supabase.from("orders").update(patch).eq("id", order.id);
+
+  if (confirmed) {
+    await decrementStockForOrder(supabase, order.id);
+  }
 
   return NextResponse.json({
     ok: true,
