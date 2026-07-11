@@ -11,8 +11,10 @@ html,
 body {
   margin: 0;
   padding: 0;
-  /* Prevenir scroll horizontal acidental em mobile */
-  overflow-x: hidden;
+}
+body {
+  /* Constrange overflow horizontal sem quebrar position:sticky no html */
+  overflow-x: clip;
 }
 
 html {
@@ -51,6 +53,11 @@ textarea {
 button,
 [role="button"],
 a {
+  touch-action: manipulation;
+}
+
+/* App-feel: evita double-tap-zoom nas superfícies de conteúdo do cliente */
+.mafood-shell {
   touch-action: manipulation;
 }
 
