@@ -126,7 +126,7 @@ export function ProductCard({
                   type="button"
                   onClick={onRemove}
                   aria-label={`Remover 1 ${product.name}`}
-                  className="grid size-9 place-items-center rounded-full text-mafood-primary-strong active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-mafood-primary"
+                  className="grid size-11 place-items-center rounded-full text-mafood-primary-strong active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-mafood-primary"
                 >
                   <Minus className="size-4" />
                 </button>
@@ -141,7 +141,7 @@ export function ProductCard({
                   type="button"
                   onClick={onAdd}
                   aria-label={`Adicionar mais 1 ${product.name}`}
-                  className="grid size-9 place-items-center rounded-full bg-mafood-primary-strong text-white active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+                  className="grid size-11 place-items-center rounded-full bg-mafood-primary-strong text-white active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
                 >
                   <Plus className="size-4" />
                 </button>

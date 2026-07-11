@@ -538,7 +538,7 @@ export function CheckoutView({
               <button
                 onClick={() => remove(i.product.id)}
                 aria-label="Remover um"
-                className="grid size-8 place-items-center rounded-full border border-mafood-border text-mafood-text-secondary hover:border-mafood-primary hover:text-mafood-primary-strong active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+                className="grid size-11 place-items-center rounded-full border border-mafood-border text-mafood-text-secondary hover:border-mafood-primary hover:text-mafood-primary-strong active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               >
                 <span className="text-base leading-none">−</span>
               </button>
@@ -546,7 +546,7 @@ export function CheckoutView({
               <button
                 onClick={() => add(i.product)}
                 aria-label="Adicionar um"
-                className="grid size-8 place-items-center rounded-full border border-mafood-border text-mafood-text-secondary hover:border-mafood-primary hover:text-mafood-primary-strong active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+                className="grid size-11 place-items-center rounded-full border border-mafood-border text-mafood-text-secondary hover:border-mafood-primary hover:text-mafood-primary-strong active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               >
                 <span className="text-base leading-none">+</span>
               </button>
