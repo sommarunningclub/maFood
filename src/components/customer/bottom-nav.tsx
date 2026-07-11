@@ -51,9 +51,12 @@ export function CustomerBottomNav() {
   const segments = pathname.split("/").filter(Boolean);
   const venue = segments[0] ?? "";
 
-  // Hide on checkout, login, order tracker, and root page
+  // Hide on checkout, login, order tracker, root page, and PDV menu (floating cart bar owns the bottom there)
   const second = segments[1] ?? "";
-  if (!venue || HIDDEN_SEGMENTS.includes(second) || segments.length === 0) {
+  const isPdvMenu =
+    segments.length === 2 &&
+    !["checkout", "history", "login", "order", "account"].includes(second);
+  if (!venue || HIDDEN_SEGMENTS.includes(second) || isPdvMenu || segments.length === 0) {
     return null;
   }
 
