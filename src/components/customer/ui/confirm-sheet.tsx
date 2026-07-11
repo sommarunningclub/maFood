@@ -65,6 +65,7 @@ export function useConfirm() {
 
   const confirm = useCallback((options: ConfirmOptions) => {
     return new Promise<boolean>((resolve) => {
+      resolver.current?.(false); // cancel any already-pending confirmation
       resolver.current = resolve;
       setOpts(options);
     });
