@@ -29,7 +29,7 @@ export async function GET() {
         qty: r.qty,
         // @ts-expect-error supabase nested select type
         name: r.products?.name ?? "",
-        // @ts-expect-error
+        // @ts-expect-error supabase nested select type
         price: Number(r.products?.price ?? 0),
       })) ?? [];
   }

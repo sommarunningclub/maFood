@@ -20,7 +20,6 @@ const removeFromArray = <T,>(arr: T[], i: number) => arr.splice(i, 1)[0];
 const removeItemFromArray = <T,>(arr: T[], item: T) =>
   removeFromArray(arr, arr.indexOf(item));
 const removeRandomFromArray = <T,>(arr: T[]) => removeFromArray(arr, randomIndex(arr));
-const getRandomFromArray = <T,>(arr: T[]) => arr[randomIndex(arr)];
 
 interface Stage {
   width: number;
