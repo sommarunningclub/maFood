@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useConfirm } from "@/components/customer/ui/confirm-sheet";
 import {
   ArrowLeft,
   Check,
@@ -48,6 +49,7 @@ export function AccountView({
   ordersCount: number;
 }) {
   const router = useRouter();
+  const { confirm, confirmElement } = useConfirm();
   const [customer, setCustomer] = useState(initial);
   const [name, setName] = useState(initial.name);
   const [email, setEmail] = useState(initial.email ?? "");
@@ -104,7 +106,13 @@ export function AccountView({
   }
 
   async function logout() {
-    if (!window.confirm("Deseja sair da sua conta?")) return;
+    const ok = await confirm({
+      title: "Sair da conta?",
+      description: "Você precisará se identificar novamente para pedir.",
+      confirmLabel: "Sair",
+      destructive: true,
+    });
+    if (!ok) return;
     setLoggingOut(true);
     await fetch("/api/customer/logout", { method: "POST" });
     router.push(`/${venue}/login`);
@@ -112,7 +120,8 @@ export function AccountView({
   }
 
   return (
-    <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe">
+    <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe pb-safe">
+      {confirmElement}
       {/* Header */}
       <header className="flex items-center gap-3">
         <Link
@@ -183,7 +192,8 @@ export function AccountView({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Seu nome"
-            className="w-full bg-transparent text-mafood-text-primary text-sm outline-none placeholder:text-mafood-text-secondary/60"
+            autoComplete="name"
+            className="w-full bg-transparent text-mafood-text-primary text-base outline-none placeholder:text-mafood-text-secondary/60"
           />
         </Field>
 
@@ -195,8 +205,9 @@ export function AccountView({
             inputMode="email"
             autoCapitalize="none"
             autoCorrect="off"
+            autoComplete="email"
             placeholder="seu@email.com"
-            className="w-full bg-transparent text-mafood-text-primary text-sm outline-none placeholder:text-mafood-text-secondary/60"
+            className="w-full bg-transparent text-mafood-text-primary text-base outline-none placeholder:text-mafood-text-secondary/60"
           />
         </Field>
 
@@ -204,9 +215,11 @@ export function AccountView({
           <input
             value={phone}
             onChange={(e) => setPhone(maskPhone(e.target.value))}
-            inputMode="numeric"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
             placeholder="(00) 00000-0000"
-            className="w-full bg-transparent text-mafood-text-primary text-sm outline-none placeholder:text-mafood-text-secondary/60"
+            className="w-full bg-transparent text-mafood-text-primary text-base outline-none placeholder:text-mafood-text-secondary/60"
           />
         </Field>
 

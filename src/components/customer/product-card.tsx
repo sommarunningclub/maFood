@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Plus, Minus } from "lucide-react";
 import { brl } from "@/lib/utils";
 import type { Product } from "@/types";
@@ -21,7 +22,10 @@ export function ProductSection({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-20">
+    <section
+      id={id}
+      className="scroll-mt-[calc(7.5rem+env(safe-area-inset-top))]"
+    >
       <h2 className="mafood-section-title text-fluid-xl">{title}</h2>
       <div className="mt-3 space-y-3">{children}</div>
     </section>
@@ -89,11 +93,12 @@ export function ProductCard({
       <div className="relative z-10 shrink-0 pointer-events-none">
         <div className="size-[88px] overflow-hidden rounded-mafood-md bg-mafood-background-soft border border-mafood-border">
           {product.image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={product.image_url}
               alt={product.name}
-              loading="lazy"
+              width={88}
+              height={88}
+              sizes="88px"
               className="size-full object-cover"
             />
           ) : (
@@ -123,7 +128,7 @@ export function ProductCard({
                   type="button"
                   onClick={onRemove}
                   aria-label={`Remover 1 ${product.name}`}
-                  className="grid size-9 place-items-center rounded-full text-mafood-primary-strong active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-mafood-primary"
+                  className="grid size-11 place-items-center rounded-full text-mafood-primary-strong active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-mafood-primary"
                 >
                   <Minus className="size-4" />
                 </button>
@@ -138,7 +143,7 @@ export function ProductCard({
                   type="button"
                   onClick={onAdd}
                   aria-label={`Adicionar mais 1 ${product.name}`}
-                  className="grid size-9 place-items-center rounded-full bg-mafood-primary-strong text-white active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+                  className="grid size-11 place-items-center rounded-full bg-mafood-primary-strong text-white active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
                 >
                   <Plus className="size-4" />
                 </button>

@@ -11,8 +11,10 @@ html,
 body {
   margin: 0;
   padding: 0;
-  /* Prevenir scroll horizontal acidental em mobile */
-  overflow-x: hidden;
+}
+body {
+  /* Constrange overflow horizontal sem quebrar position:sticky no html */
+  overflow-x: clip;
 }
 
 html {
@@ -46,18 +48,16 @@ select,
 textarea {
   font-size: max(16px, 1rem);
 }
-/* Permite text-xs explícito quando necessário (filtros, etc) */
-input.text-xs,
-input.text-\[11px\],
-input.text-\[12px\],
-input.text-\[13px\] {
-  font-size: inherit;
-}
 
 /* Botões: cursor pointer + touch action otimizada */
 button,
 [role="button"],
 a {
+  touch-action: manipulation;
+}
+
+/* App-feel: evita double-tap-zoom nas superfícies de conteúdo do cliente */
+.mafood-shell {
   touch-action: manipulation;
 }
 
@@ -248,19 +248,18 @@ a {
 
 .menu__text {
   font-family: var(--font-plex-mono), monospace;
-  font-size: 8px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  opacity: 0;
-  transform: translateY(3px);
-  transition: opacity 0.22s ease, transform 0.22s ease;
+  letter-spacing: 0.1em;
+  opacity: 0.6;
+  transform: translateY(0);
+  transition: opacity 0.22s ease;
   white-space: nowrap;
   line-height: 1;
 }
 
 .menu__text.active {
   opacity: 1;
-  transform: translateY(0);
 }
 
 /* ── maFood client design system (scoped) ───────────────────────── */

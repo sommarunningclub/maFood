@@ -8,6 +8,7 @@ import { OrderStatusBadge } from "@/components/customer/order-status-badge";
 import { PdvLogo } from "@/components/pdv-logo";
 import { brl, formatTime } from "@/lib/utils";
 import { EmptyState } from "@/components/customer/ui/mafood-states";
+import { useConfirm } from "@/components/customer/ui/confirm-sheet";
 
 type Status = "pending" | "paid" | "preparing" | "ready" | "partial" | "delivered" | "cancelled";
 
@@ -31,12 +32,20 @@ export function OrdersHistoryView({
   orders: OrderRow[];
 }) {
   const router = useRouter();
+  const { confirm, confirmElement } = useConfirm();
   const [orders, setOrders] = useState(initial);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function cancelOrder(id: string) {
-    if (!window.confirm("Cancelar este pedido? Esta ação não pode ser desfeita.")) return;
+    const ok = await confirm({
+      title: "Cancelar pedido?",
+      description: "Esta ação não pode ser desfeita.",
+      confirmLabel: "Cancelar pedido",
+      cancelLabel: "Voltar",
+      destructive: true,
+    });
+    if (!ok) return;
     setError(null);
     setBusyId(id);
     try {
@@ -56,7 +65,14 @@ export function OrdersHistoryView({
   }
 
   async function removeOrder(id: string) {
-    if (!window.confirm("Remover este pedido permanentemente? Ele sairá da sua lista.")) return;
+    const ok = await confirm({
+      title: "Remover pedido?",
+      description: "Ele sairá permanentemente da sua lista.",
+      confirmLabel: "Remover",
+      cancelLabel: "Voltar",
+      destructive: true,
+    });
+    if (!ok) return;
     setError(null);
     setBusyId(id);
     try {
@@ -75,6 +91,7 @@ export function OrdersHistoryView({
 
   return (
     <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe">
+      {confirmElement}
       <header className="flex items-center gap-3">
         <Link
           href={`/${venue}`}
@@ -134,10 +151,10 @@ export function OrdersHistoryView({
                   className="block active:scale-[0.99] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary rounded-mafood-md"
                 >
                   <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
                       <PdvLogo logoUrl={o.pdv_logo} size={28} />
-                      <div>
-                        <p className="text-mafood-text-primary font-medium">{o.pdv_name}</p>
+                      <div className="min-w-0">
+                        <p className="text-mafood-text-primary font-medium truncate">{o.pdv_name}</p>
                         <p className="num text-[11px] text-mafood-text-secondary">
                           #{o.number} · {formatTime(o.created_at)}
                         </p>

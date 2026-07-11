@@ -152,7 +152,7 @@ export function CheckoutView({
 
     // Delay mínimo 5s — UX: garante que o usuário vê o "Processando..." mesmo
     // se o Asaas responder muito rápido, evitando flash da tela de loading
-    const minDelay = new Promise<void>((res) => setTimeout(res, 5000));
+    const minDelay = new Promise<void>((res) => setTimeout(res, 1000));
     const requestP = fetch("/api/customer/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -312,6 +312,7 @@ export function CheckoutView({
             onChange={(v) => setCard({ ...card, number: v.replace(/\D/g, "").slice(0, 19) })}
             placeholder="0000 0000 0000 0000"
             inputMode="numeric"
+            autoComplete="cc-number"
           />
           <Input
             label="Nome impresso"
@@ -319,6 +320,7 @@ export function CheckoutView({
             onChange={(v) => setCard({ ...card, holderName: v })}
             placeholder="COMO NO CARTÃO"
             autoCapitalize="characters"
+            autoComplete="cc-name"
           />
           <div className="grid grid-cols-3 gap-3">
             <Input
@@ -327,6 +329,7 @@ export function CheckoutView({
               onChange={(v) => setCard({ ...card, expiryMonth: v.replace(/\D/g, "").slice(0, 2) })}
               placeholder="MM"
               inputMode="numeric"
+              autoComplete="cc-exp-month"
             />
             <Input
               label="Ano"
@@ -334,6 +337,7 @@ export function CheckoutView({
               onChange={(v) => setCard({ ...card, expiryYear: v.replace(/\D/g, "").slice(0, 4) })}
               placeholder="AAAA"
               inputMode="numeric"
+              autoComplete="cc-exp-year"
             />
             <Input
               label="CVV"
@@ -341,6 +345,7 @@ export function CheckoutView({
               onChange={(v) => setCard({ ...card, ccv: v.replace(/\D/g, "").slice(0, 4) })}
               placeholder="123"
               inputMode="numeric"
+              autoComplete="cc-csc"
             />
           </div>
         </section>
@@ -353,6 +358,8 @@ export function CheckoutView({
             onChange={(v) => setHolder({ ...holder, email: v })}
             placeholder="seu@email.com"
             inputMode="email"
+            type="email"
+            autoComplete="email"
           />
           <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
             <Input
@@ -366,6 +373,7 @@ export function CheckoutView({
               }}
               placeholder="00000-000"
               inputMode="numeric"
+              autoComplete="postal-code"
             />
             <div className="num text-[10px] text-mafood-text-secondary pb-3 min-w-[60px]">
               {cepLoading ? "buscando..." : cepHint ? "✓" : ""}
@@ -397,7 +405,9 @@ export function CheckoutView({
             value={maskPhone(holder.phone)}
             onChange={(v) => setHolder({ ...holder, phone: v.replace(/\D/g, "").slice(0, 11) })}
             placeholder="(00) 00000-0000"
-            inputMode="numeric"
+            inputMode="tel"
+            type="tel"
+            autoComplete="tel"
           />
         </section>
 
@@ -528,7 +538,7 @@ export function CheckoutView({
               <button
                 onClick={() => remove(i.product.id)}
                 aria-label="Remover um"
-                className="grid size-8 place-items-center rounded-full border border-mafood-border text-mafood-text-secondary hover:border-mafood-primary hover:text-mafood-primary-strong active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+                className="grid size-11 place-items-center rounded-full border border-mafood-border text-mafood-text-secondary hover:border-mafood-primary hover:text-mafood-primary-strong active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               >
                 <span className="text-base leading-none">−</span>
               </button>
@@ -536,7 +546,7 @@ export function CheckoutView({
               <button
                 onClick={() => add(i.product)}
                 aria-label="Adicionar um"
-                className="grid size-8 place-items-center rounded-full border border-mafood-border text-mafood-text-secondary hover:border-mafood-primary hover:text-mafood-primary-strong active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+                className="grid size-11 place-items-center rounded-full border border-mafood-border text-mafood-text-secondary hover:border-mafood-primary hover:text-mafood-primary-strong active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               >
                 <span className="text-base leading-none">+</span>
               </button>
@@ -689,6 +699,8 @@ function Input({
   placeholder,
   inputMode,
   autoCapitalize,
+  type = "text",
+  autoComplete,
 }: {
   label: string;
   value?: string;
@@ -696,6 +708,8 @@ function Input({
   placeholder?: string;
   inputMode?: "text" | "numeric" | "email" | "tel";
   autoCapitalize?: "off" | "none" | "sentences" | "words" | "characters";
+  type?: string;
+  autoComplete?: string;
 }) {
   return (
     <label className="block">
@@ -706,7 +720,9 @@ function Input({
         placeholder={placeholder}
         inputMode={inputMode}
         autoCapitalize={autoCapitalize}
-        className="mt-1 w-full rounded-mafood-md bg-mafood-surface-strong border border-mafood-border px-3 min-h-touch h-12 text-mafood-text-primary text-sm outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+        type={type}
+        autoComplete={autoComplete}
+        className="mt-1 w-full rounded-mafood-md bg-mafood-surface-strong border border-mafood-border px-3 min-h-touch h-12 text-mafood-text-primary text-base outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
       />
     </label>
   );

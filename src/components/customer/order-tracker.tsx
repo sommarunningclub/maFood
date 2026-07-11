@@ -8,6 +8,7 @@ import { ArrowLeft, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { brl, formatTime } from "@/lib/utils";
 import { PizzaLoader } from "@/components/customer/pizza-loader";
+import { useConfirm } from "@/components/customer/ui/confirm-sheet";
 
 type Status = "pending" | "paid" | "preparing" | "ready" | "partial" | "delivered" | "cancelled";
 
@@ -57,6 +58,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
+  const { confirm, confirmElement } = useConfirm();
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
@@ -197,7 +199,14 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
 
   async function cancelOrder() {
     if (!order) return;
-    if (!window.confirm("Cancelar este pedido? Esta ação não pode ser desfeita.")) return;
+    const ok = await confirm({
+      title: "Cancelar pedido?",
+      description: "Esta ação não pode ser desfeita.",
+      confirmLabel: "Cancelar pedido",
+      cancelLabel: "Voltar",
+      destructive: true,
+    });
+    if (!ok) return;
     setCancelError(null);
     setCancelling(true);
     try {
@@ -216,8 +225,9 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
   const isCancelled = order.status === "cancelled";
 
   return (
-    <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe pb-safe">
-      <header className="flex items-center justify-between">
+    <div className="min-h-dvh-100 p-4 sm:p-5 pb-safe">
+      {confirmElement}
+      <header className="sticky top-0 z-20 -mx-4 sm:-mx-5 px-4 sm:px-5 pt-safe pb-2 flex items-center justify-between bg-mafood-background/95 backdrop-blur supports-[backdrop-filter]:bg-mafood-background/80">
         <Link
           href={`/${venue}`}
           aria-label="Voltar à praça"
@@ -260,16 +270,16 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
           )}
           <p className="num text-[11px] text-mafood-text-secondary mt-3 max-w-xs">
             {isPreparing
-              ? "Atualize aqui para saber a hora de retirar o seu pedido"
-              : "Aguardando o PDV aceitar — atualize para saber se já começou o preparo"}
+              ? "Estamos preparando seu pedido — avisamos aqui assim que estiver pronto."
+              : "Aguardando o PDV aceitar o pedido…"}
           </p>
           <button
             onClick={refreshNow}
             disabled={refreshing}
-            className="mt-3 inline-flex items-center gap-2 rounded-mafood-md bg-mafood-primary/15 border border-mafood-primary/40 text-mafood-primary-strong min-h-touch px-4 num text-xs uppercase tracking-wider focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary disabled:opacity-60"
+            className="mt-3 inline-flex items-center gap-1.5 text-mafood-text-secondary min-h-touch px-2 num text-[11px] uppercase tracking-wider underline underline-offset-2 disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
           >
-            <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
-            {refreshing ? "Atualizando..." : "Atualizar"}
+            <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            {refreshing ? "Atualizando..." : "Não atualizou? Recarregar"}
           </button>
         </section>
       )}

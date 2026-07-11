@@ -58,7 +58,11 @@ export function IdentifyModal({
   useEffect(() => {
     if (!open) return;
     opener.current = document.activeElement as HTMLElement;
-    document.body.style.overflow = "hidden";
+    const scrollY = window.scrollY;
+    const body = document.body;
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.width = "100%";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onCloseRef.current();
       if (e.key === "Tab" && panelRef.current) {
@@ -80,7 +84,10 @@ export function IdentifyModal({
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+      body.style.position = "";
+      body.style.top = "";
+      body.style.width = "";
+      window.scrollTo(0, scrollY);
       opener.current?.focus();
     };
   }, [open]);
@@ -160,8 +167,9 @@ export function IdentifyModal({
       <div
         ref={panelRef}
         onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-mafood-md border border-mafood-border bg-mafood-surface-strong p-5 pb-safe shadow-2xl animate-in slide-in-from-bottom"
+        className="w-full sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-mafood-md border border-mafood-border bg-mafood-surface-strong p-5 pb-safe shadow-2xl animate-in slide-in-from-bottom motion-reduce:animate-none"
       >
+        <div className="sm:hidden mx-auto -mt-1 mb-3 h-1.5 w-10 rounded-full bg-mafood-border" aria-hidden />
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2
@@ -324,6 +332,7 @@ function PrefillFields({
           onChange={(e) => setName(e.target.value)}
           required
           autoFocus
+          autoComplete="name"
           className="mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 min-h-touch h-11 text-mafood-text-primary outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         />
       </label>
@@ -333,16 +342,19 @@ function PrefillFields({
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
           className="mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 min-h-touch h-11 text-mafood-text-primary outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         />
       </label>
       <label className="block">
         <span className="num text-[11px] text-mafood-text-secondary">Telefone (opcional)</span>
         <input
+          type="tel"
           value={phone}
           onChange={(e) => setPhone(maskPhone(e.target.value))}
-          inputMode="numeric"
+          inputMode="tel"
           placeholder="(00) 00000-0000"
+          autoComplete="tel"
           className="num mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 min-h-touch h-11 text-mafood-text-primary outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         />
       </label>

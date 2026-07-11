@@ -1,6 +1,7 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { Home, ShoppingBag, UtensilsCrossed, User } from "lucide-react";
 
@@ -46,31 +47,31 @@ const HIDDEN_SEGMENTS = ["checkout", "login", "order"];
 
 export function CustomerBottomNav() {
   const pathname = usePathname();
-  const router = useRouter();
 
   const segments = pathname.split("/").filter(Boolean);
   const venue = segments[0] ?? "";
 
-  // Hide on checkout, login, order tracker, and root page
+  // Hide on checkout, login, order tracker, root page, and PDV menu (floating cart bar owns the bottom there)
   const second = segments[1] ?? "";
-  if (!venue || HIDDEN_SEGMENTS.includes(second) || segments.length === 0) {
+  const isPdvMenu =
+    segments.length === 2 &&
+    !["checkout", "history", "login", "order", "account"].includes(second);
+  if (!venue || HIDDEN_SEGMENTS.includes(second) || isPdvMenu || segments.length === 0) {
     return null;
   }
 
-  return <NavInner venue={venue} segments={segments} router={router} />;
+  return <NavInner venue={venue} segments={segments} />;
 }
 
 function NavInner({
   venue,
   segments,
-  router,
 }: {
   venue: string;
   segments: string[];
-  router: ReturnType<typeof useRouter>;
 }) {
   const textRefs = useRef<(HTMLElement | null)[]>([]);
-  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
 
   const activeIndex = NAV_ITEMS.findIndex((item) => item.match(segments));
 
@@ -87,10 +88,6 @@ function NavInner({
     return () => window.removeEventListener("resize", update);
   }, [activeIndex]);
 
-  function handleClick(href: string) {
-    router.push(href);
-  }
-
   return (
     <nav
       className="menu"
@@ -102,10 +99,11 @@ function NavInner({
         const href = item.href(venue);
 
         return (
-          <button
+          <Link
             key={item.label}
-            className={`menu__item ${isActive ? "active" : ""}`}
-            onClick={() => handleClick(href)}
+            href={href}
+            prefetch
+            className={`menu__item active:scale-95 transition-transform ${isActive ? "active" : ""}`}
             ref={(el) => { itemRefs.current[i] = el; }}
             style={{ "--lineWidth": "0px" } as React.CSSProperties}
             aria-label={item.label}
@@ -120,7 +118,7 @@ function NavInner({
             >
               {item.label}
             </strong>
-          </button>
+          </Link>
         );
       })}
     </nav>

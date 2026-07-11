@@ -87,7 +87,7 @@ export function SearchModal({
       />
       <div className="absolute inset-0 flex flex-col bg-mafood-background pt-safe animate-slide-in">
         {/* Barra de busca */}
-        <div className="mafood-header-gradient px-4 pt-3 pb-4 pt-safe">
+        <div className="mafood-header-gradient px-4 pt-3 pb-4">
           <div className="flex items-center gap-2">
             <div className="flex flex-1 items-center gap-2 h-12 rounded-mafood-md bg-mafood-surface-strong px-3 shadow-mafood-sm">
               <Search className="size-4 shrink-0 text-mafood-primary-strong" />
@@ -97,7 +97,7 @@ export function SearchModal({
                 onChange={(e) => setQuery(e.target.value)}
                 aria-label="Buscar restaurantes ou categorias"
                 placeholder="Buscar restaurantes, categorias…"
-                className="min-w-0 flex-1 bg-transparent text-[15px] text-mafood-text-primary placeholder:text-mafood-text-muted focus:outline-none"
+                className="min-w-0 flex-1 bg-transparent text-base text-mafood-text-primary placeholder:text-mafood-text-muted focus:outline-none"
               />
               {query && (
                 <button
@@ -107,7 +107,7 @@ export function SearchModal({
                     inputRef.current?.focus();
                   }}
                   aria-label="Limpar busca"
-                  className="grid size-7 shrink-0 place-items-center rounded-full text-mafood-text-muted hover:bg-mafood-background-soft"
+                  className="grid size-11 shrink-0 place-items-center rounded-full text-mafood-text-muted hover:bg-mafood-background-soft"
                 >
                   <X className="size-4" />
                 </button>

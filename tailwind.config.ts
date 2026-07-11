@@ -147,6 +147,10 @@ const config: Config = {
           from: { opacity: "0", transform: "translateX(100%)" },
           to: { opacity: "1", transform: "translateX(0)" },
         },
+        "slide-in-left": {
+          from: { opacity: "0", transform: "translateX(-100%)" },
+          to: { opacity: "1", transform: "translateX(0)" },
+        },
         "fade-in": {
           from: { opacity: "0" },
           to: { opacity: "1" },
@@ -157,6 +161,7 @@ const config: Config = {
         "pulse-primary": "pulse-primary 1.6s infinite",
         "slide-in": "slide-in 0.25s ease-out",
         "slide-in-right": "slide-in-right 0.25s ease-out",
+        "slide-in-left": "slide-in-left 0.25s ease-out",
         "fade-in": "fade-in 0.2s ease-out",
       },
     },
