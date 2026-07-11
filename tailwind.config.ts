@@ -57,6 +57,7 @@ const config: Config = {
           gold: "var(--mafood-gold)",
           success: "var(--mafood-success)",
           "success-bright": "var(--mafood-success-bright)",
+          "success-strong": "var(--mafood-success-strong)",
           "section-title": "var(--mafood-section-title)",
           background: "var(--mafood-background)",
           "background-soft": "var(--mafood-background-soft)",

@@ -245,7 +245,7 @@ export function CheckoutView({
 
           <p className="num text-fluid-2xl text-mafood-text-primary mt-4">{brl(finalTotal)}</p>
           {discount > 0 && (
-            <p className="num text-xs text-mafood-success mt-1">
+            <p className="num text-xs text-mafood-success-strong mt-1">
               − {brl(discount)} de desconto aplicado
             </p>
           )}
@@ -265,7 +265,7 @@ export function CheckoutView({
                   onClick={() => void copyPix()}
                   className={`num shrink-0 rounded px-3 min-h-[36px] text-[11px] uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary ${
                     copied
-                      ? "bg-mafood-success/20 text-mafood-success"
+                      ? "bg-mafood-success/20 text-mafood-success-strong"
                       : "bg-mafood-primary/15 text-mafood-primary hover:bg-mafood-primary/25"
                   }`}
                 >
@@ -277,7 +277,7 @@ export function CheckoutView({
 
           <button
             onClick={finalize}
-            className="mt-6 w-full max-w-xs rounded-mafood-md bg-mafood-success min-h-touch h-12 text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+            className="mt-6 w-full max-w-xs rounded-mafood-md bg-mafood-success-strong min-h-touch h-12 text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
           >
             Acompanhar pedido
           </button>

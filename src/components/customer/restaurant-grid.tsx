@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/customer/ui/mafood-states";
 export function RestaurantStatus({ isOpen }: { isOpen: boolean }) {
   if (isOpen) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-mafood-success">
+      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-mafood-success-strong">
         <span className="relative inline-flex size-2 shrink-0">
           <span className="absolute inset-0 rounded-full bg-mafood-success animate-ping opacity-60" />
           <span className="relative size-2 rounded-full bg-mafood-success" />

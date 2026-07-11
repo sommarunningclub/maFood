@@ -224,7 +224,7 @@ export function AccountView({
           disabled={!dirty || saving}
           className={`w-full rounded-mafood-md min-h-touch h-12 font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary disabled:opacity-40 ${
             saved
-              ? "bg-mafood-success text-white"
+              ? "bg-mafood-success-strong text-white"
               : "bg-mafood-primary text-white"
           }`}
         >
