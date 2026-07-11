@@ -133,13 +133,13 @@ export function IdentifyModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-client border border-somma-border bg-somma-surface p-5 pb-safe shadow-2xl animate-in slide-in-from-bottom"
+        className="w-full sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-mafood-md border border-mafood-border bg-mafood-surface-strong p-5 pb-safe shadow-2xl animate-in slide-in-from-bottom"
       >
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2
               id="identify-title"
-              className="text-white font-display uppercase tracking-wide text-lg"
+              className="mafood-display text-mafood-text-primary text-lg"
             >
               {stage === "vip_prefill"
                 ? "Bem-vindo de volta!"
@@ -147,7 +147,7 @@ export function IdentifyModal({
                 ? "Primeiro acesso"
                 : "Identifique-se"}
             </h2>
-            <p className="text-somma-muted text-xs mt-1">
+            <p className="text-mafood-text-secondary text-xs mt-1">
               {stage === "cpf" || stage === "loading"
                 ? "Para finalizar o pedido precisamos do seu CPF."
                 : stage === "vip_prefill"
@@ -158,7 +158,7 @@ export function IdentifyModal({
           <button
             onClick={onClose}
             aria-label="Fechar"
-            className="grid size-touch -mt-1 -mr-2 place-items-center text-somma-muted hover:text-white focus-ring"
+            className="grid size-touch -mt-1 -mr-2 place-items-center text-mafood-text-secondary hover:text-mafood-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
           >
             <X className="size-5" />
           </button>
@@ -167,7 +167,7 @@ export function IdentifyModal({
         {stage === "cpf" && (
           <form onSubmit={submitCpf}>
             <label className="block">
-              <span className="num text-[11px] text-somma-muted">CPF</span>
+              <span className="num text-[11px] text-mafood-text-secondary">CPF</span>
               <input
                 value={maskCpf(cpf)}
                 onChange={(e) => setCpf(e.target.value.replace(/\D/g, ""))}
@@ -175,14 +175,14 @@ export function IdentifyModal({
                 placeholder="000.000.000-00"
                 autoFocus
                 required
-                className="num mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 min-h-touch h-12 text-xl tracking-wider text-white outline-none focus:border-somma-orange focus-ring"
+                className="num mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 min-h-touch h-12 text-xl tracking-wider text-mafood-text-primary outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               />
             </label>
-            {error && <p className="num text-xs text-somma-red mt-2">{error}</p>}
+            {error && <p className="num text-xs text-mafood-accent-dark mt-2">{error}</p>}
             <button
               type="submit"
               disabled={cpf.length !== 11}
-              className="mt-4 w-full rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide disabled:opacity-40 focus-ring"
+              className="mt-4 w-full rounded-mafood-md bg-mafood-primary min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               Continuar
             </button>
@@ -192,7 +192,7 @@ export function IdentifyModal({
         {stage === "vip_prefill" && prefill && (
           <form onSubmit={submitRegister}>
             <div className="flex items-center gap-2 mb-3">
-              <span className="num text-[10px] uppercase bg-somma-orange/15 text-somma-orange px-2 py-1 rounded">
+              <span className="num text-[10px] uppercase bg-mafood-primary/15 text-mafood-primary px-2 py-1 rounded">
                 ✓ Lista VIP
               </span>
             </div>
@@ -202,11 +202,11 @@ export function IdentifyModal({
               email={email} setEmail={setEmail}
               phone={phone} setPhone={setPhone}
             />
-            {error && <p className="num text-xs text-somma-red mt-2">{error}</p>}
+            {error && <p className="num text-xs text-mafood-accent-dark mt-2">{error}</p>}
             <button
               type="submit"
               disabled={!name.trim()}
-              className="mt-4 w-full rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide disabled:opacity-40 focus-ring"
+              className="mt-4 w-full rounded-mafood-md bg-mafood-primary min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               Confirmar e continuar
             </button>
@@ -219,7 +219,7 @@ export function IdentifyModal({
                 setEmail("");
                 setPhone("");
               }}
-              className="mt-2 w-full num text-xs text-somma-muted min-h-touch focus-ring"
+              className="mt-2 w-full num text-xs text-mafood-text-secondary min-h-touch focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               ← Usar outro CPF
             </button>
@@ -234,11 +234,11 @@ export function IdentifyModal({
               email={email} setEmail={setEmail}
               phone={phone} setPhone={setPhone}
             />
-            {error && <p className="num text-xs text-somma-red mt-2">{error}</p>}
+            {error && <p className="num text-xs text-mafood-accent-dark mt-2">{error}</p>}
             <button
               type="submit"
               disabled={!name.trim()}
-              className="mt-4 w-full rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide disabled:opacity-40 focus-ring"
+              className="mt-4 w-full rounded-mafood-md bg-mafood-primary min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               Criar cadastro e continuar
             </button>
@@ -251,7 +251,7 @@ export function IdentifyModal({
                 setEmail("");
                 setPhone("");
               }}
-              className="mt-2 w-full num text-xs text-somma-muted min-h-touch focus-ring"
+              className="mt-2 w-full num text-xs text-mafood-text-secondary min-h-touch focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               ← Usar outro CPF
             </button>
@@ -260,8 +260,8 @@ export function IdentifyModal({
 
         {stage === "loading" && (
           <div className="py-8 text-center">
-            <div className="size-8 mx-auto mb-2 rounded-full border-2 border-somma-border border-t-somma-orange animate-spin" />
-            <p className="num text-sm text-somma-muted">Aguarde...</p>
+            <div className="size-8 mx-auto mb-2 rounded-full border-2 border-mafood-border border-t-mafood-primary animate-spin" />
+            <p className="num text-sm text-mafood-text-secondary">Aguarde...</p>
           </div>
         )}
       </div>
@@ -283,40 +283,40 @@ function PrefillFields({
   return (
     <div className="space-y-2">
       <label className="block">
-        <span className="num text-[11px] text-somma-muted">CPF</span>
+        <span className="num text-[11px] text-mafood-text-secondary">CPF</span>
         <input
           value={maskCpf(cpf)}
           disabled
-          className="num mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 min-h-touch h-11 text-white opacity-60"
+          className="num mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 min-h-touch h-11 text-mafood-text-primary opacity-60"
         />
       </label>
       <label className="block">
-        <span className="num text-[11px] text-somma-muted">Nome completo *</span>
+        <span className="num text-[11px] text-mafood-text-secondary">Nome completo *</span>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
           autoFocus
-          className="mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 min-h-touch h-11 text-white outline-none focus:border-somma-orange focus-ring"
+          className="mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 min-h-touch h-11 text-mafood-text-primary outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         />
       </label>
       <label className="block">
-        <span className="num text-[11px] text-somma-muted">E-mail (opcional)</span>
+        <span className="num text-[11px] text-mafood-text-secondary">E-mail (opcional)</span>
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 min-h-touch h-11 text-white outline-none focus:border-somma-orange focus-ring"
+          className="mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 min-h-touch h-11 text-mafood-text-primary outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         />
       </label>
       <label className="block">
-        <span className="num text-[11px] text-somma-muted">Telefone (opcional)</span>
+        <span className="num text-[11px] text-mafood-text-secondary">Telefone (opcional)</span>
         <input
           value={phone}
           onChange={(e) => setPhone(maskPhone(e.target.value))}
           inputMode="numeric"
           placeholder="(00) 00000-0000"
-          className="num mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 min-h-touch h-11 text-white outline-none focus:border-somma-orange focus-ring"
+          className="num mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 min-h-touch h-11 text-mafood-text-primary outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         />
       </label>
     </div>

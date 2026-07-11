@@ -199,12 +199,12 @@ export function CheckoutView({
 
   if (empty && step === "form") {
     return (
-      <div className="min-h-dvh-100 flex flex-col items-center justify-center gap-4 p-8 text-center somma-grain pt-safe pb-safe">
+      <div className="min-h-dvh-100 flex flex-col items-center justify-center gap-4 p-8 text-center pt-safe pb-safe">
         <p className="text-6xl">🛒</p>
-        <p className="text-somma-muted">Seu carrinho está vazio</p>
+        <p className="text-mafood-text-secondary">Seu carrinho está vazio</p>
         <Link
           href={`/${venue}`}
-          className="rounded-client bg-somma-orange px-5 min-h-touch h-12 inline-flex items-center text-white font-display uppercase tracking-wide focus-ring"
+          className="rounded-mafood-md bg-mafood-primary px-5 min-h-touch h-12 inline-flex items-center text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         >
           Ver praça
         </Link>
@@ -225,14 +225,14 @@ export function CheckoutView({
     }
 
     return (
-      <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe pb-[88px] somma-grain">
+      <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe pb-[88px]">
         <Header venue={venue} title="Pagamento Pix" />
         <div className="mt-6 flex flex-col items-center text-center">
-          <p className="num text-[11px] text-somma-muted">PEDIDO #{orderNumber}</p>
+          <p className="num text-[11px] text-mafood-text-secondary">PEDIDO #{orderNumber}</p>
           <PixTimer />
 
           {/* QR Code */}
-          <div className="bg-white p-3 rounded-client mt-4 shadow-lg">
+          <div className="bg-white p-3 rounded-mafood-md mt-4 shadow-lg">
             {qr ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={qr} alt="QR Code Pix" width={240} height={240} />
@@ -243,30 +243,30 @@ export function CheckoutView({
             )}
           </div>
 
-          <p className="num text-fluid-2xl text-white mt-4">{brl(finalTotal)}</p>
+          <p className="num text-fluid-2xl text-mafood-text-primary mt-4">{brl(finalTotal)}</p>
           {discount > 0 && (
-            <p className="num text-xs text-somma-green mt-1">
+            <p className="num text-xs text-mafood-success mt-1">
               − {brl(discount)} de desconto aplicado
             </p>
           )}
-          <p className="text-somma-muted text-sm mt-1">Escaneie no app do seu banco</p>
+          <p className="text-mafood-text-secondary text-sm mt-1">Escaneie no app do seu banco</p>
 
           {/* Copiar código PIX */}
           {pixPayload && (
             <div className="mt-5 w-full max-w-xs space-y-2">
-              <p className="num text-[10px] text-somma-muted uppercase tracking-wider">
+              <p className="num text-[10px] text-mafood-text-secondary uppercase tracking-wider">
                 Ou copie o código Pix:
               </p>
-              <div className="flex items-center gap-2 rounded-client border border-somma-border bg-somma-surface px-3 py-2">
-                <p className="num text-[11px] text-somma-muted flex-1 truncate text-left">
+              <div className="flex items-center gap-2 rounded-mafood-md border border-mafood-border bg-mafood-surface-strong px-3 py-2">
+                <p className="num text-[11px] text-mafood-text-secondary flex-1 truncate text-left">
                   {pixPayload.slice(0, 38)}…
                 </p>
                 <button
                   onClick={() => void copyPix()}
-                  className={`num shrink-0 rounded px-3 min-h-[36px] text-[11px] uppercase tracking-wider transition-colors focus-ring ${
+                  className={`num shrink-0 rounded px-3 min-h-[36px] text-[11px] uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary ${
                     copied
-                      ? "bg-somma-green/20 text-somma-green"
-                      : "bg-somma-orange/15 text-somma-orange hover:bg-somma-orange/25"
+                      ? "bg-mafood-success/20 text-mafood-success"
+                      : "bg-mafood-primary/15 text-mafood-primary hover:bg-mafood-primary/25"
                   }`}
                 >
                   {copied ? "Copiado ✓" : "Copiar"}
@@ -277,11 +277,11 @@ export function CheckoutView({
 
           <button
             onClick={finalize}
-            className="mt-6 w-full max-w-xs rounded-client bg-somma-green/90 min-h-touch h-12 text-black font-display uppercase tracking-wide focus-ring"
+            className="mt-6 w-full max-w-xs rounded-mafood-md bg-mafood-success min-h-touch h-12 text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
           >
             Acompanhar pedido
           </button>
-          <p className="num text-[10px] text-somma-muted mt-3">
+          <p className="num text-[10px] text-mafood-text-secondary mt-3">
             Confirmação automática via webhook Asaas
           </p>
         </div>
@@ -301,11 +301,11 @@ export function CheckoutView({
       holder.addressNumber.trim().length >= 1;
 
     return (
-      <div className="min-h-dvh-100 pb-32 p-4 sm:p-5 pt-safe somma-grain">
+      <div className="min-h-dvh-100 pb-32 p-4 sm:p-5 pt-safe">
         <Header venue={venue} title="Cartão de crédito" onBack={() => setStep("form")} />
 
         <section className="mt-5 space-y-3">
-          <p className="num text-[11px] text-somma-muted">DADOS DO CARTÃO</p>
+          <p className="num text-[11px] text-mafood-text-secondary">DADOS DO CARTÃO</p>
           <Input
             label="Número do cartão"
             value={formatCardNumber(card.number)}
@@ -346,7 +346,7 @@ export function CheckoutView({
         </section>
 
         <section className="mt-6 space-y-3">
-          <p className="num text-[11px] text-somma-muted">DADOS DO TITULAR</p>
+          <p className="num text-[11px] text-mafood-text-secondary">DADOS DO TITULAR</p>
           <Input
             label="E-mail"
             value={holder.email}
@@ -367,12 +367,12 @@ export function CheckoutView({
               placeholder="00000-000"
               inputMode="numeric"
             />
-            <div className="num text-[10px] text-somma-muted pb-3 min-w-[60px]">
+            <div className="num text-[10px] text-mafood-text-secondary pb-3 min-w-[60px]">
               {cepLoading ? "buscando..." : cepHint ? "✓" : ""}
             </div>
           </div>
           {cepHint?.street && (
-            <p className="num text-[11px] text-somma-muted -mt-1">
+            <p className="num text-[11px] text-mafood-text-secondary -mt-1">
               {cepHint.street}
               {cepHint.neighborhood ? ` · ${cepHint.neighborhood}` : ""} · {cepHint.city}/{cepHint.state}
             </p>
@@ -404,18 +404,18 @@ export function CheckoutView({
         {error && (
           <p
             role="alert"
-            className="mt-4 text-sm text-somma-red border border-somma-red/30 bg-somma-red/10 px-3 py-2 rounded-client"
+            className="mt-4 text-sm text-mafood-accent-dark border border-mafood-accent-dark/30 bg-mafood-accent-dark/10 px-3 py-2 rounded-mafood-md"
           >
             {error}
           </p>
         )}
 
-        <div className="fixed bottom-0 inset-x-0 z-30 bg-somma-bg/95 backdrop-blur border-t border-somma-border pb-safe">
+        <div className="fixed bottom-0 inset-x-0 z-30 bg-mafood-background/95 backdrop-blur border-t border-mafood-border pb-safe">
           <div className="mx-auto max-w-screen-mobile p-3 sm:p-4">
             <button
               onClick={() => void submitOrder()}
               disabled={!cardFilled}
-              className="w-full rounded-client bg-somma-orange min-h-touch h-13 text-white font-display uppercase tracking-wide active:scale-[0.98] transition-transform focus-ring disabled:opacity-40"
+              className="w-full rounded-mafood-md bg-mafood-primary min-h-touch h-13 text-white font-semibold active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary disabled:opacity-40"
             >
               Pagar {brl(subtotal)}
             </button>
@@ -427,16 +427,16 @@ export function CheckoutView({
 
   if (step === "submitting") {
     return (
-      <div className="min-h-dvh-100 flex items-center justify-center p-8 somma-grain pt-safe pb-safe">
+      <div className="min-h-dvh-100 flex items-center justify-center p-8 pt-safe pb-safe">
         <div className="text-center max-w-sm">
-          <div className="size-14 mx-auto mb-4 rounded-full border-4 border-somma-border border-t-somma-orange animate-spin" />
-          <h2 className="text-white font-display uppercase tracking-wide text-fluid-xl">
+          <div className="size-14 mx-auto mb-4 rounded-full border-4 border-mafood-border border-t-mafood-primary animate-spin" />
+          <h2 className="mafood-display text-mafood-text-primary text-fluid-xl">
             {method === "pix" ? "Gerando Pix" : "Processando pagamento"}
           </h2>
-          <p className="num text-xs text-somma-muted mt-2">
+          <p className="num text-xs text-mafood-text-secondary mt-2">
             Carregando dados do pagamento com segurança...
           </p>
-          <p className="num text-[10px] text-somma-muted/60 mt-1">
+          <p className="num text-[10px] text-mafood-text-secondary/60 mt-1">
             Não feche esta tela
           </p>
         </div>
@@ -446,23 +446,23 @@ export function CheckoutView({
 
   if (step === "failed") {
     return (
-      <div className="min-h-dvh-100 flex items-center justify-center p-6 somma-grain pt-safe pb-safe">
+      <div className="min-h-dvh-100 flex items-center justify-center p-6 pt-safe pb-safe">
         <div className="text-center max-w-sm w-full">
-          <div className="size-20 mx-auto mb-5 rounded-full border-4 border-somma-red/40 bg-somma-red/10 grid place-items-center">
+          <div className="size-20 mx-auto mb-5 rounded-full border-4 border-mafood-accent-dark/40 bg-mafood-accent-dark/10 grid place-items-center">
             <span className="text-4xl">✕</span>
           </div>
-          <h2 className="text-white font-display uppercase tracking-wide text-fluid-2xl">
+          <h2 className="mafood-display text-mafood-text-primary text-fluid-2xl">
             Pagamento não foi concluído
           </h2>
           {error && (
             <p
               role="alert"
-              className="num text-sm text-somma-muted mt-3 border border-somma-red/20 bg-somma-red/5 px-3 py-2 rounded-client"
+              className="num text-sm text-mafood-text-secondary mt-3 border border-mafood-accent-dark/20 bg-mafood-accent-dark/5 px-3 py-2 rounded-mafood-md"
             >
               {error}
             </p>
           )}
-          <p className="num text-[11px] text-somma-muted/80 mt-3">
+          <p className="num text-[11px] text-mafood-text-secondary/80 mt-3">
             Nenhum valor foi cobrado. Você pode tentar novamente com outro método ou cartão.
           </p>
           <div className="mt-6 space-y-2">
@@ -473,7 +473,7 @@ export function CheckoutView({
                   clear();
                   router.push(`/${venue}`);
                 }}
-                className="w-full rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide focus-ring"
+                className="w-full rounded-mafood-md bg-mafood-primary min-h-touch h-12 text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               >
                 Limpar carrinho e voltar
               </button>
@@ -483,7 +483,7 @@ export function CheckoutView({
                   setError(null);
                   setStep(method === "card" ? "card-form" : "form");
                 }}
-                className="w-full rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide focus-ring"
+                className="w-full rounded-mafood-md bg-mafood-primary min-h-touch h-12 text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               >
                 Tentar novamente
               </button>
@@ -494,13 +494,13 @@ export function CheckoutView({
                 setMethod(method === "card" ? "pix" : "card");
                 setStep("form");
               }}
-              className="w-full rounded-client border border-somma-border min-h-touch h-12 text-somma-text num text-xs uppercase tracking-widest focus-ring"
+              className="w-full rounded-mafood-md border border-mafood-border min-h-touch h-12 text-mafood-text-primary num text-xs uppercase tracking-widest focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               Trocar método de pagamento
             </button>
             <Link
               href={`/${venue}`}
-              className="block num text-[11px] text-somma-muted underline underline-offset-4 pt-2 focus-ring"
+              className="block num text-[11px] text-mafood-text-secondary underline underline-offset-4 pt-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               Voltar à praça
             </Link>
@@ -512,15 +512,15 @@ export function CheckoutView({
 
   // ── Form
   return (
-    <div className="min-h-dvh-100 pb-32 p-4 sm:p-5 pt-safe somma-grain">
+    <div className="min-h-dvh-100 pb-32 p-4 sm:p-5 pt-safe">
       <Header venue={venue} title="Checkout" />
 
-      <section className="mt-5 rounded-client border border-somma-border bg-somma-surface overflow-hidden">
+      <section className="mt-5 rounded-mafood-md border border-mafood-border bg-mafood-surface-strong overflow-hidden">
         {items.map((i, idx) => (
           <div
             key={i.product.id}
             className={`flex items-center gap-3 px-4 py-3 ${
-              idx > 0 ? "border-t border-somma-border/60" : ""
+              idx > 0 ? "border-t border-mafood-border/60" : ""
             }`}
           >
             {/* Qty controls */}
@@ -528,27 +528,27 @@ export function CheckoutView({
               <button
                 onClick={() => remove(i.product.id)}
                 aria-label="Remover um"
-                className="grid size-8 place-items-center rounded-full border border-somma-border text-somma-muted hover:border-somma-orange hover:text-somma-orange active:scale-95 transition-all focus-ring"
+                className="grid size-8 place-items-center rounded-full border border-mafood-border text-mafood-text-secondary hover:border-mafood-primary hover:text-mafood-primary active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               >
                 <span className="text-base leading-none">−</span>
               </button>
-              <span className="num text-somma-orange text-sm w-6 text-center">{i.qty}</span>
+              <span className="num text-mafood-primary text-sm w-6 text-center">{i.qty}</span>
               <button
                 onClick={() => add(i.product)}
                 aria-label="Adicionar um"
-                className="grid size-8 place-items-center rounded-full border border-somma-border text-somma-muted hover:border-somma-orange hover:text-somma-orange active:scale-95 transition-all focus-ring"
+                className="grid size-8 place-items-center rounded-full border border-mafood-border text-mafood-text-secondary hover:border-mafood-primary hover:text-mafood-primary active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               >
                 <span className="text-base leading-none">+</span>
               </button>
             </div>
 
             {/* Nome */}
-            <span className="text-somma-text text-sm min-w-0 flex-1 truncate">
+            <span className="text-mafood-text-primary text-sm min-w-0 flex-1 truncate">
               {i.product.name}
             </span>
 
             {/* Subtotal */}
-            <span className="num text-somma-muted text-sm shrink-0">
+            <span className="num text-mafood-text-secondary text-sm shrink-0">
               {brl(i.qty * i.product.price)}
             </span>
           </div>
@@ -566,20 +566,20 @@ export function CheckoutView({
 
       <section className="mt-4">
         <label className="block">
-          <span className="num text-[11px] text-somma-muted">Cupom de desconto</span>
+          <span className="num text-[11px] text-mafood-text-secondary">Cupom de desconto</span>
           <input
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="OPCIONAL"
             autoCapitalize="characters"
             autoCorrect="off"
-            className="mt-1 w-full rounded-client bg-somma-surface border border-somma-border px-3 min-h-touch h-12 text-white text-sm uppercase focus:border-somma-orange outline-none focus-ring"
+            className="mt-1 w-full rounded-mafood-md bg-mafood-surface-strong border border-mafood-border px-3 min-h-touch h-12 text-mafood-text-primary text-sm uppercase focus:border-mafood-primary outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
           />
         </label>
       </section>
 
       <section className="mt-5">
-        <p className="num text-[11px] text-somma-muted mb-2">Pagamento</p>
+        <p className="num text-[11px] text-mafood-text-secondary mb-2">Pagamento</p>
         <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Método de pagamento">
           {(["pix", "card"] as const).map((m) => (
             <button
@@ -587,10 +587,10 @@ export function CheckoutView({
               onClick={() => setMethod(m)}
               role="radio"
               aria-checked={method === m}
-              className={`rounded-client border min-h-touch h-12 num text-sm uppercase transition-colors focus-ring ${
+              className={`rounded-mafood-md border min-h-touch h-12 num text-sm uppercase transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary ${
                 method === m
-                  ? "border-somma-orange bg-somma-orange/10 text-somma-orange"
-                  : "border-somma-border text-somma-muted"
+                  ? "border-mafood-primary bg-mafood-primary/10 text-mafood-primary"
+                  : "border-mafood-border text-mafood-text-secondary"
               }`}
             >
               {m === "pix" ? "Pix" : "Cartão"}
@@ -599,12 +599,12 @@ export function CheckoutView({
         </div>
       </section>
 
-      <section className="mt-5 border-t border-somma-border pt-4 space-y-1 num text-sm">
-        <div className="flex justify-between text-white text-lg font-semibold">
+      <section className="mt-5 border-t border-mafood-border pt-4 space-y-1 num text-sm">
+        <div className="flex justify-between text-mafood-text-primary text-lg font-semibold">
           <span>Total</span>
           <span>{brl(subtotal)}</span>
         </div>
-        <p className="num text-[10px] text-somma-muted">
+        <p className="num text-[10px] text-mafood-text-secondary">
           Cupom (se houver) será aplicado no servidor antes de gerar a cobrança.
         </p>
       </section>
@@ -612,17 +612,17 @@ export function CheckoutView({
       {error && (
         <p
           role="alert"
-          className="mt-3 text-sm text-somma-red border border-somma-red/30 bg-somma-red/10 px-3 py-2 rounded-client"
+          className="mt-3 text-sm text-mafood-accent-dark border border-mafood-accent-dark/30 bg-mafood-accent-dark/10 px-3 py-2 rounded-mafood-md"
         >
           {error}
         </p>
       )}
 
-      <div className="fixed bottom-0 inset-x-0 z-30 bg-somma-bg/95 backdrop-blur border-t border-somma-border pb-safe">
+      <div className="fixed bottom-0 inset-x-0 z-30 bg-mafood-background/95 backdrop-blur border-t border-mafood-border pb-safe">
         <div className="mx-auto max-w-screen-mobile p-3 sm:p-4">
           <button
             onClick={handleSubmitClick}
-            className="w-full rounded-client bg-somma-orange min-h-touch h-13 text-white font-display uppercase tracking-wide active:scale-[0.98] transition-transform focus-ring"
+            className="w-full rounded-mafood-md bg-mafood-primary min-h-touch h-13 text-white font-semibold active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
           >
             {hasSession
               ? `${method === "pix" ? "Gerar Pix" : "Ir para pagamento"} · ${brl(subtotal)}`
@@ -660,11 +660,11 @@ function Header({
         <button
           onClick={onBack}
           aria-label="Voltar"
-          className="grid size-touch -ml-2 place-items-center text-somma-muted hover:text-white focus-ring"
+          className="grid size-touch -ml-2 place-items-center text-mafood-text-secondary hover:text-mafood-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         >
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-white font-display uppercase tracking-wide text-fluid-2xl">{title}</h1>
+        <h1 className="mafood-display text-mafood-text-primary text-fluid-2xl">{title}</h1>
       </header>
     );
   }
@@ -673,11 +673,11 @@ function Header({
       <Link
         href={`/${venue}`}
         aria-label="Voltar"
-        className="grid size-touch -ml-2 place-items-center text-somma-muted hover:text-white focus-ring"
+        className="grid size-touch -ml-2 place-items-center text-mafood-text-secondary hover:text-mafood-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
       >
         <ArrowLeft className="size-5" />
       </Link>
-      <h1 className="text-white font-display uppercase tracking-wide text-fluid-2xl">{title}</h1>
+      <h1 className="mafood-display text-mafood-text-primary text-fluid-2xl">{title}</h1>
     </header>
   );
 }
@@ -699,14 +699,14 @@ function Input({
 }) {
   return (
     <label className="block">
-      <span className="num text-[11px] text-somma-muted">{label}</span>
+      <span className="num text-[11px] text-mafood-text-secondary">{label}</span>
       <input
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder}
         inputMode={inputMode}
         autoCapitalize={autoCapitalize}
-        className="mt-1 w-full rounded-client bg-somma-surface border border-somma-border px-3 min-h-touch h-12 text-white text-sm outline-none focus:border-somma-orange focus-ring"
+        className="mt-1 w-full rounded-mafood-md bg-mafood-surface-strong border border-mafood-border px-3 min-h-touch h-12 text-mafood-text-primary text-sm outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
       />
     </label>
   );
@@ -721,7 +721,7 @@ function PixTimer() {
   const mm = String(Math.floor(s / 60)).padStart(2, "0");
   const ss = String(s % 60).padStart(2, "0");
   return (
-    <p className="num text-somma-orange text-sm" aria-live="polite">
+    <p className="num text-mafood-primary text-sm" aria-live="polite">
       expira em {mm}:{ss}
     </p>
   );

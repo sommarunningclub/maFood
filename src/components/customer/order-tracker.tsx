@@ -147,9 +147,9 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
 
   if (loading) {
     return (
-      <div className="min-h-dvh-100 flex items-center justify-center text-somma-muted pt-safe pb-safe">
+      <div className="min-h-dvh-100 flex items-center justify-center text-mafood-text-secondary pt-safe pb-safe">
         <div className="text-center">
-          <div className="size-10 mx-auto mb-3 rounded-full border-2 border-somma-border border-t-somma-orange animate-spin" />
+          <div className="size-10 mx-auto mb-3 rounded-full border-2 border-mafood-border border-t-mafood-primary animate-spin" />
           carregando pedido...
         </div>
       </div>
@@ -159,10 +159,10 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
   if (!order) {
     return (
       <div className="min-h-dvh-100 flex flex-col items-center justify-center gap-3 p-8 text-center pt-safe pb-safe">
-        <p className="text-somma-muted">Pedido não encontrado</p>
+        <p className="text-mafood-text-secondary">Pedido não encontrado</p>
         <Link
           href={`/${venue}`}
-          className="text-somma-orange num text-sm underline min-h-touch inline-flex items-center px-3 focus-ring"
+          className="text-mafood-primary num text-sm underline min-h-touch inline-flex items-center px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         >
           Voltar à praça
         </Link>
@@ -216,21 +216,21 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
   const isCancelled = order.status === "cancelled";
 
   return (
-    <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe pb-safe somma-grain">
+    <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe pb-safe">
       <header className="flex items-center justify-between">
         <Link
           href={`/${venue}`}
           aria-label="Voltar à praça"
-          className="grid size-touch -ml-2 place-items-center text-somma-muted hover:text-white focus-ring"
+          className="grid size-touch -ml-2 place-items-center text-mafood-text-secondary hover:text-mafood-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         >
           <ArrowLeft className="size-5" />
         </Link>
-        <p className="num text-[11px] text-somma-muted">#{order.number}</p>
+        <p className="num text-[11px] text-mafood-text-secondary">#{order.number}</p>
       </header>
 
       <div className="mt-4 text-center">
-        <p className="num text-[11px] text-somma-muted">{order.pdv_name}</p>
-        <h1 className="text-fluid-2xl text-white font-display uppercase mt-1">
+        <p className="num text-[11px] text-mafood-text-secondary">{order.pdv_name}</p>
+        <h1 className="mafood-display text-fluid-2xl text-mafood-text-primary mt-1">
           {isCancelled
             ? "Pedido cancelado"
             : isPending
@@ -244,7 +244,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
             : "Acompanhe seu pedido"}
         </h1>
         {order.created_by === "pdv" && isPending && (
-          <p className="num text-[11px] text-somma-muted mt-1">
+          <p className="num text-[11px] text-mafood-text-secondary mt-1">
             Pedido criado pelo balcão — pague para liberar o preparo
           </p>
         )}
@@ -258,7 +258,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
               <PizzaLoader size={96} />
             </div>
           )}
-          <p className="num text-[11px] text-somma-muted mt-3 max-w-xs">
+          <p className="num text-[11px] text-mafood-text-secondary mt-3 max-w-xs">
             {isPreparing
               ? "Atualize aqui para saber a hora de retirar o seu pedido"
               : "Aguardando o PDV aceitar — atualize para saber se já começou o preparo"}
@@ -266,7 +266,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
           <button
             onClick={refreshNow}
             disabled={refreshing}
-            className="mt-3 inline-flex items-center gap-2 rounded-client bg-somma-orange/15 border border-somma-orange/40 text-somma-orange min-h-touch px-4 num text-xs uppercase tracking-wider focus-ring disabled:opacity-60"
+            className="mt-3 inline-flex items-center gap-2 rounded-mafood-md bg-mafood-primary/15 border border-mafood-primary/40 text-mafood-primary min-h-touch px-4 num text-xs uppercase tracking-wider focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary disabled:opacity-60"
           >
             <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
             {refreshing ? "Atualizando..." : "Atualizar"}
@@ -276,36 +276,36 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
 
       {/* Bloco de pagamento Pix (status pending) */}
       {isPending && (
-        <section className="mt-6 rounded-client border border-somma-orange/40 bg-somma-orange/5 p-4 flex flex-col items-center">
-          <p className="num text-[11px] text-somma-orange tracking-widest uppercase">Pix · maFood</p>
-          <p className="num text-3xl text-white font-bold mt-1">{brl(order.total)}</p>
+        <section className="mt-6 rounded-mafood-md border border-mafood-primary/40 bg-mafood-primary/5 p-4 flex flex-col items-center">
+          <p className="num text-[11px] text-mafood-primary tracking-widest uppercase">Pix · maFood</p>
+          <p className="num text-3xl text-mafood-text-primary font-bold mt-1">{brl(order.total)}</p>
           {qr ? (
-            <div className="bg-white p-3 rounded-client mt-4">
+            <div className="bg-white p-3 rounded-mafood-md mt-4">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={qr} alt="QR Code Pix" width={240} height={240} className="max-w-[60vw]" />
             </div>
           ) : (
-            <div className="size-60 grid place-items-center text-somma-muted text-sm mt-4">
+            <div className="size-60 grid place-items-center text-mafood-text-secondary text-sm mt-4">
               gerando QR...
             </div>
           )}
           {order.pix_payload && (
             <div className="w-full mt-4">
-              <p className="num text-[10px] uppercase text-somma-muted mb-1">Pix copia-cola</p>
+              <p className="num text-[10px] uppercase text-mafood-text-secondary mb-1">Pix copia-cola</p>
               <div className="flex gap-2">
-                <code className="num flex-1 truncate rounded-client border border-somma-border bg-somma-bg px-2 py-2 text-[11px] text-somma-text">
+                <code className="num flex-1 truncate rounded-mafood-md border border-mafood-border bg-mafood-background px-2 py-2 text-[11px] text-mafood-text-primary">
                   {order.pix_payload}
                 </code>
                 <button
                   onClick={copyPix}
-                  className="num min-h-touch px-3 rounded-client bg-somma-orange text-white text-xs font-semibold focus-ring"
+                  className="num min-h-touch px-3 rounded-mafood-md bg-mafood-primary text-white text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
                 >
                   Copiar
                 </button>
               </div>
             </div>
           )}
-          <p className="text-xs text-somma-muted text-center mt-3">
+          <p className="text-xs text-mafood-text-secondary text-center mt-3">
             Pague pelo app do seu banco. Esta tela atualiza sozinha quando a cobrança for confirmada.
           </p>
         </section>
@@ -317,7 +317,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
           {cancelError && (
             <p
               role="alert"
-              className="num text-xs text-somma-red text-center mb-2 border border-somma-red/30 bg-somma-red/10 px-3 py-2 rounded-client"
+              className="num text-xs text-mafood-accent-dark text-center mb-2 border border-mafood-accent-dark/30 bg-mafood-accent-dark/10 px-3 py-2 rounded-mafood-md"
             >
               {cancelError}
             </p>
@@ -325,11 +325,11 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
           <button
             onClick={cancelOrder}
             disabled={cancelling}
-            className="w-full inline-flex items-center justify-center gap-2 rounded-client border border-somma-border min-h-touch h-11 text-somma-muted hover:text-somma-red hover:border-somma-red/40 num text-xs uppercase tracking-widest transition-colors disabled:opacity-50 focus-ring"
+            className="w-full inline-flex items-center justify-center gap-2 rounded-mafood-md border border-mafood-border min-h-touch h-11 text-mafood-text-secondary hover:text-mafood-accent-dark hover:border-mafood-accent-dark/40 num text-xs uppercase tracking-widest transition-colors disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
           >
             {cancelling ? "Cancelando…" : "Cancelar pedido"}
           </button>
-          <p className="num text-[10px] text-somma-muted text-center mt-2">
+          <p className="num text-[10px] text-mafood-text-secondary text-center mt-2">
             O cancelamento só é permitido antes do pagamento
           </p>
         </section>
@@ -337,19 +337,19 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
 
       {/* Estado cancelado */}
       {isCancelled && (
-        <section className="mt-6 rounded-client border border-somma-red/30 bg-somma-red/5 p-5 text-center">
-          <div className="mx-auto size-14 rounded-full bg-somma-red/10 border border-somma-red/30 grid place-items-center text-2xl">
+        <section className="mt-6 rounded-mafood-md border border-mafood-accent-dark/30 bg-mafood-accent-dark/5 p-5 text-center">
+          <div className="mx-auto size-14 rounded-full bg-mafood-accent-dark/10 border border-mafood-accent-dark/30 grid place-items-center text-2xl">
             ✕
           </div>
-          <p className="text-white font-display uppercase tracking-wide mt-3">
+          <p className="mafood-display text-mafood-text-primary mt-3">
             Pedido cancelado
           </p>
-          <p className="num text-[11px] text-somma-muted mt-1">
+          <p className="num text-[11px] text-mafood-text-secondary mt-1">
             Nenhum valor foi cobrado.
           </p>
           <Link
             href={`/${venue}`}
-            className="num mt-4 inline-flex items-center justify-center rounded-client bg-somma-orange min-h-touch h-11 px-5 text-white text-xs uppercase tracking-wide focus-ring"
+            className="num mt-4 inline-flex items-center justify-center rounded-mafood-md bg-mafood-primary min-h-touch h-11 px-5 text-white text-xs uppercase tracking-wide focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
           >
             Fazer novo pedido
           </Link>
@@ -358,7 +358,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
 
       {isReady && (
         <motion.div
-          className="mx-auto mt-5 size-20 rounded-full bg-somma-orange flex items-center justify-center text-3xl animate-pulse-orange"
+          className="mx-auto mt-5 size-20 rounded-full bg-mafood-primary flex items-center justify-center text-3xl animate-pulse-orange"
         >
           🔔
         </motion.div>
@@ -376,30 +376,30 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
                 <div
                   className={`size-9 rounded-full flex items-center justify-center num text-sm border-2 transition-colors ${
                     done
-                      ? "bg-somma-orange border-somma-orange text-white"
-                      : "border-somma-border text-somma-muted"
-                  } ${current ? "ring-4 ring-somma-orange/20" : ""}`}
+                      ? "bg-mafood-primary border-mafood-primary text-white"
+                      : "border-mafood-border text-mafood-text-secondary"
+                  } ${current ? "ring-4 ring-mafood-primary/20" : ""}`}
                 >
                   {done ? "✓" : i + 1}
                 </div>
                 {i < STEPS.length - 1 && (
                   <div
                     className={`w-0.5 h-10 ${
-                      rank > RANK[step.status] ? "bg-somma-orange" : "bg-somma-border"
+                      rank > RANK[step.status] ? "bg-mafood-primary" : "bg-mafood-border"
                     }`}
                   />
                 )}
               </div>
               <div className="pt-1">
                 <p
-                  className={`font-display uppercase tracking-wide ${
-                    done ? "text-white" : "text-somma-muted"
+                  className={`font-semibold ${
+                    done ? "text-mafood-text-primary" : "text-mafood-text-secondary"
                   }`}
                 >
                   {step.label}
                 </p>
                 {current && (
-                  <p className="num text-[11px] text-somma-orange">
+                  <p className="num text-[11px] text-mafood-primary">
                     {formatTime(new Date())}
                   </p>
                 )}
@@ -413,10 +413,10 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
       {/* QR de retirada */}
       {isReady && qr && (
         <div className="mt-6 flex flex-col items-center">
-          <p className="num text-[11px] text-somma-muted mb-2">
+          <p className="num text-[11px] text-mafood-text-secondary mb-2">
             Mostre na retirada · CPF: {order.customer_name}
           </p>
-          <div className="bg-white p-2 rounded-client">
+          <div className="bg-white p-2 rounded-mafood-md">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={qr} alt="QR retirada" width={140} height={140} />
           </div>
@@ -424,41 +424,41 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
       )}
 
       {isPartial && (
-        <div className="mt-4 rounded-client border border-somma-orange/40 bg-somma-orange/10 px-3 py-2 text-center">
-          <p className="num text-xs text-somma-orange">
+        <div className="mt-4 rounded-mafood-md border border-mafood-primary/40 bg-mafood-primary/10 px-3 py-2 text-center">
+          <p className="num text-xs text-mafood-primary">
             Entregue {totalEntregues}/{totalPedidos} itens · volte ao PDV para retirar o resto
           </p>
         </div>
       )}
 
       {/* Itens */}
-      <div className="mt-8 rounded-client border border-somma-border bg-somma-surface p-4">
+      <div className="mt-8 rounded-mafood-md border border-mafood-border bg-mafood-surface-strong p-4">
         {order.items.map((it) => {
           const partial = it.delivered_qty > 0 && it.delivered_qty < it.qty;
           const fully = it.delivered_qty >= it.qty;
           return (
             <div key={it.id} className="flex justify-between text-sm py-1">
-              <span className={`text-somma-text ${fully ? "line-through text-somma-muted" : ""}`}>
+              <span className={`text-mafood-text-primary ${fully ? "line-through text-mafood-text-secondary" : ""}`}>
                 <span
                   className={`num ${
-                    fully ? "text-somma-muted" : partial ? "text-somma-orange" : "text-somma-orange"
+                    fully ? "text-mafood-text-secondary" : partial ? "text-mafood-primary" : "text-mafood-primary"
                   }`}
                 >
                   {partial || fully ? `${it.delivered_qty}/${it.qty}` : it.qty}×
                 </span>{" "}
                 {it.name}
               </span>
-              <span className="num text-somma-muted">{brl(it.qty * it.unit_price)}</span>
+              <span className="num text-mafood-text-secondary">{brl(it.qty * it.unit_price)}</span>
             </div>
           );
         })}
-        <div className="flex justify-between text-white font-semibold border-t border-somma-border mt-2 pt-2">
+        <div className="flex justify-between text-mafood-text-primary font-semibold border-t border-mafood-border mt-2 pt-2">
           <span>Total</span>
           <span className="num">{brl(order.total)}</span>
         </div>
       </div>
 
-      <p className="num text-[10px] text-somma-muted text-center mt-4">
+      <p className="num text-[10px] text-mafood-text-secondary text-center mt-4">
         atualizando em tempo real
       </p>
     </div>

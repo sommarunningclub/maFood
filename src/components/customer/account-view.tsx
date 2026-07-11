@@ -112,35 +112,35 @@ export function AccountView({
   }
 
   return (
-    <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe somma-grain">
+    <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe">
       {/* Header */}
       <header className="flex items-center gap-3">
         <Link
           href={`/${venue}`}
           aria-label="Voltar à praça"
-          className="grid size-touch -ml-2 place-items-center text-somma-muted hover:text-white focus-ring"
+          className="grid size-touch -ml-2 place-items-center text-mafood-text-secondary hover:text-mafood-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         >
           <ArrowLeft className="size-5" />
         </Link>
-        <h1 className="text-fluid-2xl text-white font-display uppercase tracking-wide">
+        <h1 className="mafood-display text-fluid-2xl text-mafood-text-primary">
           Minha conta
         </h1>
       </header>
 
       {/* Identidade */}
       <section className="mt-6 flex items-center gap-4">
-        <div className="size-16 shrink-0 grid place-items-center rounded-full bg-somma-orange/15 border border-somma-orange/30 text-somma-orange font-display text-xl">
+        <div className="size-16 shrink-0 grid place-items-center rounded-full bg-mafood-primary/15 border border-mafood-primary/30 text-mafood-primary mafood-display text-xl">
           {initials || <UserIcon className="size-7" />}
         </div>
         <div className="min-w-0">
-          <p className="text-white text-lg font-medium truncate">{customer.name}</p>
+          <p className="text-mafood-text-primary text-lg font-medium truncate">{customer.name}</p>
           <div className="flex items-center gap-2 mt-0.5">
             {customer.is_vip && (
-              <span className="num text-[9px] uppercase bg-somma-orange/15 text-somma-orange px-1.5 py-0.5 rounded">
+              <span className="num text-[9px] uppercase bg-mafood-primary/15 text-mafood-primary px-1.5 py-0.5 rounded">
                 VIP
               </span>
             )}
-            <span className="num text-[11px] text-somma-muted">
+            <span className="num text-[11px] text-mafood-text-secondary">
               Cliente desde {memberSince}
             </span>
           </div>
@@ -151,30 +151,30 @@ export function AccountView({
       <section className="mt-5 grid grid-cols-2 gap-3">
         <Link
           href={`/${venue}/history`}
-          className="rounded-client border border-somma-border bg-somma-surface p-4 active:scale-[0.98] transition-transform focus-ring"
+          className="rounded-mafood-md border border-mafood-border bg-mafood-surface-strong p-4 active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         >
-          <div className="flex items-center gap-2 text-somma-muted">
+          <div className="flex items-center gap-2 text-mafood-text-secondary">
             <ShoppingBag className="size-4" />
             <span className="num text-[10px] uppercase tracking-wider">Pedidos</span>
           </div>
-          <p className="num text-2xl text-white mt-1">{ordersCount}</p>
-          <p className="num text-[10px] text-somma-orange mt-1">Ver histórico →</p>
+          <p className="num text-2xl text-mafood-text-primary mt-1">{ordersCount}</p>
+          <p className="num text-[10px] text-mafood-primary mt-1">Ver histórico →</p>
         </Link>
-        <div className="rounded-client border border-somma-border bg-somma-surface p-4">
-          <div className="flex items-center gap-2 text-somma-muted">
+        <div className="rounded-mafood-md border border-mafood-border bg-mafood-surface-strong p-4">
+          <div className="flex items-center gap-2 text-mafood-text-secondary">
             <UserIcon className="size-4" />
             <span className="num text-[10px] uppercase tracking-wider">CPF</span>
           </div>
-          <p className="num text-base text-white mt-2 tracking-wide">
+          <p className="num text-base text-mafood-text-primary mt-2 tracking-wide">
             {maskCpf(customer.cpf)}
           </p>
-          <p className="num text-[10px] text-somma-muted mt-1">não editável</p>
+          <p className="num text-[10px] text-mafood-text-secondary mt-1">não editável</p>
         </div>
       </section>
 
       {/* Formulário de dados */}
       <section className="mt-6 space-y-3">
-        <p className="num text-[11px] text-somma-muted uppercase tracking-wider">
+        <p className="num text-[11px] text-mafood-text-secondary uppercase tracking-wider">
           Dados pessoais
         </p>
 
@@ -183,7 +183,7 @@ export function AccountView({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Seu nome"
-            className="w-full bg-transparent text-white text-sm outline-none placeholder:text-somma-muted/60"
+            className="w-full bg-transparent text-mafood-text-primary text-sm outline-none placeholder:text-mafood-text-secondary/60"
           />
         </Field>
 
@@ -196,7 +196,7 @@ export function AccountView({
             autoCapitalize="none"
             autoCorrect="off"
             placeholder="seu@email.com"
-            className="w-full bg-transparent text-white text-sm outline-none placeholder:text-somma-muted/60"
+            className="w-full bg-transparent text-mafood-text-primary text-sm outline-none placeholder:text-mafood-text-secondary/60"
           />
         </Field>
 
@@ -206,14 +206,14 @@ export function AccountView({
             onChange={(e) => setPhone(maskPhone(e.target.value))}
             inputMode="numeric"
             placeholder="(00) 00000-0000"
-            className="w-full bg-transparent text-white text-sm outline-none placeholder:text-somma-muted/60"
+            className="w-full bg-transparent text-mafood-text-primary text-sm outline-none placeholder:text-mafood-text-secondary/60"
           />
         </Field>
 
         {error && (
           <p
             role="alert"
-            className="text-sm text-somma-red border border-somma-red/30 bg-somma-red/10 px-3 py-2 rounded-client"
+            className="text-sm text-mafood-accent-dark border border-mafood-accent-dark/30 bg-mafood-accent-dark/10 px-3 py-2 rounded-mafood-md"
           >
             {error}
           </p>
@@ -222,10 +222,10 @@ export function AccountView({
         <button
           onClick={() => void save()}
           disabled={!dirty || saving}
-          className={`w-full rounded-client min-h-touch h-12 font-display uppercase tracking-wide transition-colors focus-ring disabled:opacity-40 ${
+          className={`w-full rounded-mafood-md min-h-touch h-12 font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary disabled:opacity-40 ${
             saved
-              ? "bg-somma-green/90 text-black"
-              : "bg-somma-orange text-white"
+              ? "bg-mafood-success text-white"
+              : "bg-mafood-primary text-white"
           }`}
         >
           {saving ? (
@@ -241,11 +241,11 @@ export function AccountView({
       </section>
 
       {/* Sair */}
-      <section className="mt-8 border-t border-somma-border pt-5">
+      <section className="mt-8 border-t border-mafood-border pt-5">
         <button
           onClick={() => void logout()}
           disabled={loggingOut}
-          className="w-full inline-flex items-center justify-center gap-2 rounded-client border border-somma-border min-h-touch h-12 text-somma-muted hover:text-somma-red hover:border-somma-red/40 num text-xs uppercase tracking-widest transition-colors disabled:opacity-50 focus-ring"
+          className="w-full inline-flex items-center justify-center gap-2 rounded-mafood-md border border-mafood-border min-h-touch h-12 text-mafood-text-secondary hover:text-mafood-accent-dark hover:border-mafood-accent-dark/40 num text-xs uppercase tracking-widest transition-colors disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         >
           <LogOut className="size-4" />
           {loggingOut ? "Saindo…" : "Sair da conta"}
@@ -265,9 +265,9 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block rounded-client border border-somma-border bg-somma-surface px-3 py-2.5 focus-within:border-somma-orange transition-colors">
-      <span className="num text-[10px] text-somma-muted uppercase tracking-wider flex items-center gap-1.5">
-        <span className="text-somma-orange/70">{icon}</span>
+    <label className="block rounded-mafood-md border border-mafood-border bg-mafood-surface-strong px-3 py-2.5 focus-within:border-mafood-primary transition-colors">
+      <span className="num text-[10px] text-mafood-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+        <span className="text-mafood-primary/70">{icon}</span>
         {label}
       </span>
       <div className="mt-1.5">{children}</div>

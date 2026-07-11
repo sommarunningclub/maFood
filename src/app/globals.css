@@ -176,9 +176,10 @@ a {
 }
 
 /* ── Mobile bottom nav (InteractiveMenu) ────────────────── */
+/* Consumed only by the maFood customer bottom nav (bottom-nav.tsx) */
 :root {
-  --component-active-color-default: #F26522;
-  --component-active-color: #F26522;
+  --component-active-color-default: #0e5b56;
+  --component-active-color: #0e5b56;
 }
 
 @keyframes iconBounce {
@@ -206,7 +207,7 @@ a {
   border: none;
   cursor: pointer;
   position: relative;
-  color: rgba(240, 240, 240, 0.38);
+  color: var(--mafood-text-muted, #969d99);
   transition: color 0.2s ease;
   --lineWidth: 0px;
   min-width: 56px;
@@ -220,13 +221,13 @@ a {
   transform: translateX(-50%);
   width: var(--lineWidth, 0px);
   height: 2px;
-  background: var(--component-active-color, #F26522);
+  background: var(--component-active-color, #0e5b56);
   border-radius: 0 0 3px 3px;
   transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .menu__item.active {
-  color: var(--component-active-color, #F26522);
+  color: var(--component-active-color, #0e5b56);
 }
 
 .menu__icon {

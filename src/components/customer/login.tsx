@@ -107,14 +107,14 @@ export function CustomerLogin({
       <div className="w-full max-w-md">
         {/* Hero */}
         <header className="mb-6 text-center">
-          <p className="num text-[11px] text-somma-orange tracking-[0.25em] mb-2">
+          <p className="num text-[11px] text-mafood-primary tracking-[0.25em] mb-2">
             18 JUL 2026 · COPMDF · BRASÍLIA
           </p>
-          <h1 className="text-fluid-3xl leading-[0.95] text-white font-display uppercase text-balance">
+          <h1 className="mafood-display text-fluid-3xl leading-[0.95] text-mafood-text-primary text-balance">
             {venueName}
           </h1>
           {venueDescription && (
-            <p className="text-somma-muted text-sm mt-2 text-pretty">{venueDescription}</p>
+            <p className="text-mafood-text-secondary text-sm mt-2 text-pretty">{venueDescription}</p>
           )}
         </header>
 
@@ -122,17 +122,17 @@ export function CustomerLogin({
         {stage === "cpf" && (
           <form
             onSubmit={submitCpf}
-            className="rounded-client border border-somma-border bg-somma-surface p-5"
+            className="rounded-mafood-md border border-mafood-border bg-mafood-surface-strong p-5"
           >
-            <h2 className="text-white font-display uppercase tracking-wide text-lg mb-1">
+            <h2 className="mafood-display text-mafood-text-primary text-lg mb-1">
               Identifique-se
             </h2>
-            <p className="text-somma-muted text-sm mb-4">
+            <p className="text-mafood-text-secondary text-sm mb-4">
               Use seu CPF para acessar a praça de alimentação.
             </p>
 
             <label className="block">
-              <span className="num text-[11px] text-somma-muted">CPF</span>
+              <span className="num text-[11px] text-mafood-text-secondary">CPF</span>
               <input
                 value={maskCpf(cpf)}
                 onChange={(e) => setCpf(e.target.value.replace(/\D/g, ""))}
@@ -140,16 +140,16 @@ export function CustomerLogin({
                 placeholder="000.000.000-00"
                 autoFocus
                 required
-                className="num mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 min-h-touch h-12 text-xl tracking-wider text-white outline-none focus:border-somma-orange focus-ring"
+                className="num mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 min-h-touch h-12 text-xl tracking-wider text-mafood-text-primary outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               />
             </label>
 
-            {error && <p className="num text-xs text-somma-red mt-2">{error}</p>}
+            {error && <p className="num text-xs text-mafood-accent-dark mt-2">{error}</p>}
 
             <button
               type="submit"
               disabled={cpf.replace(/\D/g, "").length !== 11}
-              className="mt-4 w-full rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide disabled:opacity-40 focus-ring"
+              className="mt-4 w-full rounded-mafood-md bg-mafood-primary min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               Continuar
             </button>
@@ -160,17 +160,17 @@ export function CustomerLogin({
         {stage === "vip_prefill" && prefill && (
           <form
             onSubmit={submitRegister}
-            className="rounded-client border border-somma-orange/40 bg-somma-surface p-5"
+            className="rounded-mafood-md border border-mafood-primary/40 bg-mafood-surface-strong p-5"
           >
             <div className="flex items-center gap-2 mb-3">
-              <span className="num text-[10px] uppercase bg-somma-orange/15 text-somma-orange px-2 py-1 rounded">
+              <span className="num text-[10px] uppercase bg-mafood-primary/15 text-mafood-primary px-2 py-1 rounded">
                 ✓ Lista VIP
               </span>
             </div>
-            <h2 className="text-white font-display uppercase tracking-wide text-lg mb-1">
+            <h2 className="mafood-display text-mafood-text-primary text-lg mb-1">
               Bem-vindo de volta!
             </h2>
-            <p className="text-somma-muted text-sm mb-4">
+            <p className="text-mafood-text-secondary text-sm mb-4">
               Encontramos seus dados na lista. Confirme para entrar.
             </p>
 
@@ -181,12 +181,12 @@ export function CustomerLogin({
               phone={phone} setPhone={setPhone}
             />
 
-            {error && <p className="num text-xs text-somma-red mt-2">{error}</p>}
+            {error && <p className="num text-xs text-mafood-accent-dark mt-2">{error}</p>}
 
             <button
               type="submit"
               disabled={!name.trim()}
-              className="mt-4 w-full rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide disabled:opacity-40 focus-ring"
+              className="mt-4 w-full rounded-mafood-md bg-mafood-primary min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               Entrar no evento
             </button>
@@ -200,7 +200,7 @@ export function CustomerLogin({
                 setEmail("");
                 setPhone("");
               }}
-              className="mt-2 w-full num text-xs text-somma-muted min-h-touch focus-ring"
+              className="mt-2 w-full num text-xs text-mafood-text-secondary min-h-touch focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               ← Usar outro CPF
             </button>
@@ -211,12 +211,12 @@ export function CustomerLogin({
         {stage === "new" && prefill && (
           <form
             onSubmit={submitRegister}
-            className="rounded-client border border-somma-border bg-somma-surface p-5"
+            className="rounded-mafood-md border border-mafood-border bg-mafood-surface-strong p-5"
           >
-            <h2 className="text-white font-display uppercase tracking-wide text-lg mb-1">
+            <h2 className="mafood-display text-mafood-text-primary text-lg mb-1">
               Primeiro acesso
             </h2>
-            <p className="text-somma-muted text-sm mb-4">
+            <p className="text-mafood-text-secondary text-sm mb-4">
               Complete o cadastro para começar a pedir.
             </p>
 
@@ -227,12 +227,12 @@ export function CustomerLogin({
               phone={phone} setPhone={setPhone}
             />
 
-            {error && <p className="num text-xs text-somma-red mt-2">{error}</p>}
+            {error && <p className="num text-xs text-mafood-accent-dark mt-2">{error}</p>}
 
             <button
               type="submit"
               disabled={!name.trim()}
-              className="mt-4 w-full rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide disabled:opacity-40 focus-ring"
+              className="mt-4 w-full rounded-mafood-md bg-mafood-primary min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               Criar cadastro e entrar
             </button>
@@ -246,7 +246,7 @@ export function CustomerLogin({
                 setEmail("");
                 setPhone("");
               }}
-              className="mt-2 w-full num text-xs text-somma-muted min-h-touch focus-ring"
+              className="mt-2 w-full num text-xs text-mafood-text-secondary min-h-touch focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               ← Usar outro CPF
             </button>
@@ -255,8 +255,8 @@ export function CustomerLogin({
 
         {/* Stage: loading */}
         {stage === "loading" && (
-          <div className="rounded-client border border-somma-border bg-somma-surface p-8 text-center">
-            <p className="num text-sm text-somma-muted">Aguarde...</p>
+          <div className="rounded-mafood-md border border-mafood-border bg-mafood-surface-strong p-8 text-center">
+            <p className="num text-sm text-mafood-text-secondary">Aguarde...</p>
           </div>
         )}
       </div>
@@ -278,40 +278,40 @@ function PrefillFields({
   return (
     <div className="space-y-2">
       <label className="block">
-        <span className="num text-[11px] text-somma-muted">CPF</span>
+        <span className="num text-[11px] text-mafood-text-secondary">CPF</span>
         <input
           value={maskCpf(cpf)}
           disabled
-          className="num mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 min-h-touch h-11 text-white opacity-60"
+          className="num mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 min-h-touch h-11 text-mafood-text-primary opacity-60"
         />
       </label>
       <label className="block">
-        <span className="num text-[11px] text-somma-muted">Nome completo *</span>
+        <span className="num text-[11px] text-mafood-text-secondary">Nome completo *</span>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
           autoFocus
-          className="mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 min-h-touch h-11 text-white outline-none focus:border-somma-orange focus-ring"
+          className="mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 min-h-touch h-11 text-mafood-text-primary outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         />
       </label>
       <label className="block">
-        <span className="num text-[11px] text-somma-muted">E-mail (opcional)</span>
+        <span className="num text-[11px] text-mafood-text-secondary">E-mail (opcional)</span>
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 min-h-touch h-11 text-white outline-none focus:border-somma-orange focus-ring"
+          className="mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 min-h-touch h-11 text-mafood-text-primary outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         />
       </label>
       <label className="block">
-        <span className="num text-[11px] text-somma-muted">Telefone (opcional)</span>
+        <span className="num text-[11px] text-mafood-text-secondary">Telefone (opcional)</span>
         <input
           value={phone}
           onChange={(e) => setPhone(maskPhone(e.target.value))}
           inputMode="numeric"
           placeholder="(00) 00000-0000"
-          className="num mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 h-10 text-white outline-none focus:border-somma-orange"
+          className="num mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 h-10 text-mafood-text-primary outline-none focus:border-mafood-primary"
         />
       </label>
     </div>
