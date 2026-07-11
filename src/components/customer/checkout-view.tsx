@@ -312,6 +312,7 @@ export function CheckoutView({
             onChange={(v) => setCard({ ...card, number: v.replace(/\D/g, "").slice(0, 19) })}
             placeholder="0000 0000 0000 0000"
             inputMode="numeric"
+            autoComplete="cc-number"
           />
           <Input
             label="Nome impresso"
@@ -319,6 +320,7 @@ export function CheckoutView({
             onChange={(v) => setCard({ ...card, holderName: v })}
             placeholder="COMO NO CARTÃO"
             autoCapitalize="characters"
+            autoComplete="cc-name"
           />
           <div className="grid grid-cols-3 gap-3">
             <Input
@@ -327,6 +329,7 @@ export function CheckoutView({
               onChange={(v) => setCard({ ...card, expiryMonth: v.replace(/\D/g, "").slice(0, 2) })}
               placeholder="MM"
               inputMode="numeric"
+              autoComplete="cc-exp-month"
             />
             <Input
               label="Ano"
@@ -334,6 +337,7 @@ export function CheckoutView({
               onChange={(v) => setCard({ ...card, expiryYear: v.replace(/\D/g, "").slice(0, 4) })}
               placeholder="AAAA"
               inputMode="numeric"
+              autoComplete="cc-exp-year"
             />
             <Input
               label="CVV"
@@ -341,6 +345,7 @@ export function CheckoutView({
               onChange={(v) => setCard({ ...card, ccv: v.replace(/\D/g, "").slice(0, 4) })}
               placeholder="123"
               inputMode="numeric"
+              autoComplete="cc-csc"
             />
           </div>
         </section>
@@ -353,6 +358,8 @@ export function CheckoutView({
             onChange={(v) => setHolder({ ...holder, email: v })}
             placeholder="seu@email.com"
             inputMode="email"
+            type="email"
+            autoComplete="email"
           />
           <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
             <Input
@@ -366,6 +373,7 @@ export function CheckoutView({
               }}
               placeholder="00000-000"
               inputMode="numeric"
+              autoComplete="postal-code"
             />
             <div className="num text-[10px] text-mafood-text-secondary pb-3 min-w-[60px]">
               {cepLoading ? "buscando..." : cepHint ? "✓" : ""}
@@ -397,7 +405,9 @@ export function CheckoutView({
             value={maskPhone(holder.phone)}
             onChange={(v) => setHolder({ ...holder, phone: v.replace(/\D/g, "").slice(0, 11) })}
             placeholder="(00) 00000-0000"
-            inputMode="numeric"
+            inputMode="tel"
+            type="tel"
+            autoComplete="tel"
           />
         </section>
 
@@ -689,6 +699,8 @@ function Input({
   placeholder,
   inputMode,
   autoCapitalize,
+  type = "text",
+  autoComplete,
 }: {
   label: string;
   value?: string;
@@ -696,6 +708,8 @@ function Input({
   placeholder?: string;
   inputMode?: "text" | "numeric" | "email" | "tel";
   autoCapitalize?: "off" | "none" | "sentences" | "words" | "characters";
+  type?: string;
+  autoComplete?: string;
 }) {
   return (
     <label className="block">
@@ -706,7 +720,9 @@ function Input({
         placeholder={placeholder}
         inputMode={inputMode}
         autoCapitalize={autoCapitalize}
-        className="mt-1 w-full rounded-mafood-md bg-mafood-surface-strong border border-mafood-border px-3 min-h-touch h-12 text-mafood-text-primary text-sm outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+        type={type}
+        autoComplete={autoComplete}
+        className="mt-1 w-full rounded-mafood-md bg-mafood-surface-strong border border-mafood-border px-3 min-h-touch h-12 text-mafood-text-primary text-base outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
       />
     </label>
   );
