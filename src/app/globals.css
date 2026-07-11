@@ -46,13 +46,6 @@ select,
 textarea {
   font-size: max(16px, 1rem);
 }
-/* Permite text-xs explícito quando necessário (filtros, etc) */
-input.text-xs,
-input.text-\[11px\],
-input.text-\[12px\],
-input.text-\[13px\] {
-  font-size: inherit;
-}
 
 /* Botões: cursor pointer + touch action otimizada */
 button,
