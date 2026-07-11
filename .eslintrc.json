@@ -1,3 +1,12 @@
 {
-  "extends": ["next/core-web-vitals", "next/typescript"]
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "ignorePatterns": ["public/sw.js", "public/swe-worker-*.js"],
+  "overrides": [
+    {
+      "files": ["*.config.ts", "*.config.js", "*.config.mjs"],
+      "rules": {
+        "@typescript-eslint/no-require-imports": "off"
+      }
+    }
+  ]
 }
