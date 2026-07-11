@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCustomerSession } from "@/lib/auth/customer-session";
+import { pdvSellsOnline } from "@/lib/pdv";
 import {
   asaasEnabled,
   createCardPayment,
@@ -89,11 +90,16 @@ export async function POST(req: Request) {
 
   const { data: pdv, error: ePdv } = await supabase
     .from("pdvs")
-    .select("id, venue_id, name, is_open")
+    .select("id, venue_id, name, is_open, category")
     .eq("id", body.pdv_id)
     .maybeSingle();
   if (ePdv || !pdv) return NextResponse.json({ error: "PDV invalido" }, { status: 400 });
   if (!pdv.is_open) return NextResponse.json({ error: "PDV fechado" }, { status: 400 });
+  if (!pdvSellsOnline(pdv))
+    return NextResponse.json(
+      { error: "Este PDV não aceita pagamento pelo app" },
+      { status: 422 }
+    );
 
   const productIds = body.items.map((i) => i.product_id);
   const { data: products, error: ePr } = await supabase
