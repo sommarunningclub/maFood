@@ -120,7 +120,7 @@ export function AccountView({
   }
 
   return (
-    <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe">
+    <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe pb-safe">
       {confirmElement}
       {/* Header */}
       <header className="flex items-center gap-3">
@@ -192,7 +192,8 @@ export function AccountView({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Seu nome"
-            className="w-full bg-transparent text-mafood-text-primary text-sm outline-none placeholder:text-mafood-text-secondary/60"
+            autoComplete="name"
+            className="w-full bg-transparent text-mafood-text-primary text-base outline-none placeholder:text-mafood-text-secondary/60"
           />
         </Field>
 
@@ -204,8 +205,9 @@ export function AccountView({
             inputMode="email"
             autoCapitalize="none"
             autoCorrect="off"
+            autoComplete="email"
             placeholder="seu@email.com"
-            className="w-full bg-transparent text-mafood-text-primary text-sm outline-none placeholder:text-mafood-text-secondary/60"
+            className="w-full bg-transparent text-mafood-text-primary text-base outline-none placeholder:text-mafood-text-secondary/60"
           />
         </Field>
 
@@ -213,9 +215,11 @@ export function AccountView({
           <input
             value={phone}
             onChange={(e) => setPhone(maskPhone(e.target.value))}
-            inputMode="numeric"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
             placeholder="(00) 00000-0000"
-            className="w-full bg-transparent text-mafood-text-primary text-sm outline-none placeholder:text-mafood-text-secondary/60"
+            className="w-full bg-transparent text-mafood-text-primary text-base outline-none placeholder:text-mafood-text-secondary/60"
           />
         </Field>
 
