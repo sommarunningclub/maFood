@@ -8,6 +8,7 @@ import { ArrowLeft, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { brl, formatTime } from "@/lib/utils";
 import { PizzaLoader } from "@/components/customer/pizza-loader";
+import { useConfirm } from "@/components/customer/ui/confirm-sheet";
 
 type Status = "pending" | "paid" | "preparing" | "ready" | "partial" | "delivered" | "cancelled";
 
@@ -57,6 +58,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
+  const { confirm, confirmElement } = useConfirm();
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
@@ -197,7 +199,14 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
 
   async function cancelOrder() {
     if (!order) return;
-    if (!window.confirm("Cancelar este pedido? Esta ação não pode ser desfeita.")) return;
+    const ok = await confirm({
+      title: "Cancelar pedido?",
+      description: "Esta ação não pode ser desfeita.",
+      confirmLabel: "Cancelar pedido",
+      cancelLabel: "Voltar",
+      destructive: true,
+    });
+    if (!ok) return;
     setCancelError(null);
     setCancelling(true);
     try {
@@ -217,6 +226,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
 
   return (
     <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe pb-safe">
+      {confirmElement}
       <header className="flex items-center justify-between">
         <Link
           href={`/${venue}`}
