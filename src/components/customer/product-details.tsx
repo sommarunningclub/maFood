@@ -44,7 +44,11 @@ export function ProductDetails({
 
   useEffect(() => {
     opener.current = document.activeElement as HTMLElement;
-    document.body.style.overflow = "hidden";
+    const scrollY = window.scrollY;
+    const body = document.body;
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.width = "100%";
     const first = panelRef.current?.querySelector<HTMLElement>("button");
     first?.focus();
     const onKey = (e: KeyboardEvent) => {
@@ -68,7 +72,10 @@ export function ProductDetails({
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+      body.style.position = "";
+      body.style.top = "";
+      body.style.width = "";
+      window.scrollTo(0, scrollY);
       opener.current?.focus();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,10 +94,16 @@ export function ProductDetails({
       />
       <div
         ref={panelRef}
-        className="relative w-full max-h-[88dvh] overflow-y-auto rounded-t-mafood-xl bg-mafood-surface shadow-mafood-lg pb-safe animate-slide-in"
+        className="relative w-full max-h-[88dvh] overflow-y-auto overscroll-y-contain rounded-t-mafood-xl bg-mafood-surface shadow-mafood-lg pb-safe animate-slide-in"
       >
         {/* Imagem larga + fechar */}
         <div className="relative aspect-[16/10] w-full overflow-hidden bg-mafood-background-soft">
+          <div
+            className="absolute inset-x-0 top-0 z-10 flex justify-center pt-2"
+            aria-hidden
+          >
+            <div className="h-1.5 w-10 rounded-full bg-white/70 shadow-mafood-sm" />
+          </div>
           {product.image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
