@@ -18,6 +18,9 @@ export function MaFoodMenuDrawer({
   const opener = useRef<HTMLElement | null>(null);
   const router = useRouter();
   const onCloseRef = useRef(onClose);
+  const startX = useRef(0);
+  const currentDX = useRef(0);
+  const dragging = useRef(false);
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -45,10 +48,52 @@ export function MaFoodMenuDrawer({
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
       opener.current?.focus();
+      if (panelRef.current) {
+        panelRef.current.style.transform = "";
+        panelRef.current.style.transition = "";
+      }
     };
   }, [open]);
 
   if (!open) return null;
+
+  const prefersReducedMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+  function onTouchStart(e: React.TouchEvent) {
+    startX.current = e.touches[0].clientX;
+    currentDX.current = 0;
+    dragging.current = true;
+  }
+
+  function onTouchMove(e: React.TouchEvent) {
+    if (!dragging.current || !panelRef.current) return;
+    const dx = e.touches[0].clientX - startX.current;
+    if (dx >= 0) return;
+    const panelWidth = panelRef.current.offsetWidth || 1;
+    currentDX.current = Math.max(dx, -panelWidth);
+    panelRef.current.style.transform = `translateX(${currentDX.current}px)`;
+  }
+
+  function onTouchEnd() {
+    dragging.current = false;
+    if (!panelRef.current) return;
+    if (currentDX.current < -80) {
+      onClose();
+      return;
+    }
+    if (!prefersReducedMotion) {
+      panelRef.current.style.transition = "transform 0.2s ease-out";
+    }
+    panelRef.current.style.transform = "";
+    if (!prefersReducedMotion) {
+      window.setTimeout(() => {
+        if (panelRef.current) panelRef.current.style.transition = "";
+      }, 200);
+    }
+    currentDX.current = 0;
+  }
 
   const items = [
     { href: `/${venueSlug}`, label: "Restaurantes", icon: Store },
@@ -68,9 +113,12 @@ export function MaFoodMenuDrawer({
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
       <div
         ref={panelRef}
-        className="absolute inset-y-0 left-0 w-[82%] max-w-xs bg-mafood-surface-strong shadow-mafood-lg flex flex-col pt-safe animate-slide-in-right"
+        className="absolute inset-y-0 left-0 w-[82%] max-w-xs bg-mafood-surface-strong shadow-mafood-lg flex flex-col pt-safe animate-slide-in-left"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
       >
-        <div className="mafood-header-gradient px-5 py-5 pt-safe flex items-center justify-between text-white">
+        <div className="mafood-header-gradient px-5 py-5 flex items-center justify-between text-white">
           <span className="mafood-display text-lg">maFood</span>
           <button type="button" onClick={onClose} aria-label="Fechar menu" className="grid size-touch place-items-center rounded-mafood-md bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
             <X className="size-5" />
