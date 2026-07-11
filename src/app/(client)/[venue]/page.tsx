@@ -1,7 +1,5 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getCustomerSession } from "@/lib/auth/customer-session";
-import { CustomerHeader } from "@/components/customer/customer-header";
 import { MarketplaceView, type PdvCardData } from "@/components/customer/marketplace-view";
 
 export const dynamic = "force-dynamic";
@@ -62,17 +60,12 @@ export default async function MarketplacePage({ params }: { params: { venue: str
     };
   });
 
-  const session = await getCustomerSession();
-
   return (
-    <div className="relative min-h-dvh-100 bg-somma-orange text-white">
-      <CustomerHeader session={session} venue={params.venue} />
-      <MarketplaceView
-        venueSlug={params.venue}
-        venueName={venue.name}
-        venueDescription={venue.description}
-        pdvs={cards}
-      />
-    </div>
+    <MarketplaceView
+      venueSlug={params.venue}
+      venueName={venue.name}
+      venueDescription={venue.description}
+      pdvs={cards}
+    />
   );
 }
