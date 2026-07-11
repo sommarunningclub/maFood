@@ -56,6 +56,10 @@ export function PizzaLoader({ size = 96 }: { size?: number }) {
   const maskRef = useRef<SVGUseElement | null>(null);
 
   useEffect(() => {
+    const reduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) return;
     const ctx = gsap.context(() => {
       gsap.to([outlineRef.current, maskRef.current], {
         rotation: 360,
