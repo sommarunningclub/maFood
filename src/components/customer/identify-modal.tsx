@@ -332,6 +332,7 @@ function PrefillFields({
           onChange={(e) => setName(e.target.value)}
           required
           autoFocus
+          autoComplete="name"
           className="mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 min-h-touch h-11 text-mafood-text-primary outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         />
       </label>
@@ -341,16 +342,19 @@ function PrefillFields({
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
           className="mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 min-h-touch h-11 text-mafood-text-primary outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         />
       </label>
       <label className="block">
         <span className="num text-[11px] text-mafood-text-secondary">Telefone (opcional)</span>
         <input
+          type="tel"
           value={phone}
           onChange={(e) => setPhone(maskPhone(e.target.value))}
-          inputMode="numeric"
+          inputMode="tel"
           placeholder="(00) 00000-0000"
+          autoComplete="tel"
           className="num mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 min-h-touch h-11 text-mafood-text-primary outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         />
       </label>
