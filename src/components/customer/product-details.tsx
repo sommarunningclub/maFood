@@ -81,6 +81,56 @@ export function ProductDetails({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const startY = useRef(0);
+  const currentDY = useRef(0);
+  const dragging = useRef(false);
+
+  const onHeroTouchStart = (e: React.TouchEvent) => {
+    startY.current = e.touches[0].clientY;
+    currentDY.current = 0;
+    dragging.current = true;
+  };
+
+  const onHeroTouchMove = (e: React.TouchEvent) => {
+    if (!dragging.current || !panelRef.current) return;
+    const dy = e.touches[0].clientY - startY.current;
+    if (dy <= 0) return;
+    currentDY.current = dy;
+    panelRef.current.style.transform = `translateY(${dy}px)`;
+  };
+
+  const onHeroTouchEnd = () => {
+    dragging.current = false;
+    const panel = panelRef.current;
+    if (!panel) return;
+    if (currentDY.current > 120) {
+      onCloseRef.current();
+    } else {
+      const reducedMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)"
+      ).matches;
+      if (!reducedMotion) {
+        panel.style.transition = "transform 0.2s ease-out";
+        panel.style.transform = "";
+        window.setTimeout(() => {
+          if (panel) panel.style.transition = "";
+        }, 200);
+      } else {
+        panel.style.transform = "";
+      }
+    }
+    currentDY.current = 0;
+  };
+
+  useEffect(() => {
+    return () => {
+      if (panelRef.current) {
+        panelRef.current.style.transform = "";
+        panelRef.current.style.transition = "";
+      }
+    };
+  }, []);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end"
@@ -97,10 +147,18 @@ export function ProductDetails({
         className="relative w-full max-h-[88dvh] overflow-y-auto overscroll-y-contain rounded-t-mafood-xl bg-mafood-surface shadow-mafood-lg pb-safe animate-slide-in"
       >
         {/* Imagem larga + fechar */}
-        <div className="relative aspect-[16/10] w-full overflow-hidden bg-mafood-background-soft">
+        <div
+          className="relative aspect-[16/10] w-full overflow-hidden bg-mafood-background-soft"
+          onTouchStart={onHeroTouchStart}
+          onTouchMove={onHeroTouchMove}
+          onTouchEnd={onHeroTouchEnd}
+        >
           <div
             className="absolute inset-x-0 top-0 z-10 flex justify-center pt-2"
             aria-hidden
+            onTouchStart={onHeroTouchStart}
+            onTouchMove={onHeroTouchMove}
+            onTouchEnd={onHeroTouchEnd}
           >
             <div className="h-1.5 w-10 rounded-full bg-white/70 shadow-mafood-sm" />
           </div>
