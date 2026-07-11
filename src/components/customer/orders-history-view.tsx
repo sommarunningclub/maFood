@@ -151,10 +151,10 @@ export function OrdersHistoryView({
                   className="block active:scale-[0.99] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary rounded-mafood-md"
                 >
                   <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
                       <PdvLogo logoUrl={o.pdv_logo} size={28} />
-                      <div>
-                        <p className="text-mafood-text-primary font-medium">{o.pdv_name}</p>
+                      <div className="min-w-0">
+                        <p className="text-mafood-text-primary font-medium truncate">{o.pdv_name}</p>
                         <p className="num text-[11px] text-mafood-text-secondary">
                           #{o.number} · {formatTime(o.created_at)}
                         </p>

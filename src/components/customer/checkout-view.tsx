@@ -152,7 +152,7 @@ export function CheckoutView({
 
     // Delay mínimo 5s — UX: garante que o usuário vê o "Processando..." mesmo
     // se o Asaas responder muito rápido, evitando flash da tela de loading
-    const minDelay = new Promise<void>((res) => setTimeout(res, 5000));
+    const minDelay = new Promise<void>((res) => setTimeout(res, 1000));
     const requestP = fetch("/api/customer/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
