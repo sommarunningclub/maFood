@@ -27,9 +27,16 @@ export function StickyCategoryNavigation({
 
   // Sincroniza o pill ativo enquanto o usuário rola a lista de seções.
   // O rootMargin é calculado dinamicamente a partir da posição real da nav
-  // pinada (getBoundingClientRect().bottom), o que cobre automaticamente a
-  // altura da slim bar colapsável + safe-area-inset-top + altura da própria
-  // nav, sem números mágicos fixos.
+  // (getBoundingClientRect().bottom), o que cobre automaticamente a altura
+  // da slim bar colapsável + safe-area-inset-top + altura da própria nav,
+  // sem números mágicos fixos.
+  //
+  // Importante: no mount (scrollY=0) a nav ainda NÃO está pinada — ela fica
+  // no fluxo, logo abaixo do hero alto (~150px), então bottom vem inflado.
+  // Por isso remedimos a posição real da nav no scroll (throttlado com rAF)
+  // e só recriamos o observer quando o valor muda >2px. Assim que a nav
+  // estabiliza na posição dockada (~110px), o valor para de mudar e o
+  // observer deixa de ser recriado (sem churn).
   useEffect(() => {
     if (categories.length === 0) return;
     const sections = categories
@@ -39,14 +46,9 @@ export function StickyCategoryNavigation({
 
     let observer: IntersectionObserver | null = null;
     let lastNavBottom = -1;
+    let rafId = 0;
 
-    const createObserver = () => {
-      const navBottom = Math.round(
-        navRef.current?.getBoundingClientRect().bottom ?? 96
-      );
-      // Só recria o observer se a mudança for significativa (evita loops de
-      // recriação por variações de subpixel).
-      if (observer && Math.abs(navBottom - lastNavBottom) < 4) return;
+    const createObserver = (navBottom: number) => {
       lastNavBottom = navBottom;
       observer?.disconnect();
       observer = new IntersectionObserver(
@@ -66,10 +68,31 @@ export function StickyCategoryNavigation({
       sections.forEach((s) => observer?.observe(s));
     };
 
-    createObserver();
-    window.addEventListener("resize", createObserver);
+    // Remede a posição real da nav e recria o observer só se mudou o bastante.
+    const syncOffset = () => {
+      const navBottom = Math.round(
+        navRef.current?.getBoundingClientRect().bottom ?? 96
+      );
+      if (observer && Math.abs(navBottom - lastNavBottom) <= 2) return;
+      createObserver(navBottom);
+    };
+
+    // Scroll throttlado com requestAnimationFrame.
+    const onScroll = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        syncOffset();
+      });
+    };
+
+    syncOffset();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", syncOffset);
     return () => {
-      window.removeEventListener("resize", createObserver);
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", syncOffset);
       observer?.disconnect();
     };
   }, [categories]);
