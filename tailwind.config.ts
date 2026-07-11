@@ -46,6 +46,28 @@ const config: Config = {
           red: "#FF4D4D",
           green: "#3FB950",
         },
+        // maFood — Cliente (light/cream, novo design system)
+        mafood: {
+          primary: "var(--mafood-primary)",
+          "primary-dark": "var(--mafood-primary-dark)",
+          "primary-light": "var(--mafood-primary-light)",
+          accent: "var(--mafood-accent)",
+          "accent-dark": "var(--mafood-accent-dark)",
+          "accent-light": "var(--mafood-accent-light)",
+          gold: "var(--mafood-gold)",
+          success: "var(--mafood-success)",
+          "success-bright": "var(--mafood-success-bright)",
+          "section-title": "var(--mafood-section-title)",
+          background: "var(--mafood-background)",
+          "background-soft": "var(--mafood-background-soft)",
+          "background-warm": "var(--mafood-background-warm)",
+          surface: "var(--mafood-surface)",
+          "surface-strong": "var(--mafood-surface-strong)",
+          "text-primary": "var(--mafood-text-primary)",
+          "text-secondary": "var(--mafood-text-secondary)",
+          "text-muted": "var(--mafood-text-muted)",
+          border: "var(--mafood-border)",
+        },
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],
@@ -53,6 +75,8 @@ const config: Config = {
         display: ["var(--font-barlow)", "sans-serif"],
         body: ["var(--font-jakarta)", "sans-serif"],
         num: ["var(--font-plex-mono)", "monospace"],
+        serif: ["var(--font-serif)", "Georgia", "serif"],
+        dmsans: ["var(--font-dmsans)", "system-ui", "sans-serif"],
       },
       // Tipografia fluida com clamp() — escala suave do mobile ao desktop
       fontSize: {
@@ -91,9 +115,18 @@ const config: Config = {
       maxWidth: {
         "screen-mobile": "26rem", // 416px — limite confortável para mobile centralizado
       },
+      boxShadow: {
+        "mafood-sm": "var(--mafood-shadow-sm)",
+        "mafood-md": "var(--mafood-shadow-md)",
+        "mafood-lg": "var(--mafood-shadow-lg)",
+      },
       borderRadius: {
         admin: "0px",
         client: "6px",
+        "mafood-sm": "var(--mafood-radius-sm)",
+        "mafood-md": "var(--mafood-radius-md)",
+        "mafood-lg": "var(--mafood-radius-lg)",
+        "mafood-xl": "var(--mafood-radius-xl)",
       },
       keyframes: {
         "pulse-orange": {

@@ -261,3 +261,70 @@ a {
   opacity: 1;
   transform: translateY(0);
 }
+
+/* ── maFood client design system (scoped) ───────────────────────── */
+.mafood-shell {
+  --mafood-primary: #0e5b56;
+  --mafood-primary-dark: #034b46;
+  --mafood-primary-light: #75ccd8;
+  --mafood-accent: #d6675e;
+  --mafood-accent-dark: #c45a52;
+  --mafood-accent-light: #e8796c;
+  --mafood-gold: #f4b45e;
+  --mafood-success: #10a53d;
+  --mafood-success-bright: #22c55e;
+  --mafood-section-title: #017a37;
+  --mafood-background: #f5f0e8;
+  --mafood-background-soft: #f2f6ec;
+  --mafood-background-warm: #faf9f5;
+  --mafood-surface: #fffdf9;
+  --mafood-surface-strong: #ffffff;
+  --mafood-text-primary: #17211d;
+  --mafood-text-secondary: #666d69;
+  --mafood-text-muted: #969d99;
+  --mafood-border: rgba(3, 75, 70, 0.12);
+  --mafood-shadow-sm: 0 2px 8px rgba(3, 75, 70, 0.08);
+  --mafood-shadow-md: 0 4px 16px rgba(3, 75, 70, 0.14), 0 1px 4px rgba(0, 0, 0, 0.08);
+  --mafood-shadow-lg: 0 16px 40px rgba(3, 75, 70, 0.18);
+  --mafood-radius-sm: 10px;
+  --mafood-radius-md: 16px;
+  --mafood-radius-lg: 24px;
+  --mafood-radius-xl: 32px;
+  --mafood-radius-pill: 9999px;
+  --mafood-space-page: 16px;
+
+  background: var(--mafood-background);
+  color: var(--mafood-text-primary);
+  font-family: var(--font-dmsans), system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.mafood-shell .mafood-display,
+.mafood-shell .mafood-product-title,
+.mafood-shell .mafood-restaurant-title {
+  font-family: var(--font-serif), Georgia, serif;
+}
+
+.mafood-shell .mafood-section-title {
+  font-family: var(--font-serif), Georgia, serif;
+  font-style: italic;
+  font-weight: 700;
+  color: var(--mafood-section-title);
+}
+
+/* Header green gradient + CSS-only geometric texture */
+.mafood-header-gradient {
+  background:
+    repeating-linear-gradient(135deg, rgba(255,255,255,0.035) 0 2px, transparent 2px 10px),
+    linear-gradient(168deg, #007a33 0%, #0a524d 50%, #019b42 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
