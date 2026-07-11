@@ -55,8 +55,15 @@ export function MarketplaceView({
     return pdvs.filter((p) => p.category === activeCategory);
   }, [activeCategory, pdvs]);
 
-  // Entrada com GSAP — stagger no hero (respeita prefers-reduced-motion via CSS global).
+  // Entrada com GSAP — stagger no hero.
+  // GSAP anima estilos inline via JS/RAF, então o bloco CSS global de
+  // prefers-reduced-motion NÃO o afeta — o gate precisa ser checado aqui, em JS.
   useEffect(() => {
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReduced) return; // no cleanup needed; elements are already in final state
+
     const ctx = gsap.context(() => {
       gsap.from(heroRef.current?.children ?? [], {
         y: 18,
@@ -69,11 +76,19 @@ export function MarketplaceView({
     return () => ctx.revert();
   }, []);
 
-  // Stagger nos cards quando a categoria muda.
+  // Stagger nos cards quando a categoria muda (mesmo gate JS de reduced motion).
   useEffect(() => {
     if (!gridRef.current) return;
     const cards = gridRef.current.querySelectorAll("[data-pdv-card]");
     if (cards.length === 0) return;
+
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // fromTo() only sets its opacity:0/scale:0.97 "from" state when it runs,
+    // so skipping the call entirely leaves cards at their natural, visible state.
+    if (prefersReduced) return;
+
     gsap.fromTo(
       cards,
       { y: 20, opacity: 0, scale: 0.97 },
@@ -111,7 +126,7 @@ export function MarketplaceView({
 
       {/* Hero editorial */}
       <header ref={heroRef} className="px-4 pt-6 pb-2">
-        <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-mafood-text-muted">
+        <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-mafood-text-secondary">
           18 jul 2026 · COPMDF · Brasília
         </p>
         <h1 className="mafood-display mt-3 text-fluid-3xl leading-[1.05] text-mafood-text-primary text-balance">

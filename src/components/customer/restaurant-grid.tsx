@@ -21,7 +21,7 @@ export function RestaurantStatus({ isOpen }: { isOpen: boolean }) {
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-mafood-text-muted">
+    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-mafood-text-secondary">
       <span className="size-2 shrink-0 rounded-full bg-mafood-text-muted/50" />
       Fechado
     </span>
@@ -41,7 +41,7 @@ export function CategoryBadge({ label }: { label: string }) {
 function Selo({ online }: { online: boolean }) {
   if (online) {
     return (
-      <span className="inline-flex items-center rounded-mafood-sm bg-mafood-accent px-2 py-0.5 text-[10px] font-semibold text-white shadow-mafood-sm">
+      <span className="inline-flex items-center rounded-mafood-sm bg-mafood-accent-dark px-2 py-0.5 text-[10px] font-semibold text-white shadow-mafood-sm">
         Pedir &amp; pagar aqui
       </span>
     );
@@ -90,7 +90,7 @@ export function RestaurantCard({
       <div className="mt-auto pt-1">
         {priceLabel ? (
           <>
-            <span className="block text-[10px] uppercase tracking-[0.16em] text-mafood-text-muted">
+            <span className="block text-[10px] uppercase tracking-[0.16em] text-mafood-text-secondary">
               a partir de
             </span>
             <span className="block truncate text-sm font-semibold text-mafood-primary">
@@ -98,7 +98,7 @@ export function RestaurantCard({
             </span>
           </>
         ) : (
-          <span className="block text-[11px] text-mafood-text-muted">
+          <span className="block text-[11px] text-mafood-text-secondary">
             {pdv.product_count > 0 ? "Ver cardápio" : "Sem itens ainda"}
           </span>
         )}
@@ -113,6 +113,7 @@ export function RestaurantCard({
     return (
       <div
         data-pdv-card
+        role="group"
         aria-label={`${pdv.name} — fechado`}
         className={`${shell} opacity-55 pointer-events-none select-none`}
       >

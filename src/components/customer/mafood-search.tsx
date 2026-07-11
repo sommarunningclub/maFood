@@ -128,7 +128,7 @@ export function SearchModal({
         <div className="flex-1 overflow-y-auto px-4 py-4">
           {!hasQuery ? (
             <div>
-              <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.16em] text-mafood-text-muted">
+              <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.16em] text-mafood-text-secondary">
                 Categorias
               </p>
               {categories.length > 0 ? (
@@ -145,7 +145,7 @@ export function SearchModal({
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-mafood-text-muted">
+                <p className="text-sm text-mafood-text-secondary">
                   Digite o nome de um restaurante para começar.
                 </p>
               )}
@@ -192,7 +192,7 @@ function SearchResult({
         <p className="mafood-restaurant-title text-[15px] leading-tight text-mafood-text-primary truncate">
           {pdv.name}
         </p>
-        <p className="text-xs text-mafood-text-muted truncate">
+        <p className="text-xs text-mafood-text-secondary truncate">
           {pdv.category ?? "Restaurante"}
           {!pdv.is_open && " · Fechado"}
         </p>
@@ -200,7 +200,7 @@ function SearchResult({
       <span
         className={`shrink-0 rounded-mafood-sm px-2 py-0.5 text-[10px] font-semibold ${
           online
-            ? "bg-mafood-accent text-white"
+            ? "bg-mafood-accent-dark text-white"
             : "border border-mafood-border text-mafood-text-secondary"
         }`}
       >
