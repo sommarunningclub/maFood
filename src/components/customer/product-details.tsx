@@ -96,6 +96,7 @@ export function ProductDetails({
             <img
               src={product.image_url}
               alt={product.name}
+              loading="lazy"
               className="size-full object-cover"
             />
           ) : (

@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, Trash2, XCircle } from "lucide-react";
+import { ArrowLeft, Trash2, XCircle, Receipt } from "lucide-react";
 import { StatusBadge } from "@/components/ui/badge";
 import { PdvLogo } from "@/components/pdv-logo";
 import { brl, formatTime } from "@/lib/utils";
+import { EmptyState } from "@/components/customer/ui/mafood-states";
 
 type Status = "pending" | "paid" | "preparing" | "ready" | "partial" | "delivered" | "cancelled";
 
@@ -97,15 +98,16 @@ export function OrdersHistoryView({
       )}
 
       {orders.length === 0 ? (
-        <div className="mt-20 text-center text-mafood-text-secondary">
-          <p className="text-5xl mb-3">🧾</p>
-          <p>Nenhum pedido ainda</p>
-          <Link
-            href={`/${venue}`}
-            className="num mt-4 inline-block text-mafood-primary underline text-sm"
-          >
-            Ver praça de alimentação
-          </Link>
+        <div className="mt-8">
+          <EmptyState icon={Receipt} title="Nenhum pedido ainda" />
+          <div className="text-center">
+            <Link
+              href={`/${venue}`}
+              className="num mt-2 inline-block text-mafood-primary underline text-sm"
+            >
+              Ver praça de alimentação
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="mt-5 space-y-3">

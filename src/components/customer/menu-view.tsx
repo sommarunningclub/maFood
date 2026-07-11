@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Store, ShoppingBag } from "lucide-react";
+import { Store, ShoppingBag, UtensilsCrossed } from "lucide-react";
 import { useCart } from "@/stores/cart-store";
 import { pdvSellsOnline } from "@/lib/pdv";
 import { brl } from "@/lib/utils";
@@ -12,6 +12,7 @@ import { RestaurantHeader } from "@/components/customer/restaurant-header";
 import { StickyCategoryNavigation } from "@/components/customer/sticky-category-nav";
 import { ProductCard, ProductSection } from "@/components/customer/product-card";
 import { ProductDetails } from "@/components/customer/product-details";
+import { EmptyState } from "@/components/customer/ui/mafood-states";
 
 export function MenuView({
   venue,
@@ -65,9 +66,11 @@ export function MenuView({
       {/* Cardápio */}
       <div className="mt-5 space-y-8 px-4">
         {products.length === 0 ? (
-          <p className="py-12 text-center text-[15px] text-mafood-text-secondary">
-            Nenhum item disponível no momento.
-          </p>
+          <EmptyState
+            icon={UtensilsCrossed}
+            title="Nenhum item disponível no momento"
+            hint="Volte mais tarde para conferir o cardápio."
+          />
         ) : (
           categories.map((cat) => (
             <ProductSection key={cat} id={cat} title={cat}>

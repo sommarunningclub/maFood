@@ -94,7 +94,7 @@ function NavInner({
   return (
     <nav
       className="menu"
-      style={{ "--component-active-color": "#0e5b56" } as React.CSSProperties}
+      style={{ "--component-active-color": "var(--mafood-primary)" } as React.CSSProperties}
     >
       {NAV_ITEMS.map((item, i) => {
         const isActive = i === activeIndex;

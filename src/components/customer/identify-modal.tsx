@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 type Stage = "cpf" | "vip_prefill" | "new" | "loading";
@@ -44,20 +44,46 @@ export function IdentifyModal({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
 
   useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  // Foco: guarda quem abriu o modal, trava o Tab dentro do painel e devolve
+  // o foco ao fechar. Depende só de `open` (via onCloseRef) para não reexecutar
+  // a cada render do pai — `onClose` é uma arrow function recriada a cada render.
+  useEffect(() => {
     if (!open) return;
+    opener.current = document.activeElement as HTMLElement;
+    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
+      if (e.key === "Tab" && panelRef.current) {
+        const nodes = panelRef.current.querySelectorAll<HTMLElement>(
+          "a,button,input,[tabindex]:not([tabindex='-1'])"
+        );
+        if (nodes.length === 0) return;
+        const first = nodes[0];
+        const last = nodes[nodes.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
+      document.body.style.overflow = "";
+      opener.current?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -132,6 +158,7 @@ export function IdentifyModal({
       onClick={onClose}
     >
       <div
+        ref={panelRef}
         onClick={(e) => e.stopPropagation()}
         className="w-full sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-mafood-md border border-mafood-border bg-mafood-surface-strong p-5 pb-safe shadow-2xl animate-in slide-in-from-bottom"
       >
