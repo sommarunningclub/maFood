@@ -26,6 +26,10 @@ export function StickyCategoryNavigation({
   });
 
   // Sincroniza o pill ativo enquanto o usuário rola a lista de seções.
+  // O rootMargin é calculado dinamicamente a partir da posição real da nav
+  // pinada (getBoundingClientRect().bottom), o que cobre automaticamente a
+  // altura da slim bar colapsável + safe-area-inset-top + altura da própria
+  // nav, sem números mágicos fixos.
   useEffect(() => {
     if (categories.length === 0) return;
     const sections = categories
@@ -33,20 +37,41 @@ export function StickyCategoryNavigation({
       .filter((el): el is HTMLElement => el !== null);
     if (sections.length === 0) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        // Ignora atualizações logo após um clique (o scroll suave dispara
-        // várias interseções que sobrescreveriam a seleção do usuário).
-        if (Date.now() < clickLockRef.current) return;
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (visible[0]?.target.id) onSelectRef.current(visible[0].target.id);
-      },
-      { rootMargin: "-96px 0px -68% 0px", threshold: 0 }
-    );
-    sections.forEach((s) => observer.observe(s));
-    return () => observer.disconnect();
+    let observer: IntersectionObserver | null = null;
+    let lastNavBottom = -1;
+
+    const createObserver = () => {
+      const navBottom = Math.round(
+        navRef.current?.getBoundingClientRect().bottom ?? 96
+      );
+      // Só recria o observer se a mudança for significativa (evita loops de
+      // recriação por variações de subpixel).
+      if (observer && Math.abs(navBottom - lastNavBottom) < 4) return;
+      lastNavBottom = navBottom;
+      observer?.disconnect();
+      observer = new IntersectionObserver(
+        (entries) => {
+          // Ignora atualizações logo após um clique (o scroll suave dispara
+          // várias interseções que sobrescreveriam a seleção do usuário).
+          if (Date.now() < clickLockRef.current) return;
+          const visible = entries
+            .filter((e) => e.isIntersecting)
+            .sort(
+              (a, b) => a.boundingClientRect.top - b.boundingClientRect.top
+            );
+          if (visible[0]?.target.id) onSelectRef.current(visible[0].target.id);
+        },
+        { rootMargin: `-${navBottom}px 0px -60% 0px`, threshold: 0 }
+      );
+      sections.forEach((s) => observer?.observe(s));
+    };
+
+    createObserver();
+    window.addEventListener("resize", createObserver);
+    return () => {
+      window.removeEventListener("resize", createObserver);
+      observer?.disconnect();
+    };
   }, [categories]);
 
   // Mantém o pill ativo visível na faixa rolável.
@@ -71,7 +96,7 @@ export function StickyCategoryNavigation({
     <nav
       ref={navRef}
       aria-label="Categorias"
-      className="sticky top-0 z-20 border-b border-mafood-border bg-mafood-background/95 backdrop-blur supports-[backdrop-filter]:bg-mafood-background/80"
+      className="sticky top-[calc(3.25rem+env(safe-area-inset-top))] z-20 border-b border-mafood-border bg-mafood-background/95 backdrop-blur supports-[backdrop-filter]:bg-mafood-background/80"
     >
       <div className="flex gap-2 overflow-x-auto px-4 py-2.5 no-scrollbar scroll-snap-x">
         {categories.map((cat) => {

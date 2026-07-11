@@ -21,7 +21,10 @@ export function ProductSection({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-20">
+    <section
+      id={id}
+      className="scroll-mt-[calc(7.5rem+env(safe-area-inset-top))]"
+    >
       <h2 className="mafood-section-title text-fluid-xl">{title}</h2>
       <div className="mt-3 space-y-3">{children}</div>
     </section>
