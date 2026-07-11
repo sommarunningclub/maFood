@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Image from "next/image";
 import { X, Plus, Minus, Store } from "lucide-react";
 import { brl } from "@/lib/utils";
 import type { Product } from "@/types";
@@ -163,11 +164,12 @@ export function ProductDetails({
             <div className="h-1.5 w-10 rounded-full bg-white/70 shadow-mafood-sm" />
           </div>
           {product.image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={product.image_url}
               alt={product.name}
-              loading="lazy"
+              fill
+              sizes="100vw"
+              priority
               className="size-full object-cover"
             />
           ) : (

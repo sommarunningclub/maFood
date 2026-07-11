@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Plus, Minus } from "lucide-react";
 import { brl } from "@/lib/utils";
 import type { Product } from "@/types";
@@ -92,11 +93,12 @@ export function ProductCard({
       <div className="relative z-10 shrink-0 pointer-events-none">
         <div className="size-[88px] overflow-hidden rounded-mafood-md bg-mafood-background-soft border border-mafood-border">
           {product.image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={product.image_url}
               alt={product.name}
-              loading="lazy"
+              width={88}
+              height={88}
+              sizes="88px"
               className="size-full object-cover"
             />
           ) : (
