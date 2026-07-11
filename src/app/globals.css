@@ -174,3 +174,90 @@ a {
     outline-offset: 2px;
   }
 }
+
+/* ── Mobile bottom nav (InteractiveMenu) ────────────────── */
+:root {
+  --component-active-color-default: #F26522;
+  --component-active-color: #F26522;
+}
+
+@keyframes iconBounce {
+  0%, 100% { transform: translateY(0); }
+  20%       { transform: translateY(-0.28em); }
+  40%       { transform: translateY(0); }
+  60%       { transform: translateY(-0.1em); }
+  80%       { transform: translateY(0); }
+}
+
+.menu {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.menu__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  color: rgba(240, 240, 240, 0.38);
+  transition: color 0.2s ease;
+  --lineWidth: 0px;
+  min-width: 56px;
+}
+
+.menu__item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--lineWidth, 0px);
+  height: 2px;
+  background: var(--component-active-color, #F26522);
+  border-radius: 0 0 3px 3px;
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.menu__item.active {
+  color: var(--component-active-color, #F26522);
+}
+
+.menu__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu__icon .icon {
+  width: 22px;
+  height: 22px;
+  transition: transform 0.2s ease;
+}
+
+.menu__item.active .menu__icon .icon {
+  animation: iconBounce 0.55s ease forwards;
+}
+
+.menu__text {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.menu__text.active {
+  opacity: 1;
+  transform: translateY(0);
+}

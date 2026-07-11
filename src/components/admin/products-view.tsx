@@ -53,6 +53,7 @@ export function ProductsView({
   initialProducts: ProductRow[];
 }) {
   const router = useRouter();
+  const [localProducts, setLocalProducts] = useState<ProductRow[]>(initialProducts);
   const [pdvFilter, setPdvFilter] = useState("all");
   const [editTarget, setEditTarget] = useState<ProductRow | null>(null);
   const [creating, setCreating] = useState(false);
@@ -60,6 +61,11 @@ export function ProductsView({
   const [selectedPrice, setSelectedPrice] = useState<number>(initialProducts[0]?.price ?? 38);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState<"category" | "pdv" | null>(null);
+
+  // Keep localProducts in sync when the server refreshes initialProducts
+  useEffect(() => {
+    setLocalProducts(initialProducts);
+  }, [initialProducts]);
 
   function toggle(id: string) {
     setSelected((s) => {
@@ -82,9 +88,9 @@ export function ProductsView({
   const visible = useMemo(
     () =>
       pdvFilter === "all"
-        ? initialProducts
-        : initialProducts.filter((p) => p.pdv_id === pdvFilter),
-    [pdvFilter, initialProducts]
+        ? localProducts
+        : localProducts.filter((p) => p.pdv_id === pdvFilter),
+    [pdvFilter, localProducts]
   );
 
   const stockSummary = useMemo(() => {
@@ -213,8 +219,9 @@ export function ProductsView({
                   <tr
                     key={p.id}
                     onClick={() => {
-                      setSelectedPrice(p.price);
-                      setEditTarget(p);
+                      const fresh = localProducts.find((x) => x.id === p.id) ?? p;
+                      setSelectedPrice(fresh.price);
+                      setEditTarget(fresh);
                     }}
                     className={`cursor-pointer border-t border-palantir-border hover:bg-palantir-surface2 ${
                       selected.has(p.id) ? "bg-palantir-blue/5" : ""
@@ -271,7 +278,9 @@ export function ProductsView({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setEditTarget(p);
+                          const fresh = localProducts.find((x) => x.id === p.id) ?? p;
+                          setSelectedPrice(fresh.price);
+                          setEditTarget(fresh);
                         }}
                         aria-label={`Editar ${p.name}`}
                         className="grid size-9 place-items-center rounded-admin border border-palantir-border text-palantir-text hover:bg-palantir-surface2 focus-ring-admin"
@@ -300,7 +309,7 @@ export function ProductsView({
             return (
               <li
                 key={p.id}
-                onClick={() => setEditTarget(p)}
+                onClick={() => setEditTarget(localProducts.find((x) => x.id === p.id) ?? p)}
                 className={`border border-palantir-border p-3 flex gap-3 cursor-pointer ${
                   selected.has(p.id) ? "bg-palantir-blue/10" : "bg-palantir-surface"
                 }`}
@@ -333,7 +342,7 @@ export function ProductsView({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setEditTarget(p);
+                        setEditTarget(localProducts.find((x) => x.id === p.id) ?? p);
                       }}
                       aria-label={`Editar ${p.name}`}
                       className="grid size-touch shrink-0 place-items-center rounded-admin border border-palantir-border text-palantir-text hover:bg-palantir-surface2 focus-ring-admin"
@@ -420,10 +429,15 @@ export function ProductsView({
         <BulkMoveDialog
           mode={bulkAction}
           ids={Array.from(selected)}
-          products={initialProducts}
+          products={localProducts}
           pdvs={pdvs}
           onClose={() => setBulkAction(null)}
-          onDone={() => {
+          onDone={(patch) => {
+            setLocalProducts((prev) =>
+              prev.map((p) =>
+                selected.has(p.id) ? { ...p, ...patch } : p
+              )
+            );
             setBulkAction(null);
             clearSelection();
             router.refresh();
@@ -1115,7 +1129,7 @@ function BulkMoveDialog({
   products: ProductRow[];
   pdvs: PdvLite[];
   onClose: () => void;
-  onDone: () => void;
+  onDone: (patch: Partial<ProductRow>) => void;
 }) {
   const selectedProducts = products.filter((p) => ids.includes(p.id));
   const distinctPdvIds = Array.from(new Set(selectedProducts.map((p) => p.pdv_id)));
@@ -1169,20 +1183,26 @@ function BulkMoveDialog({
   async function run() {
     setLoading(true);
     setError(null);
-    const patch: Record<string, unknown> = {};
+    const apiPatch: Record<string, unknown> = {};
+    const optimisticPatch: Partial<ProductRow> = {};
     if (mode === "category") {
-      patch.category_id = targetCategory || null;
+      apiPatch.category_id = targetCategory || null;
+      optimisticPatch.category_id = targetCategory || null;
+      const cat = categories.find((c) => c.id === targetCategory);
+      optimisticPatch.category = cat?.name ?? null;
     } else {
-      patch.pdv_id = targetPdv;
-      // Ao trocar de PDV, a categoria antiga pode não existir no novo — zera
-      patch.category_id = null;
+      apiPatch.pdv_id = targetPdv;
+      apiPatch.category_id = null;
+      optimisticPatch.pdv_id = targetPdv;
+      optimisticPatch.category_id = null;
+      optimisticPatch.category = null;
     }
     const results = await Promise.all(
       ids.map((id) =>
         fetch(`/api/admin/products/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(patch),
+          body: JSON.stringify(apiPatch),
         })
       )
     );
@@ -1192,7 +1212,7 @@ function BulkMoveDialog({
       setError(`${failed} de ${ids.length} falharam`);
       return;
     }
-    onDone();
+    onDone(optimisticPatch);
   }
 
   return (

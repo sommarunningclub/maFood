@@ -43,7 +43,7 @@ export function CheckoutView({
   initialHasSession: boolean;
 }) {
   const router = useRouter();
-  const { items, pdvId, total, clear } = useCart();
+  const { items, pdvId, total, clear, add, remove } = useCart();
   const [notes, setNotes] = useState("");
   const [code, setCode] = useState("");
   const [method, setMethod] = useState<PaymentMethod>("pix");
@@ -54,6 +54,8 @@ export function CheckoutView({
   const [orderId, setOrderId] = useState<string | null>(null);
   const [finalTotal, setFinalTotal] = useState(0);
   const [discount, setDiscount] = useState(0);
+  const [pixPayload, setPixPayload] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [hasSession, setHasSession] = useState(initialHasSession);
   const [identifyOpen, setIdentifyOpen] = useState(false);
 
@@ -169,6 +171,8 @@ export function CheckoutView({
     setDiscount(Number(data.discount));
 
     if (method === "pix") {
+      // Guarda payload para o botão de copiar
+      if (data.pix_payload) setPixPayload(data.pix_payload);
       // Prefere o QR base64 do Asaas; cai pra qrcode lib se ausente
       if (data.pix_qr_code) {
         setQr(
@@ -209,18 +213,36 @@ export function CheckoutView({
   }
 
   if (step === "pix") {
+    async function copyPix() {
+      if (!pixPayload) return;
+      try {
+        await navigator.clipboard.writeText(pixPayload);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
+      } catch {
+        // fallback: select text from hidden input via document.execCommand
+      }
+    }
+
     return (
-      <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe pb-safe somma-grain">
+      <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe pb-[88px] somma-grain">
         <Header venue={venue} title="Pagamento Pix" />
         <div className="mt-6 flex flex-col items-center text-center">
           <p className="num text-[11px] text-somma-muted">PEDIDO #{orderNumber}</p>
           <PixTimer />
-          <div className="bg-white p-3 rounded-client mt-4">
-            {qr && (
+
+          {/* QR Code */}
+          <div className="bg-white p-3 rounded-client mt-4 shadow-lg">
+            {qr ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={qr} alt="QR Code Pix" width={240} height={240} />
+            ) : (
+              <div className="size-[240px] grid place-items-center text-black/30 text-sm">
+                Carregando QR…
+              </div>
             )}
           </div>
+
           <p className="num text-fluid-2xl text-white mt-4">{brl(finalTotal)}</p>
           {discount > 0 && (
             <p className="num text-xs text-somma-green mt-1">
@@ -228,9 +250,34 @@ export function CheckoutView({
             </p>
           )}
           <p className="text-somma-muted text-sm mt-1">Escaneie no app do seu banco</p>
+
+          {/* Copiar código PIX */}
+          {pixPayload && (
+            <div className="mt-5 w-full max-w-xs space-y-2">
+              <p className="num text-[10px] text-somma-muted uppercase tracking-wider">
+                Ou copie o código Pix:
+              </p>
+              <div className="flex items-center gap-2 rounded-client border border-somma-border bg-somma-surface px-3 py-2">
+                <p className="num text-[11px] text-somma-muted flex-1 truncate text-left">
+                  {pixPayload.slice(0, 38)}…
+                </p>
+                <button
+                  onClick={() => void copyPix()}
+                  className={`num shrink-0 rounded px-3 min-h-[36px] text-[11px] uppercase tracking-wider transition-colors focus-ring ${
+                    copied
+                      ? "bg-somma-green/20 text-somma-green"
+                      : "bg-somma-orange/15 text-somma-orange hover:bg-somma-orange/25"
+                  }`}
+                >
+                  {copied ? "Copiado ✓" : "Copiar"}
+                </button>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={finalize}
-            className="mt-8 w-full max-w-xs rounded-client bg-somma-green/90 min-h-touch h-12 text-black font-display uppercase tracking-wide focus-ring"
+            className="mt-6 w-full max-w-xs rounded-client bg-somma-green/90 min-h-touch h-12 text-black font-display uppercase tracking-wide focus-ring"
           >
             Acompanhar pedido
           </button>
@@ -419,15 +466,28 @@ export function CheckoutView({
             Nenhum valor foi cobrado. Você pode tentar novamente com outro método ou cartão.
           </p>
           <div className="mt-6 space-y-2">
-            <button
-              onClick={() => {
-                setError(null);
-                setStep(method === "card" ? "card-form" : "form");
-              }}
-              className="w-full rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide focus-ring"
-            >
-              Tentar novamente
-            </button>
+            {/* Produto inválido = IDs do carrinho desatualizados; orientar o usuário a limpar */}
+            {error && /invalido|inválido|não encontrado/i.test(error) ? (
+              <button
+                onClick={() => {
+                  clear();
+                  router.push(`/${venue}`);
+                }}
+                className="w-full rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide focus-ring"
+              >
+                Limpar carrinho e voltar
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setError(null);
+                  setStep(method === "card" ? "card-form" : "form");
+                }}
+                className="w-full rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide focus-ring"
+              >
+                Tentar novamente
+              </button>
+            )}
             <button
               onClick={() => {
                 setError(null);
@@ -455,19 +515,44 @@ export function CheckoutView({
     <div className="min-h-dvh-100 pb-32 p-4 sm:p-5 pt-safe somma-grain">
       <Header venue={venue} title="Checkout" />
 
-      <section className="mt-5 rounded-client border border-somma-border bg-somma-surface p-4">
-        <div className="space-y-2">
-          {items.map((i) => (
-            <div key={i.product.id} className="flex justify-between text-sm gap-3">
-              <span className="text-somma-text min-w-0 truncate">
-                <span className="num text-somma-orange">{i.qty}×</span> {i.product.name}
-              </span>
-              <span className="num text-somma-muted shrink-0">
-                {brl(i.qty * i.product.price)}
-              </span>
+      <section className="mt-5 rounded-client border border-somma-border bg-somma-surface overflow-hidden">
+        {items.map((i, idx) => (
+          <div
+            key={i.product.id}
+            className={`flex items-center gap-3 px-4 py-3 ${
+              idx > 0 ? "border-t border-somma-border/60" : ""
+            }`}
+          >
+            {/* Qty controls */}
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => remove(i.product.id)}
+                aria-label="Remover um"
+                className="grid size-8 place-items-center rounded-full border border-somma-border text-somma-muted hover:border-somma-orange hover:text-somma-orange active:scale-95 transition-all focus-ring"
+              >
+                <span className="text-base leading-none">−</span>
+              </button>
+              <span className="num text-somma-orange text-sm w-6 text-center">{i.qty}</span>
+              <button
+                onClick={() => add(i.product)}
+                aria-label="Adicionar um"
+                className="grid size-8 place-items-center rounded-full border border-somma-border text-somma-muted hover:border-somma-orange hover:text-somma-orange active:scale-95 transition-all focus-ring"
+              >
+                <span className="text-base leading-none">+</span>
+              </button>
             </div>
-          ))}
-        </div>
+
+            {/* Nome */}
+            <span className="text-somma-text text-sm min-w-0 flex-1 truncate">
+              {i.product.name}
+            </span>
+
+            {/* Subtotal */}
+            <span className="num text-somma-muted text-sm shrink-0">
+              {brl(i.qty * i.product.price)}
+            </span>
+          </div>
+        ))}
       </section>
 
       <section className="mt-4 space-y-3">

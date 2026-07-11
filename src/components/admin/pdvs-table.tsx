@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -40,6 +40,7 @@ export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
   );
   const [pinTarget, setPinTarget] = useState<AdminPdvRow | null>(null);
   const [editTarget, setEditTarget] = useState<AdminPdvRow | null>(null);
+  const [detailTarget, setDetailTarget] = useState<AdminPdvRow | null>(null);
   const [justSavedPin, setJustSavedPin] = useState<AdminPdvRow | null>(null);
 
   // TouchSensor com delay evita conflito com scroll vertical em mobile
@@ -103,6 +104,7 @@ export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
                 key={p.id}
                 pdv={p}
                 onToggle={toggle}
+                onDetail={() => setDetailTarget(p)}
                 onSetPin={() => setPinTarget(p)}
                 onEdit={() => setEditTarget(p)}
                 onClearPin={async () => {
@@ -121,6 +123,7 @@ export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
                 key={p.id}
                 pdv={p}
                 onToggle={toggle}
+                onDetail={() => setDetailTarget(p)}
                 onSetPin={() => setPinTarget(p)}
                 onEdit={() => setEditTarget(p)}
                 onClearPin={async () => {
@@ -162,6 +165,17 @@ export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
           }}
         />
       )}
+
+      {detailTarget && (
+        <PdvDetailDialog
+          pdv={detailTarget}
+          onClose={() => setDetailTarget(null)}
+          onEdit={() => {
+            setDetailTarget(null);
+            setEditTarget(detailTarget);
+          }}
+        />
+      )}
     </>
   );
 }
@@ -171,12 +185,14 @@ export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
 function RowDesktop({
   pdv,
   onToggle,
+  onDetail,
   onSetPin,
   onClearPin,
   onEdit,
 }: {
   pdv: AdminPdvRow;
   onToggle: (id: string) => void;
+  onDetail: () => void;
   onSetPin: () => void;
   onClearPin: () => void;
   onEdit: () => void;
@@ -204,21 +220,25 @@ function RowDesktop({
       >
         <GripVertical className="size-4" />
       </button>
-      <span className="flex items-center gap-2 text-palantir-text min-w-0">
+      <button
+        onClick={onDetail}
+        className="flex items-center gap-2 text-palantir-text min-w-0 text-left hover:text-white focus-ring-admin rounded-admin px-1 -ml-1"
+      >
         <PdvLogo logoUrl={pdv.logo_url} size={24} />
-        <span className="truncate">{pdv.name}</span>
+        <span className="truncate hover:underline underline-offset-2">{pdv.name}</span>
         <span className="mono text-[10px] text-palantir-muted shrink-0">{pdv.category}</span>
         {pdv.instagram_handle && (
           <a
             href={`https://instagram.com/${pdv.instagram_handle}`}
             target="_blank"
             rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
             className="mono text-[10px] text-palantir-blue hover:underline shrink-0"
           >
             @{pdv.instagram_handle}
           </a>
         )}
-      </span>
+      </button>
       <span className="mono text-palantir-text">{pdv.commission_pct}%</span>
       <span className="mono text-palantir-muted">{pdv.prep_time_min} min</span>
       <span className="mono text-palantir-green">{brl(pdv.wallet_balance)}</span>
@@ -279,12 +299,14 @@ function RowDesktop({
 function CardMobile({
   pdv,
   onToggle,
+  onDetail,
   onSetPin,
   onClearPin,
   onEdit,
 }: {
   pdv: AdminPdvRow;
   onToggle: (id: string) => void;
+  onDetail: () => void;
   onSetPin: () => void;
   onClearPin: () => void;
   onEdit: () => void;
@@ -311,10 +333,10 @@ function CardMobile({
         </button>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <button onClick={onDetail} className="flex items-center gap-2 text-left w-full focus-ring-admin rounded-admin">
             <PdvLogo logoUrl={pdv.logo_url} size={28} />
             <div className="min-w-0">
-              <p className="text-palantir-text font-medium truncate">{pdv.name}</p>
+              <p className="text-palantir-text font-medium truncate hover:underline underline-offset-2">{pdv.name}</p>
               <p className="mono text-[10px] text-palantir-muted truncate">
                 {pdv.category}
                 {pdv.instagram_handle && (
@@ -324,6 +346,7 @@ function CardMobile({
                       href={`https://instagram.com/${pdv.instagram_handle}`}
                       target="_blank"
                       rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                       className="text-palantir-blue"
                     >
                       @{pdv.instagram_handle}
@@ -332,7 +355,7 @@ function CardMobile({
                 )}
               </p>
             </div>
-          </div>
+          </button>
 
           <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
             <Stat label="Comissão" value={`${pdv.commission_pct}%`} />
@@ -781,10 +804,12 @@ function Modal({
   children,
   onClose,
   title,
+  wide = false,
 }: {
   children: React.ReactNode;
   onClose: () => void;
   title: string;
+  wide?: boolean;
 }) {
   return (
     <div
@@ -796,7 +821,7 @@ function Modal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-lg max-h-[90dvh] sm:max-h-[85dvh] overflow-y-auto rounded-t-xl sm:rounded-admin border border-palantir-border bg-palantir-surface p-4 sm:p-5 space-y-3 pb-safe"
+        className={`w-full max-h-[90dvh] sm:max-h-[85dvh] overflow-y-auto rounded-t-xl sm:rounded-admin border border-palantir-border bg-palantir-surface p-4 sm:p-5 space-y-3 pb-safe ${wide ? "sm:max-w-2xl" : "sm:max-w-lg"}`}
       >
         <div className="flex items-start justify-between gap-3 -mb-1">
           <h2 className="text-base sm:text-lg font-semibold text-white">{title}</h2>
@@ -849,6 +874,187 @@ function DialogActions({
       >
         {loading ? "Salvando..." : label}
       </button>
+    </div>
+  );
+}
+
+// ── PDV Detail Dialog ────────────────────────────────────────────
+
+interface ProductLite {
+  id: string;
+  name: string;
+  category: string | null;
+  price: number;
+  status: string;
+  stock_quantity: number | null;
+  image_url: string | null;
+}
+
+const STATUS_CLS: Record<string, string> = {
+  active: "text-palantir-green",
+  paused: "text-palantir-yellow",
+  out_of_stock: "text-palantir-red",
+};
+const STATUS_LABEL: Record<string, string> = {
+  active: "Ativo",
+  paused: "Pausado",
+  out_of_stock: "Esgotado",
+};
+
+function PdvDetailDialog({
+  pdv,
+  onClose,
+  onEdit,
+}: {
+  pdv: AdminPdvRow;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  const [products, setProducts] = useState<ProductLite[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/admin/products?pdv_id=${pdv.id}`)
+      .then((r) => r.json())
+      .then((d) => {
+        setProducts(d.items ?? []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [pdv.id]);
+
+  const active = products.filter((p) => p.status === "active").length;
+  const totalStock = products.reduce((s, p) => s + (p.stock_quantity ?? 0), 0);
+  const saleValue = products.reduce(
+    (s, p) => s + (p.stock_quantity != null ? p.price * p.stock_quantity : 0),
+    0
+  );
+
+  return (
+    <Modal onClose={onClose} title={pdv.name} wide>
+      {/* PDV info header */}
+      <div className="flex items-center gap-4 -mt-1 pb-3 border-b border-palantir-border">
+        <div className="size-16 shrink-0 rounded-admin border border-palantir-border bg-palantir-bg overflow-hidden grid place-items-center">
+          <PdvLogo logoUrl={pdv.logo_url} size={56} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="mono text-[10px] text-palantir-blue">{pdv.slug}</p>
+          {pdv.category && (
+            <p className="mono text-[10px] text-palantir-muted">{pdv.category}</p>
+          )}
+          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+            <span className="mono text-palantir-muted">
+              Comissão: <span className="text-palantir-text">{pdv.commission_pct}%</span>
+            </span>
+            <span className="mono text-palantir-muted">
+              Preparo: <span className="text-palantir-text">{pdv.prep_time_min} min</span>
+            </span>
+            <span className="mono text-palantir-muted">
+              Carteira: <span className="text-palantir-green">{brl(pdv.wallet_balance)}</span>
+            </span>
+            <span className={`mono font-semibold ${pdv.is_open ? "text-palantir-green" : "text-palantir-red"}`}>
+              {pdv.is_open ? "● ABERTO" : "● FECHADO"}
+            </span>
+          </div>
+        </div>
+        <button
+          onClick={onEdit}
+          title="Editar PDV"
+          className="grid size-9 place-items-center rounded-admin border border-palantir-border text-palantir-text hover:bg-palantir-surface2 shrink-0 focus-ring-admin"
+        >
+          <Pencil className="size-3.5" />
+        </button>
+      </div>
+
+      {/* Stats */}
+      {!loading && products.length > 0 && (
+        <div className="grid grid-cols-3 gap-2 py-2 border-b border-palantir-border">
+          <MiniStat label="Produtos" value={`${products.length}`} sub={`${active} ativos`} />
+          <MiniStat label="Estoque total" value={`${totalStock} un`} />
+          <MiniStat label="Prev. venda" value={brl(saleValue)} tone="blue" />
+        </div>
+      )}
+
+      {/* Products list */}
+      <div className="space-y-1 max-h-80 overflow-y-auto term-scroll">
+        {loading && (
+          <p className="mono text-[11px] text-palantir-muted py-4 text-center">Carregando produtos...</p>
+        )}
+        {!loading && products.length === 0 && (
+          <p className="mono text-[11px] text-palantir-muted py-4 text-center">Nenhum produto cadastrado.</p>
+        )}
+        {products.map((p) => (
+          <div
+            key={p.id}
+            className="flex items-center gap-2 rounded-admin border border-palantir-border bg-palantir-bg px-2 py-1.5"
+          >
+            <div className="size-8 shrink-0 rounded bg-palantir-surface2 border border-palantir-border overflow-hidden grid place-items-center">
+              {p.image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.image_url} alt="" className="size-full object-cover" />
+              ) : (
+                <span className="text-palantir-muted text-[10px]">—</span>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-palantir-text truncate">{p.name}</p>
+              {p.category && (
+                <p className="mono text-[9px] text-palantir-muted">{p.category}</p>
+              )}
+            </div>
+            <div className="text-right shrink-0">
+              <p className="mono text-sm text-palantir-text">{brl(p.price)}</p>
+              {p.stock_quantity != null && (
+                <p className={`mono text-[9px] ${p.stock_quantity === 0 ? "text-palantir-red" : "text-palantir-muted"}`}>
+                  {p.stock_quantity} un
+                </p>
+              )}
+            </div>
+            <span className={`mono text-[9px] uppercase w-14 text-right shrink-0 ${STATUS_CLS[p.status] ?? "text-palantir-muted"}`}>
+              {STATUS_LABEL[p.status] ?? p.status}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-between items-stretch sm:items-center gap-2 pt-2 border-t border-palantir-border">
+        <button
+          onClick={onClose}
+          className="mono text-xs text-palantir-muted min-h-touch px-3 focus-ring-admin"
+        >
+          Fechar
+        </button>
+        <a
+          href={`/loja/${pdv.slug}`}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-admin bg-palantir-blue min-h-touch px-4 text-sm text-white inline-flex items-center justify-center gap-2 focus-ring-admin"
+        >
+          Abrir painel do PDV
+          <ExternalLink className="size-4" />
+        </a>
+      </div>
+    </Modal>
+  );
+}
+
+function MiniStat({
+  label,
+  value,
+  sub,
+  tone,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: "blue" | "green";
+}) {
+  const cls = tone === "blue" ? "text-palantir-blue" : tone === "green" ? "text-palantir-green" : "text-palantir-text";
+  return (
+    <div className="rounded-admin border border-palantir-border bg-palantir-bg p-2 text-center">
+      <p className="mono text-[9px] uppercase text-palantir-muted">{label}</p>
+      <p className={`mono text-sm font-semibold ${cls}`}>{value}</p>
+      {sub && <p className="mono text-[9px] text-palantir-muted">{sub}</p>}
     </div>
   );
 }

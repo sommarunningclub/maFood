@@ -242,6 +242,22 @@ export async function createCardPayment(input: AsaasCardInput): Promise<AsaasCar
 }
 
 /*
+  Cancela (deleta) uma cobrança no Asaas. Só faz sentido enquanto pendente —
+  cobranças confirmadas/recebidas não devem ser canceladas por aqui.
+  Best-effort: se falhar (já paga, inexistente), apenas loga e segue.
+*/
+export async function cancelPayment(paymentId: string): Promise<boolean> {
+  if (!asaasEnabled) return true;
+  try {
+    await asaasFetch(`/payments/${paymentId}`, { method: "DELETE" });
+    return true;
+  } catch (err) {
+    console.error("[asaas] cancelPayment failed", { paymentId, err });
+    return false;
+  }
+}
+
+/*
   Webhook helper: valida o token enviado pelo Asaas via header
   `asaas-access-token`. Em modo simulado (sem chave), aceita qualquer token
   pra facilitar dev local.

@@ -57,6 +57,8 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   const fetchOrder = useCallback(async () => {
     const supabase = createClient();
@@ -193,6 +195,26 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
     } catch {}
   }
 
+  async function cancelOrder() {
+    if (!order) return;
+    if (!window.confirm("Cancelar este pedido? Esta ação não pode ser desfeita.")) return;
+    setCancelError(null);
+    setCancelling(true);
+    try {
+      const r = await fetch(`/api/customer/orders/${order.id}/cancel`, { method: "POST" });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setCancelError(data.error ?? "Não foi possível cancelar");
+        return;
+      }
+      await fetchOrder();
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  const isCancelled = order.status === "cancelled";
+
   return (
     <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe pb-safe somma-grain">
       <header className="flex items-center justify-between">
@@ -209,7 +231,9 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
       <div className="mt-4 text-center">
         <p className="num text-[11px] text-somma-muted">{order.pdv_name}</p>
         <h1 className="text-fluid-2xl text-white font-display uppercase mt-1">
-          {isPending
+          {isCancelled
+            ? "Pedido cancelado"
+            : isPending
             ? "Aguardando pagamento"
             : isPreparing
             ? "Em preparo"
@@ -287,6 +311,51 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
         </section>
       )}
 
+      {/* Cancelar pedido — só enquanto não foi pago */}
+      {isPending && (
+        <section className="mt-4">
+          {cancelError && (
+            <p
+              role="alert"
+              className="num text-xs text-somma-red text-center mb-2 border border-somma-red/30 bg-somma-red/10 px-3 py-2 rounded-client"
+            >
+              {cancelError}
+            </p>
+          )}
+          <button
+            onClick={cancelOrder}
+            disabled={cancelling}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-client border border-somma-border min-h-touch h-11 text-somma-muted hover:text-somma-red hover:border-somma-red/40 num text-xs uppercase tracking-widest transition-colors disabled:opacity-50 focus-ring"
+          >
+            {cancelling ? "Cancelando…" : "Cancelar pedido"}
+          </button>
+          <p className="num text-[10px] text-somma-muted text-center mt-2">
+            O cancelamento só é permitido antes do pagamento
+          </p>
+        </section>
+      )}
+
+      {/* Estado cancelado */}
+      {isCancelled && (
+        <section className="mt-6 rounded-client border border-somma-red/30 bg-somma-red/5 p-5 text-center">
+          <div className="mx-auto size-14 rounded-full bg-somma-red/10 border border-somma-red/30 grid place-items-center text-2xl">
+            ✕
+          </div>
+          <p className="text-white font-display uppercase tracking-wide mt-3">
+            Pedido cancelado
+          </p>
+          <p className="num text-[11px] text-somma-muted mt-1">
+            Nenhum valor foi cobrado.
+          </p>
+          <Link
+            href={`/${venue}`}
+            className="num mt-4 inline-flex items-center justify-center rounded-client bg-somma-orange min-h-touch h-11 px-5 text-white text-xs uppercase tracking-wide focus-ring"
+          >
+            Fazer novo pedido
+          </Link>
+        </section>
+      )}
+
       {isReady && (
         <motion.div
           className="mx-auto mt-5 size-20 rounded-full bg-somma-orange flex items-center justify-center text-3xl animate-pulse-orange"
@@ -295,7 +364,8 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
         </motion.div>
       )}
 
-      {/* Timeline */}
+      {/* Timeline — oculta quando cancelado */}
+      {!isCancelled && (
       <div className="mt-8 space-y-0">
         {STEPS.map((step, i) => {
           const done = rank >= RANK[step.status];
@@ -338,6 +408,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
           );
         })}
       </div>
+      )}
 
       {/* QR de retirada */}
       {isReady && qr && (
