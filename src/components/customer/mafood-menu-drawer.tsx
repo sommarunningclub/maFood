@@ -17,6 +17,11 @@ export function MaFoodMenuDrawer({
   const panelRef = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   const router = useRouter();
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -25,7 +30,7 @@ export function MaFoodMenuDrawer({
     const first = panelRef.current?.querySelector<HTMLElement>("a,button");
     first?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
       if (e.key === "Tab" && panelRef.current) {
         const nodes = panelRef.current.querySelectorAll<HTMLElement>("a,button");
         if (nodes.length === 0) return;
@@ -41,7 +46,7 @@ export function MaFoodMenuDrawer({
       document.body.style.overflow = "";
       opener.current?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -67,7 +72,7 @@ export function MaFoodMenuDrawer({
       >
         <div className="mafood-header-gradient px-5 py-5 pt-safe flex items-center justify-between text-white">
           <span className="mafood-display text-lg">maFood</span>
-          <button type="button" onClick={onClose} aria-label="Fechar menu" className="grid size-10 place-items-center rounded-mafood-md bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+          <button type="button" onClick={onClose} aria-label="Fechar menu" className="grid size-touch place-items-center rounded-mafood-md bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
             <X className="size-5" />
           </button>
         </div>

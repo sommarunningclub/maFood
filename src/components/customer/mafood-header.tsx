@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { Menu, Search } from "lucide-react";
 
 export function MaFoodHeader({
+  venueSlug,
   onOpenSearch,
   onOpenMenu,
 }: {
@@ -14,7 +16,9 @@ export function MaFoodHeader({
     <header className="mafood-header-gradient sticky top-0 z-30 pt-safe rounded-b-mafood-lg text-white shadow-mafood-md">
       <div className="px-4 pt-3 pb-4 flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
-          <span className="mafood-display text-lg tracking-tight">maFood</span>
+          <Link href={`/${venueSlug}`} aria-label="maFood — início" className="mafood-display text-lg tracking-tight">
+            maFood
+          </Link>
           <button
             type="button"
             onClick={onOpenMenu}
