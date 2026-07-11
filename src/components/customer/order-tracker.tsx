@@ -162,7 +162,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
         <p className="text-mafood-text-secondary">Pedido não encontrado</p>
         <Link
           href={`/${venue}`}
-          className="text-mafood-primary num text-sm underline min-h-touch inline-flex items-center px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+          className="text-mafood-primary-strong num text-sm underline min-h-touch inline-flex items-center px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         >
           Voltar à praça
         </Link>
@@ -266,7 +266,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
           <button
             onClick={refreshNow}
             disabled={refreshing}
-            className="mt-3 inline-flex items-center gap-2 rounded-mafood-md bg-mafood-primary/15 border border-mafood-primary/40 text-mafood-primary min-h-touch px-4 num text-xs uppercase tracking-wider focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary disabled:opacity-60"
+            className="mt-3 inline-flex items-center gap-2 rounded-mafood-md bg-mafood-primary/15 border border-mafood-primary/40 text-mafood-primary-strong min-h-touch px-4 num text-xs uppercase tracking-wider focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary disabled:opacity-60"
           >
             <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
             {refreshing ? "Atualizando..." : "Atualizar"}
@@ -277,7 +277,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
       {/* Bloco de pagamento Pix (status pending) */}
       {isPending && (
         <section className="mt-6 rounded-mafood-md border border-mafood-primary/40 bg-mafood-primary/5 p-4 flex flex-col items-center">
-          <p className="num text-[11px] text-mafood-primary tracking-widest uppercase">Pix · maFood</p>
+          <p className="num text-[11px] text-mafood-primary-strong tracking-widest uppercase">Pix · maFood</p>
           <p className="num text-3xl text-mafood-text-primary font-bold mt-1">{brl(order.total)}</p>
           {qr ? (
             <div className="bg-white p-3 rounded-mafood-md mt-4">
@@ -298,7 +298,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
                 </code>
                 <button
                   onClick={copyPix}
-                  className="num min-h-touch px-3 rounded-mafood-md bg-mafood-primary text-white text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+                  className="num min-h-touch px-3 rounded-mafood-md bg-mafood-primary-strong text-white text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
                 >
                   Copiar
                 </button>
@@ -349,7 +349,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
           </p>
           <Link
             href={`/${venue}`}
-            className="num mt-4 inline-flex items-center justify-center rounded-mafood-md bg-mafood-primary min-h-touch h-11 px-5 text-white text-xs uppercase tracking-wide focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+            className="num mt-4 inline-flex items-center justify-center rounded-mafood-md bg-mafood-primary-strong min-h-touch h-11 px-5 text-white text-xs uppercase tracking-wide focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
           >
             Fazer novo pedido
           </Link>
@@ -376,7 +376,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
                 <div
                   className={`size-9 rounded-full flex items-center justify-center num text-sm border-2 transition-colors ${
                     done
-                      ? "bg-mafood-primary border-mafood-primary text-white"
+                      ? "bg-mafood-primary-strong border-mafood-primary-strong text-white"
                       : "border-mafood-border text-mafood-text-secondary"
                   } ${current ? "ring-4 ring-mafood-primary/20" : ""}`}
                 >
@@ -399,7 +399,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
                   {step.label}
                 </p>
                 {current && (
-                  <p className="num text-[11px] text-mafood-primary">
+                  <p className="num text-[11px] text-mafood-primary-strong">
                     {formatTime(new Date())}
                   </p>
                 )}
@@ -425,7 +425,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
 
       {isPartial && (
         <div className="mt-4 rounded-mafood-md border border-mafood-primary/40 bg-mafood-primary/10 px-3 py-2 text-center">
-          <p className="num text-xs text-mafood-primary">
+          <p className="num text-xs text-mafood-primary-strong">
             Entregue {totalEntregues}/{totalPedidos} itens · volte ao PDV para retirar o resto
           </p>
         </div>
@@ -441,7 +441,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
               <span className={`text-mafood-text-primary ${fully ? "line-through text-mafood-text-secondary" : ""}`}>
                 <span
                   className={`num ${
-                    fully ? "text-mafood-text-secondary" : partial ? "text-mafood-primary" : "text-mafood-primary"
+                    fully ? "text-mafood-text-secondary" : partial ? "text-mafood-primary-strong" : "text-mafood-primary-strong"
                   }`}
                 >
                   {partial || fully ? `${it.delivered_qty}/${it.qty}` : it.qty}×

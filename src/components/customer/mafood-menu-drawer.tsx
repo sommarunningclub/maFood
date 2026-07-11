@@ -80,7 +80,7 @@ export function MaFoodMenuDrawer({
           {items.map(({ href, label, icon: Icon }) => (
             <Link key={href} href={href} onClick={onClose}
               className="flex items-center gap-3 px-3 h-12 rounded-mafood-md text-mafood-text-primary hover:bg-mafood-background-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-mafood-primary">
-              <Icon className="size-5 text-mafood-primary" />
+              <Icon className="size-5 text-mafood-primary-strong" />
               <span className="text-[15px]">{label}</span>
             </Link>
           ))}

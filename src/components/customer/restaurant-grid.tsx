@@ -93,7 +93,7 @@ export function RestaurantCard({
             <span className="block text-[10px] uppercase tracking-[0.16em] text-mafood-text-secondary">
               a partir de
             </span>
-            <span className="block truncate text-sm font-semibold text-mafood-primary">
+            <span className="block truncate text-sm font-semibold text-mafood-primary-strong">
               {priceLabel}
             </span>
           </>

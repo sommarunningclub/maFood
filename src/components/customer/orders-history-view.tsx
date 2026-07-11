@@ -103,7 +103,7 @@ export function OrdersHistoryView({
           <div className="text-center">
             <Link
               href={`/${venue}`}
-              className="num mt-2 inline-block text-mafood-primary underline text-sm"
+              className="num mt-2 inline-block text-mafood-primary-strong underline text-sm"
             >
               Ver praça de alimentação
             </Link>
@@ -146,7 +146,7 @@ export function OrdersHistoryView({
                     <OrderStatusBadge status={o.status} />
                   </div>
                   {isPending && (
-                    <p className="num text-[11px] text-mafood-primary mt-2 font-semibold uppercase tracking-wide">
+                    <p className="num text-[11px] text-mafood-primary-strong mt-2 font-semibold uppercase tracking-wide">
                       💳 Pagar agora →
                     </p>
                   )}
@@ -157,7 +157,7 @@ export function OrdersHistoryView({
                         <span className="ml-2 text-mafood-text-secondary/60">· criado pelo PDV</span>
                       )}
                     </p>
-                    <p className="num font-semibold text-mafood-primary">{brl(o.total)}</p>
+                    <p className="num font-semibold text-mafood-primary-strong">{brl(o.total)}</p>
                   </div>
                 </Link>
 
@@ -168,7 +168,7 @@ export function OrdersHistoryView({
                       <button
                         onClick={() => void cancelOrder(o.id)}
                         disabled={busy}
-                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-mafood-md border border-mafood-border min-h-touch h-10 text-mafood-text-secondary hover:text-mafood-primary hover:border-mafood-primary/40 num text-[11px] uppercase tracking-wider transition-colors disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-mafood-md border border-mafood-border min-h-touch h-10 text-mafood-text-secondary hover:text-mafood-primary-strong hover:border-mafood-primary/40 num text-[11px] uppercase tracking-wider transition-colors disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
                       >
                         <XCircle className="size-3.5" />
                         {busy ? "..." : "Cancelar"}

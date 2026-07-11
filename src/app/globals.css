@@ -178,8 +178,8 @@ a {
 /* ── Mobile bottom nav (InteractiveMenu) ────────────────── */
 /* Consumed only by the maFood customer bottom nav (bottom-nav.tsx) */
 :root {
-  --component-active-color-default: #0e5b56;
-  --component-active-color: #0e5b56;
+  --component-active-color-default: #A8420F;
+  --component-active-color: #A8420F;
 }
 
 @keyframes iconBounce {
@@ -221,13 +221,13 @@ a {
   transform: translateX(-50%);
   width: var(--lineWidth, 0px);
   height: 2px;
-  background: var(--component-active-color, #0e5b56);
+  background: var(--component-active-color, #A8420F);
   border-radius: 0 0 3px 3px;
   transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .menu__item.active {
-  color: var(--component-active-color, #0e5b56);
+  color: var(--component-active-color, #A8420F);
 }
 
 .menu__icon {
@@ -265,29 +265,30 @@ a {
 
 /* ── maFood client design system (scoped) ───────────────────────── */
 .mafood-shell {
-  --mafood-primary: #0e5b56;
-  --mafood-primary-dark: #034b46;
-  --mafood-primary-light: #75ccd8;
+  --mafood-primary: #F26522;            /* brand orange — DECORATIVE fills/gradient/dots ONLY (fails AA as text/small-button) */
+  --mafood-primary-dark: #D4501A;
+  --mafood-primary-light: #FF9166;
+  --mafood-primary-strong: #A8420F;     /* NEW — AA-safe (text 5.36, white-on-it 6.08): use for meaningful text + white-text buttons/pills */
   --mafood-accent: #d6675e;
   --mafood-accent-dark: #c45a52;
   --mafood-accent-light: #e8796c;
   --mafood-gold: #f4b45e;
-  --mafood-success: #10a53d;
-  --mafood-success-bright: #22c55e;
-  --mafood-success-strong: #017a37;
-  --mafood-section-title: #017a37;
+  --mafood-success: #E8973A;            /* warm amber — decorative fills/tints only */
+  --mafood-success-bright: #F4B45E;     /* gold — dots/live indicators */
+  --mafood-success-strong: #8A5410;     /* AA amber text (5.52) — "Aberto"/"Pago"/success text */
+  --mafood-section-title: #A8420F;      /* was green; now AA orange (5.36) */
   --mafood-background: #f5f0e8;
-  --mafood-background-soft: #f2f6ec;
+  --mafood-background-soft: #faf3ea;    /* was green-tinted #f2f6ec; now warm cream */
   --mafood-background-warm: #faf9f5;
   --mafood-surface: #fffdf9;
   --mafood-surface-strong: #ffffff;
-  --mafood-text-primary: #17211d;
-  --mafood-text-secondary: #666d69;
-  --mafood-text-muted: #969d99;
-  --mafood-border: rgba(3, 75, 70, 0.12);
-  --mafood-shadow-sm: 0 2px 8px rgba(3, 75, 70, 0.08);
-  --mafood-shadow-md: 0 4px 16px rgba(3, 75, 70, 0.14), 0 1px 4px rgba(0, 0, 0, 0.08);
-  --mafood-shadow-lg: 0 16px 40px rgba(3, 75, 70, 0.18);
+  --mafood-text-primary: #1f1a15;       /* warm-neutral (was cool #17211d) */
+  --mafood-text-secondary: #6b625a;     /* warm-neutral (was #666d69) — still AA on cream */
+  --mafood-text-muted: #9c948a;         /* warm-neutral (was #969d99) — decorative only */
+  --mafood-border: rgba(168, 66, 15, 0.14);   /* was teal rgba(3,75,70,0.12) */
+  --mafood-shadow-sm: 0 2px 8px rgba(120, 55, 20, 0.09);
+  --mafood-shadow-md: 0 4px 16px rgba(120, 55, 20, 0.14), 0 1px 4px rgba(0, 0, 0, 0.08);
+  --mafood-shadow-lg: 0 16px 40px rgba(120, 55, 20, 0.18);
   --mafood-radius-sm: 10px;
   --mafood-radius-md: 16px;
   --mafood-radius-lg: 24px;
@@ -315,11 +316,11 @@ a {
   color: var(--mafood-section-title);
 }
 
-/* Header green gradient + CSS-only geometric texture */
+/* Header orange gradient + CSS-only geometric texture */
 .mafood-header-gradient {
   background:
     repeating-linear-gradient(135deg, rgba(255,255,255,0.035) 0 2px, transparent 2px 10px),
-    linear-gradient(168deg, #007a33 0%, #0a524d 50%, #019b42 100%);
+    linear-gradient(168deg, #F26522 0%, #C6501A 55%, #F5842C 100%);
 }
 
 @media (prefers-reduced-motion: reduce) {

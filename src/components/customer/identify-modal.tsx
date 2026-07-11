@@ -209,7 +209,7 @@ export function IdentifyModal({
             <button
               type="submit"
               disabled={cpf.length !== 11}
-              className="mt-4 w-full rounded-mafood-md bg-mafood-primary min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+              className="mt-4 w-full rounded-mafood-md bg-mafood-primary-strong min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               Continuar
             </button>
@@ -219,7 +219,7 @@ export function IdentifyModal({
         {stage === "vip_prefill" && prefill && (
           <form onSubmit={submitRegister}>
             <div className="flex items-center gap-2 mb-3">
-              <span className="num text-[10px] uppercase bg-mafood-primary/15 text-mafood-primary px-2 py-1 rounded">
+              <span className="num text-[10px] uppercase bg-mafood-primary/15 text-mafood-primary-strong px-2 py-1 rounded">
                 ✓ Lista VIP
               </span>
             </div>
@@ -233,7 +233,7 @@ export function IdentifyModal({
             <button
               type="submit"
               disabled={!name.trim()}
-              className="mt-4 w-full rounded-mafood-md bg-mafood-primary min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+              className="mt-4 w-full rounded-mafood-md bg-mafood-primary-strong min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               Confirmar e continuar
             </button>
@@ -265,7 +265,7 @@ export function IdentifyModal({
             <button
               type="submit"
               disabled={!name.trim()}
-              className="mt-4 w-full rounded-mafood-md bg-mafood-primary min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+              className="mt-4 w-full rounded-mafood-md bg-mafood-primary-strong min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               Criar cadastro e continuar
             </button>

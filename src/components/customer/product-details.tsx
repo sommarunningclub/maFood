@@ -122,7 +122,7 @@ export function ProductDetails({
           <h2 className="mafood-product-title text-fluid-xl leading-tight text-mafood-text-primary text-balance">
             {product.name}
           </h2>
-          <p className="mt-2 text-fluid-lg font-semibold text-mafood-primary">
+          <p className="mt-2 text-fluid-lg font-semibold text-mafood-primary-strong">
             {brl(product.price)}
           </p>
           {disabled && (
@@ -147,7 +147,7 @@ export function ProductDetails({
                   onClick={onRemove}
                   disabled={qty === 0}
                   aria-label={`Remover 1 ${product.name}`}
-                  className="grid size-11 place-items-center rounded-full text-mafood-primary disabled:opacity-40 active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-mafood-primary"
+                  className="grid size-11 place-items-center rounded-full text-mafood-primary-strong disabled:opacity-40 active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-mafood-primary"
                 >
                   <Minus className="size-5" />
                 </button>
@@ -162,7 +162,7 @@ export function ProductDetails({
                   type="button"
                   onClick={onAdd}
                   aria-label={`Adicionar mais 1 ${product.name}`}
-                  className="grid size-11 place-items-center rounded-full bg-mafood-primary text-white active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+                  className="grid size-11 place-items-center rounded-full bg-mafood-primary-strong text-white active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
                 >
                   <Plus className="size-5" />
                 </button>
@@ -170,14 +170,14 @@ export function ProductDetails({
               <button
                 type="button"
                 onClick={onAdd}
-                className="flex h-13 min-h-touch flex-1 items-center justify-center rounded-mafood-md bg-mafood-primary px-4 text-[15px] font-semibold text-white shadow-mafood-md active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+                className="flex h-13 min-h-touch flex-1 items-center justify-center rounded-mafood-md bg-mafood-primary-strong px-4 text-[15px] font-semibold text-white shadow-mafood-md active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               >
                 Adicionar
               </button>
             </div>
           ) : (
             <div className="flex items-center gap-3 rounded-mafood-md border border-mafood-border bg-mafood-background-soft px-4 py-3.5">
-              <Store className="size-5 shrink-0 text-mafood-primary" aria-hidden="true" />
+              <Store className="size-5 shrink-0 text-mafood-primary-strong" aria-hidden="true" />
               <p className="text-[14px] font-medium text-mafood-text-secondary">
                 Pagamento direto no balcão do PDV
               </p>

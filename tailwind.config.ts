@@ -51,6 +51,7 @@ const config: Config = {
           primary: "var(--mafood-primary)",
           "primary-dark": "var(--mafood-primary-dark)",
           "primary-light": "var(--mafood-primary-light)",
+          "primary-strong": "var(--mafood-primary-strong)",
           accent: "var(--mafood-accent)",
           "accent-dark": "var(--mafood-accent-dark)",
           "accent-light": "var(--mafood-accent-light)",
@@ -135,8 +136,8 @@ const config: Config = {
           "50%": { boxShadow: "0 0 0 12px rgba(242,101,34,0)" },
         },
         "pulse-primary": {
-          "0%, 100%": { boxShadow: "0 0 0 0 rgba(14,91,86,0.6)" },
-          "50%": { boxShadow: "0 0 0 12px rgba(14,91,86,0)" },
+          "0%, 100%": { boxShadow: "0 0 0 0 rgba(242,101,34,0.6)" },
+          "50%": { boxShadow: "0 0 0 12px rgba(242,101,34,0)" },
         },
         "slide-in": {
           from: { opacity: "0", transform: "translateY(8px)" },

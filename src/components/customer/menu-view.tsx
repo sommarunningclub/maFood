@@ -41,7 +41,7 @@ export function MenuView({
         <div className="px-4 pt-4">
           <div className="flex items-center gap-3 rounded-mafood-md border border-mafood-border bg-mafood-background-soft px-4 py-3.5 shadow-mafood-sm">
             <span className="grid size-9 shrink-0 place-items-center rounded-full bg-mafood-primary/10">
-              <Store className="size-5 text-mafood-primary" aria-hidden="true" />
+              <Store className="size-5 text-mafood-primary-strong" aria-hidden="true" />
             </span>
             <div className="min-w-0">
               <p className="text-[14px] font-semibold text-mafood-text-primary">
@@ -106,7 +106,7 @@ export function MenuView({
               <div className="mx-auto max-w-screen-mobile p-3 sm:p-4">
                 <Link
                   href={`/${venue}/checkout`}
-                  className="flex h-14 min-h-touch items-center justify-between gap-3 rounded-mafood-md bg-mafood-primary px-4 text-white shadow-mafood-lg active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+                  className="flex h-14 min-h-touch items-center justify-between gap-3 rounded-mafood-md bg-mafood-primary-strong px-4 text-white shadow-mafood-lg active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
                 >
                   <span className="inline-flex items-center gap-2 shrink-0">
                     <span className="grid size-7 place-items-center rounded-full bg-white/15">

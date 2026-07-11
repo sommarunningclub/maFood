@@ -12,7 +12,7 @@ export function InstagramChip({ handle }: { handle: string }) {
       target="_blank"
       rel="noreferrer"
       onClick={(e) => e.stopPropagation()}
-      className="text-mafood-primary hover:underline"
+      className="text-mafood-primary-strong hover:underline"
     >
       @{handle}
     </a>

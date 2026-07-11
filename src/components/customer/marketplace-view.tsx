@@ -137,7 +137,7 @@ export function MarketplaceView({
             {venueDescription}
           </p>
         )}
-        <p className="mt-4 inline-flex items-center gap-2 rounded-mafood-sm bg-mafood-background-soft px-3 py-1.5 text-xs font-medium text-mafood-primary">
+        <p className="mt-4 inline-flex items-center gap-2 rounded-mafood-sm bg-mafood-background-soft px-3 py-1.5 text-xs font-medium text-mafood-primary-strong">
           <span className="relative inline-flex size-2">
             <span className="absolute inset-0 rounded-full bg-mafood-success animate-ping opacity-60" />
             <span className="relative size-2 rounded-full bg-mafood-success" />

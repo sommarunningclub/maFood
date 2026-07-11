@@ -129,14 +129,14 @@ export function AccountView({
 
       {/* Identidade */}
       <section className="mt-6 flex items-center gap-4">
-        <div className="size-16 shrink-0 grid place-items-center rounded-full bg-mafood-primary/15 border border-mafood-primary/30 text-mafood-primary mafood-display text-xl">
+        <div className="size-16 shrink-0 grid place-items-center rounded-full bg-mafood-primary/15 border border-mafood-primary/30 text-mafood-primary-strong mafood-display text-xl">
           {initials || <UserIcon className="size-7" />}
         </div>
         <div className="min-w-0">
           <p className="text-mafood-text-primary text-lg font-medium truncate">{customer.name}</p>
           <div className="flex items-center gap-2 mt-0.5">
             {customer.is_vip && (
-              <span className="num text-[9px] uppercase bg-mafood-primary/15 text-mafood-primary px-1.5 py-0.5 rounded">
+              <span className="num text-[9px] uppercase bg-mafood-primary/15 text-mafood-primary-strong px-1.5 py-0.5 rounded">
                 VIP
               </span>
             )}
@@ -158,7 +158,7 @@ export function AccountView({
             <span className="num text-[10px] uppercase tracking-wider">Pedidos</span>
           </div>
           <p className="num text-2xl text-mafood-text-primary mt-1">{ordersCount}</p>
-          <p className="num text-[10px] text-mafood-primary mt-1">Ver histórico →</p>
+          <p className="num text-[10px] text-mafood-primary-strong mt-1">Ver histórico →</p>
         </Link>
         <div className="rounded-mafood-md border border-mafood-border bg-mafood-surface-strong p-4">
           <div className="flex items-center gap-2 text-mafood-text-secondary">
@@ -225,7 +225,7 @@ export function AccountView({
           className={`w-full rounded-mafood-md min-h-touch h-12 font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary disabled:opacity-40 ${
             saved
               ? "bg-mafood-success-strong text-white"
-              : "bg-mafood-primary text-white"
+              : "bg-mafood-primary-strong text-white"
           }`}
         >
           {saving ? (
@@ -267,7 +267,7 @@ function Field({
   return (
     <label className="block rounded-mafood-md border border-mafood-border bg-mafood-surface-strong px-3 py-2.5 focus-within:border-mafood-primary transition-colors">
       <span className="num text-[10px] text-mafood-text-secondary uppercase tracking-wider flex items-center gap-1.5">
-        <span className="text-mafood-primary/70">{icon}</span>
+        <span className="text-mafood-primary-strong/70">{icon}</span>
         {label}
       </span>
       <div className="mt-1.5">{children}</div>

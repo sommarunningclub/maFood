@@ -31,7 +31,7 @@ export function CustomerHeader({
         <span className="num text-[11px] text-mafood-text-secondary">Olá,</span>
         <span className="text-mafood-text-primary text-sm font-medium truncate">{first}</span>
         {session.is_vip && (
-          <span className="num text-[9px] uppercase bg-mafood-primary/15 text-mafood-primary px-1.5 py-0.5 rounded">
+          <span className="num text-[9px] uppercase bg-mafood-primary/15 text-mafood-primary-strong px-1.5 py-0.5 rounded">
             VIP
           </span>
         )}
@@ -39,7 +39,7 @@ export function CustomerHeader({
       <button
         onClick={logout}
         disabled={loading}
-        className="num text-[10px] uppercase text-mafood-text-secondary hover:text-mafood-primary disabled:opacity-50 min-h-touch px-2 focus-ring"
+        className="num text-[10px] uppercase text-mafood-text-secondary hover:text-mafood-primary-strong disabled:opacity-50 min-h-touch px-2 focus-ring"
       >
         {loading ? "..." : "Sair"}
       </button>

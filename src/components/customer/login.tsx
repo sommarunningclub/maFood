@@ -107,7 +107,7 @@ export function CustomerLogin({
       <div className="w-full max-w-md">
         {/* Hero */}
         <header className="mb-6 text-center">
-          <p className="num text-[11px] text-mafood-primary tracking-[0.25em] mb-2">
+          <p className="num text-[11px] text-mafood-primary-strong tracking-[0.25em] mb-2">
             18 JUL 2026 · COPMDF · BRASÍLIA
           </p>
           <h1 className="mafood-display text-fluid-3xl leading-[0.95] text-mafood-text-primary text-balance">
@@ -149,7 +149,7 @@ export function CustomerLogin({
             <button
               type="submit"
               disabled={cpf.replace(/\D/g, "").length !== 11}
-              className="mt-4 w-full rounded-mafood-md bg-mafood-primary min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+              className="mt-4 w-full rounded-mafood-md bg-mafood-primary-strong min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               Continuar
             </button>
@@ -163,7 +163,7 @@ export function CustomerLogin({
             className="rounded-mafood-md border border-mafood-primary/40 bg-mafood-surface-strong p-5"
           >
             <div className="flex items-center gap-2 mb-3">
-              <span className="num text-[10px] uppercase bg-mafood-primary/15 text-mafood-primary px-2 py-1 rounded">
+              <span className="num text-[10px] uppercase bg-mafood-primary/15 text-mafood-primary-strong px-2 py-1 rounded">
                 ✓ Lista VIP
               </span>
             </div>
@@ -186,7 +186,7 @@ export function CustomerLogin({
             <button
               type="submit"
               disabled={!name.trim()}
-              className="mt-4 w-full rounded-mafood-md bg-mafood-primary min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+              className="mt-4 w-full rounded-mafood-md bg-mafood-primary-strong min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               Entrar no evento
             </button>
@@ -232,7 +232,7 @@ export function CustomerLogin({
             <button
               type="submit"
               disabled={!name.trim()}
-              className="mt-4 w-full rounded-mafood-md bg-mafood-primary min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+              className="mt-4 w-full rounded-mafood-md bg-mafood-primary-strong min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
               Criar cadastro e entrar
             </button>

@@ -15,12 +15,18 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
 };
 
 const STATUS_CLASS: Record<OrderStatus, string> = {
-  pending: "bg-mafood-accent/12 text-mafood-accent-dark",
+  // Neutral — payment not confirmed yet, nothing active happening.
+  // Was accent-dark (identical to `cancelled`/`partial`, confusable); now neutral grey.
+  pending: "bg-mafood-text-muted/12 text-mafood-text-secondary",
+  // Terminal-good statuses share the amber success treatment; label text differentiates them.
   paid: "bg-mafood-success/12 text-mafood-success-strong",
-  preparing: "bg-mafood-primary/12 text-mafood-primary",
+  preparing: "bg-mafood-primary/12 text-mafood-primary-strong",
   ready: "bg-mafood-success/12 text-mafood-success-strong",
-  partial: "bg-mafood-accent/12 text-mafood-accent-dark",
-  delivered: "bg-mafood-text-muted/12 text-mafood-text-secondary",
+  // Was accent-dark (identical to `cancelled`); partial pickup is terminal-good, so success-strong.
+  partial: "bg-mafood-success/12 text-mafood-success-strong",
+  // Was neutral grey; delivered is terminal-good, so success-strong.
+  delivered: "bg-mafood-success/12 text-mafood-success-strong",
+  // Stays red-ish/accent-dark — distinct from orange/amber, never confusable with success.
   cancelled: "bg-mafood-accent/12 text-mafood-accent-dark",
 };
 

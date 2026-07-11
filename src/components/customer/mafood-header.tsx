@@ -34,7 +34,7 @@ export function MaFoodHeader({
           aria-label="Buscar"
           className="flex items-center gap-2 w-full h-12 rounded-mafood-md bg-mafood-surface-strong text-mafood-text-muted px-4 shadow-mafood-sm active:scale-[0.99] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
         >
-          <Search className="size-4 text-mafood-primary" />
+          <Search className="size-4 text-mafood-primary-strong" />
           <span className="text-sm">Buscar restaurantes, categorias…</span>
         </button>
       </div>

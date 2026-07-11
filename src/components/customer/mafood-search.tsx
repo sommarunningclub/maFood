@@ -90,7 +90,7 @@ export function SearchModal({
         <div className="mafood-header-gradient px-4 pt-3 pb-4 pt-safe">
           <div className="flex items-center gap-2">
             <div className="flex flex-1 items-center gap-2 h-12 rounded-mafood-md bg-mafood-surface-strong px-3 shadow-mafood-sm">
-              <Search className="size-4 shrink-0 text-mafood-primary" />
+              <Search className="size-4 shrink-0 text-mafood-primary-strong" />
               <input
                 ref={inputRef}
                 value={query}

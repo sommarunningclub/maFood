@@ -204,7 +204,7 @@ export function CheckoutView({
         <p className="text-mafood-text-secondary">Seu carrinho está vazio</p>
         <Link
           href={`/${venue}`}
-          className="rounded-mafood-md bg-mafood-primary px-5 min-h-touch h-12 inline-flex items-center text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+          className="rounded-mafood-md bg-mafood-primary-strong px-5 min-h-touch h-12 inline-flex items-center text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         >
           Ver praça
         </Link>
@@ -266,7 +266,7 @@ export function CheckoutView({
                   className={`num shrink-0 rounded px-3 min-h-[36px] text-[11px] uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary ${
                     copied
                       ? "bg-mafood-success/20 text-mafood-success-strong"
-                      : "bg-mafood-primary/15 text-mafood-primary hover:bg-mafood-primary/25"
+                      : "bg-mafood-primary/15 text-mafood-primary-strong hover:bg-mafood-primary/25"
                   }`}
                 >
                   {copied ? "Copiado ✓" : "Copiar"}
@@ -415,7 +415,7 @@ export function CheckoutView({
             <button
               onClick={() => void submitOrder()}
               disabled={!cardFilled}
-              className="w-full rounded-mafood-md bg-mafood-primary min-h-touch h-13 text-white font-semibold active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary disabled:opacity-40"
+              className="w-full rounded-mafood-md bg-mafood-primary-strong min-h-touch h-13 text-white font-semibold active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary disabled:opacity-40"
             >
               Pagar {brl(subtotal)}
             </button>
@@ -473,7 +473,7 @@ export function CheckoutView({
                   clear();
                   router.push(`/${venue}`);
                 }}
-                className="w-full rounded-mafood-md bg-mafood-primary min-h-touch h-12 text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+                className="w-full rounded-mafood-md bg-mafood-primary-strong min-h-touch h-12 text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               >
                 Limpar carrinho e voltar
               </button>
@@ -483,7 +483,7 @@ export function CheckoutView({
                   setError(null);
                   setStep(method === "card" ? "card-form" : "form");
                 }}
-                className="w-full rounded-mafood-md bg-mafood-primary min-h-touch h-12 text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+                className="w-full rounded-mafood-md bg-mafood-primary-strong min-h-touch h-12 text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               >
                 Tentar novamente
               </button>
@@ -528,15 +528,15 @@ export function CheckoutView({
               <button
                 onClick={() => remove(i.product.id)}
                 aria-label="Remover um"
-                className="grid size-8 place-items-center rounded-full border border-mafood-border text-mafood-text-secondary hover:border-mafood-primary hover:text-mafood-primary active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+                className="grid size-8 place-items-center rounded-full border border-mafood-border text-mafood-text-secondary hover:border-mafood-primary hover:text-mafood-primary-strong active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               >
                 <span className="text-base leading-none">−</span>
               </button>
-              <span className="num text-mafood-primary text-sm w-6 text-center">{i.qty}</span>
+              <span className="num text-mafood-primary-strong text-sm w-6 text-center">{i.qty}</span>
               <button
                 onClick={() => add(i.product)}
                 aria-label="Adicionar um"
-                className="grid size-8 place-items-center rounded-full border border-mafood-border text-mafood-text-secondary hover:border-mafood-primary hover:text-mafood-primary active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+                className="grid size-8 place-items-center rounded-full border border-mafood-border text-mafood-text-secondary hover:border-mafood-primary hover:text-mafood-primary-strong active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               >
                 <span className="text-base leading-none">+</span>
               </button>
@@ -589,7 +589,7 @@ export function CheckoutView({
               aria-checked={method === m}
               className={`rounded-mafood-md border min-h-touch h-12 num text-sm uppercase transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary ${
                 method === m
-                  ? "border-mafood-primary bg-mafood-primary/10 text-mafood-primary"
+                  ? "border-mafood-primary bg-mafood-primary/10 text-mafood-primary-strong"
                   : "border-mafood-border text-mafood-text-secondary"
               }`}
             >
@@ -622,7 +622,7 @@ export function CheckoutView({
         <div className="mx-auto max-w-screen-mobile p-3 sm:p-4">
           <button
             onClick={handleSubmitClick}
-            className="w-full rounded-mafood-md bg-mafood-primary min-h-touch h-13 text-white font-semibold active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+            className="w-full rounded-mafood-md bg-mafood-primary-strong min-h-touch h-13 text-white font-semibold active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
           >
             {hasSession
               ? `${method === "pix" ? "Gerar Pix" : "Ir para pagamento"} · ${brl(subtotal)}`
@@ -721,7 +721,7 @@ function PixTimer() {
   const mm = String(Math.floor(s / 60)).padStart(2, "0");
   const ss = String(s % 60).padStart(2, "0");
   return (
-    <p className="num text-mafood-primary text-sm" aria-live="polite">
+    <p className="num text-mafood-primary-strong text-sm" aria-live="polite">
       expira em {mm}:{ss}
     </p>
   );

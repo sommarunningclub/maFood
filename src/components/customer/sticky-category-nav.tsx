@@ -85,7 +85,7 @@ export function StickyCategoryNavigation({
               aria-current={isActive ? "true" : undefined}
               className={`snap-start whitespace-nowrap shrink-0 inline-flex min-h-[38px] items-center rounded-full px-4 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary ${
                 isActive
-                  ? "bg-mafood-primary text-white shadow-mafood-sm"
+                  ? "bg-mafood-primary-strong text-white shadow-mafood-sm"
                   : "border border-mafood-border text-mafood-text-secondary bg-mafood-surface-strong"
               }`}
             >
