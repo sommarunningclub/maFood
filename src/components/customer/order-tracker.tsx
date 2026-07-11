@@ -358,7 +358,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
 
       {isReady && (
         <motion.div
-          className="mx-auto mt-5 size-20 rounded-full bg-mafood-primary flex items-center justify-center text-3xl animate-pulse-orange"
+          className="mx-auto mt-5 size-20 rounded-full bg-mafood-primary flex items-center justify-center text-3xl animate-pulse-primary"
         >
           🔔
         </motion.div>

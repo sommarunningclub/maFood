@@ -311,7 +311,7 @@ function PrefillFields({
           onChange={(e) => setPhone(maskPhone(e.target.value))}
           inputMode="numeric"
           placeholder="(00) 00000-0000"
-          className="num mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 h-10 text-mafood-text-primary outline-none focus:border-mafood-primary"
+          className="num mt-1 w-full rounded-mafood-md bg-mafood-background border border-mafood-border px-3 min-h-touch h-11 text-mafood-text-primary outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         />
       </label>
     </div>

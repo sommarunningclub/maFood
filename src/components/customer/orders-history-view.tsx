@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft, Trash2, XCircle, Receipt } from "lucide-react";
-import { StatusBadge } from "@/components/ui/badge";
+import { OrderStatusBadge } from "@/components/customer/order-status-badge";
 import { PdvLogo } from "@/components/pdv-logo";
 import { brl, formatTime } from "@/lib/utils";
 import { EmptyState } from "@/components/customer/ui/mafood-states";
@@ -122,7 +122,7 @@ export function OrdersHistoryView({
                 key={o.id}
                 className={`rounded-mafood-md border p-4 ${
                   isPending
-                    ? "border-mafood-primary/60 bg-mafood-primary/10 animate-pulse-orange"
+                    ? "border-mafood-primary/60 bg-mafood-primary/10 animate-pulse-primary"
                     : isCancelled
                     ? "border-mafood-border bg-mafood-surface-strong opacity-70"
                     : "border-mafood-border bg-mafood-surface-strong"
@@ -143,7 +143,7 @@ export function OrdersHistoryView({
                         </p>
                       </div>
                     </div>
-                    <StatusBadge status={o.status} />
+                    <OrderStatusBadge status={o.status} />
                   </div>
                   {isPending && (
                     <p className="num text-[11px] text-mafood-primary mt-2 font-semibold uppercase tracking-wide">

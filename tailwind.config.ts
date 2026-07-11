@@ -134,6 +134,10 @@ const config: Config = {
           "0%, 100%": { boxShadow: "0 0 0 0 rgba(242,101,34,0.6)" },
           "50%": { boxShadow: "0 0 0 12px rgba(242,101,34,0)" },
         },
+        "pulse-primary": {
+          "0%, 100%": { boxShadow: "0 0 0 0 rgba(14,91,86,0.6)" },
+          "50%": { boxShadow: "0 0 0 12px rgba(14,91,86,0)" },
+        },
         "slide-in": {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
@@ -149,6 +153,7 @@ const config: Config = {
       },
       animation: {
         "pulse-orange": "pulse-orange 1.6s infinite",
+        "pulse-primary": "pulse-primary 1.6s infinite",
         "slide-in": "slide-in 0.25s ease-out",
         "slide-in-right": "slide-in-right 0.25s ease-out",
         "fade-in": "fade-in 0.2s ease-out",
