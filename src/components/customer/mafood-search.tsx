@@ -107,7 +107,7 @@ export function SearchModal({
                     inputRef.current?.focus();
                   }}
                   aria-label="Limpar busca"
-                  className="grid size-9 shrink-0 place-items-center rounded-full text-mafood-text-muted hover:bg-mafood-background-soft"
+                  className="grid size-11 shrink-0 place-items-center rounded-full text-mafood-text-muted hover:bg-mafood-background-soft"
                 >
                   <X className="size-4" />
                 </button>

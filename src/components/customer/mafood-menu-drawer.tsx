@@ -70,7 +70,11 @@ export function MaFoodMenuDrawer({
   function onTouchMove(e: React.TouchEvent) {
     if (!dragging.current || !panelRef.current) return;
     const dx = e.touches[0].clientX - startX.current;
-    if (dx >= 0) return;
+    if (dx >= 0) {
+      currentDX.current = 0;
+      if (panelRef.current) panelRef.current.style.transform = "";
+      return;
+    }
     const panelWidth = panelRef.current.offsetWidth || 1;
     currentDX.current = Math.max(dx, -panelWidth);
     panelRef.current.style.transform = `translateX(${currentDX.current}px)`;

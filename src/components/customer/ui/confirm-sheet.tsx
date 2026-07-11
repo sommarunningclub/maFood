@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type ConfirmOptions = {
   title: string;
@@ -19,6 +19,21 @@ function ConfirmSheet({
   onConfirm,
   onCancel,
 }: ConfirmOptions & { onConfirm: () => void; onCancel: () => void }) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    cancelRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      opener?.focus();
+    };
+  }, [onCancel]);
+
   return (
     <div
       role="dialog"
@@ -38,6 +53,7 @@ function ConfirmSheet({
         )}
         <div className="mt-5 flex gap-3">
           <button
+            ref={cancelRef}
             type="button"
             onClick={onCancel}
             className="min-h-touch flex-1 rounded-mafood-md border border-mafood-border py-3 font-medium text-mafood-text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"

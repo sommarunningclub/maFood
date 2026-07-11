@@ -95,7 +95,11 @@ export function ProductDetails({
   const onHeroTouchMove = (e: React.TouchEvent) => {
     if (!dragging.current || !panelRef.current) return;
     const dy = e.touches[0].clientY - startY.current;
-    if (dy <= 0) return;
+    if (dy <= 0) {
+      currentDY.current = 0;
+      panelRef.current.style.transform = "";
+      return;
+    }
     currentDY.current = dy;
     panelRef.current.style.transform = `translateY(${dy}px)`;
   };
