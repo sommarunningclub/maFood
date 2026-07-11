@@ -58,7 +58,11 @@ export function IdentifyModal({
   useEffect(() => {
     if (!open) return;
     opener.current = document.activeElement as HTMLElement;
-    document.body.style.overflow = "hidden";
+    const scrollY = window.scrollY;
+    const body = document.body;
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.width = "100%";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onCloseRef.current();
       if (e.key === "Tab" && panelRef.current) {
@@ -80,7 +84,10 @@ export function IdentifyModal({
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+      body.style.position = "";
+      body.style.top = "";
+      body.style.width = "";
+      window.scrollTo(0, scrollY);
       opener.current?.focus();
     };
   }, [open]);
@@ -160,8 +167,9 @@ export function IdentifyModal({
       <div
         ref={panelRef}
         onClick={(e) => e.stopPropagation()}
-        className="w-full sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-mafood-md border border-mafood-border bg-mafood-surface-strong p-5 pb-safe shadow-2xl animate-in slide-in-from-bottom"
+        className="w-full sm:max-w-md max-h-[90dvh] overflow-y-auto rounded-t-2xl sm:rounded-mafood-md border border-mafood-border bg-mafood-surface-strong p-5 pb-safe shadow-2xl animate-in slide-in-from-bottom motion-reduce:animate-none"
       >
+        <div className="sm:hidden mx-auto -mt-1 mb-3 h-1.5 w-10 rounded-full bg-mafood-border" aria-hidden />
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2
