@@ -22,6 +22,7 @@ interface Product {
   category: string | null;
   category_id: string | null;
   status: Status;
+  stock_quantity: number | null;
 }
 
 export function CardapioView({ slug }: { slug: string }) {
@@ -322,7 +323,21 @@ function CategorySection({
               {p.description && (
                 <p className="text-xs text-palantir-muted truncate">{p.description}</p>
               )}
-              <p className="mono text-xs text-palantir-blue mt-0.5">{brl(p.price)}</p>
+              <p className="mono text-xs text-palantir-blue mt-0.5">
+                {brl(p.price)}
+                {p.stock_quantity != null && (
+                  <span
+                    className={cn(
+                      "ml-2",
+                      p.stock_quantity === 0
+                        ? "text-palantir-red"
+                        : "text-palantir-muted"
+                    )}
+                  >
+                    · estoque {p.stock_quantity}
+                  </span>
+                )}
+              </p>
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <button
@@ -375,6 +390,9 @@ function ProductDialog({
   const [price, setPrice] = useState(product ? String(product.price) : "");
   const [categoryId, setCategoryId] = useState<string | null>(product?.category_id ?? null);
   const [status, setStatus] = useState<Status>(product?.status ?? "active");
+  const [stock, setStock] = useState(
+    product?.stock_quantity != null ? String(product.stock_quantity) : ""
+  );
   const [imageUrl, setImageUrl] = useState<string | null>(product?.image_url ?? null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -416,6 +434,14 @@ function ProductDialog({
       return;
     }
     setSaving(true);
+    const stockTrim = stock.trim();
+    const stockNum =
+      stockTrim === "" ? null : Math.max(0, Math.floor(Number(stockTrim)));
+    if (stockTrim !== "" && Number.isNaN(Number(stockTrim))) {
+      setError("Estoque inválido");
+      setSaving(false);
+      return;
+    }
     const payload = {
       name: name.trim(),
       description: description.trim() || null,
@@ -423,6 +449,7 @@ function ProductDialog({
       image_url: imageUrl,
       category_id: categoryId,
       status,
+      stock_quantity: stockNum,
     };
     const url = product ? `/api/pdv/products/${product.id}` : "/api/pdv/products";
     const method = product ? "PATCH" : "POST";
@@ -525,6 +552,19 @@ function ProductDialog({
                 </button>
               ))}
             </div>
+          </Field>
+          <Field label="Estoque (un.)">
+            <input
+              value={stock}
+              onChange={(e) => setStock(e.target.value.replace(/[^\d]/g, ""))}
+              inputMode="numeric"
+              placeholder="Vazio = ilimitado"
+              aria-describedby="stock-hint"
+              className="num w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch h-11 text-white outline-none focus:border-palantir-blue"
+            />
+            <p id="stock-hint" className="mono text-[10px] text-palantir-muted mt-1">
+              Deixe vazio para não controlar estoque. Em 0, o produto bloqueia a venda no app.
+            </p>
           </Field>
           <Field label="Imagem">
             <div className="flex items-center gap-3">

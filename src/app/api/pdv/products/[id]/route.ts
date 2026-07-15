@@ -10,6 +10,7 @@ const PatchBody = z.object({
   image_url: z.string().url().nullable().optional(),
   category_id: z.string().uuid().nullable().optional(),
   status: z.enum(["active", "paused", "out_of_stock"]).optional(),
+  stock_quantity: z.coerce.number().int().min(0).max(999999).nullable().optional(),
 });
 
 async function assertOwnership(productId: string, pdvId: string) {

@@ -14,7 +14,7 @@ export async function GET() {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("products")
-    .select("id, name, description, price, image_url, category, category_id, status, created_at")
+    .select("id, name, description, price, image_url, category, category_id, status, stock_quantity, created_at")
     .eq("pdv_id", session.pdv_id)
     .order("category", { ascending: true })
     .order("name", { ascending: true });
@@ -30,6 +30,7 @@ const CreateBody = z.object({
   image_url: z.string().url().optional().nullable(),
   category_id: z.string().uuid().optional().nullable(),
   status: z.enum(["active", "paused", "out_of_stock"]).default("active"),
+  stock_quantity: z.coerce.number().int().min(0).max(999999).nullable().optional(),
 });
 
 export async function POST(req: Request) {
@@ -70,6 +71,7 @@ export async function POST(req: Request) {
       category: categoryName,
       category_id: body.category_id ?? null,
       status: body.status,
+      stock_quantity: body.stock_quantity ?? null,
     })
     .select("id")
     .single();
