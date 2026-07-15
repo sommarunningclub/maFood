@@ -30,7 +30,7 @@ export function MenuView({
   pdv: MenuPdv;
   products: Product[];
 }) {
-  const { items, add, remove, clear, count, total } = useCart();
+  const { items, add, remove, clear, count, total, qtyOf } = useCart();
   const payAtCounter = pdvPayAtCounter(pdv);
   const acceptsOrders = pdvAcceptsAppOrders(pdv);
   const canOrder = acceptsOrders && pdv.is_open;
@@ -130,7 +130,6 @@ export function MenuView({
     }
   }, [active, navCategories]);
 
-  const qtyOf = (id: string) => items.find((i) => i.product.id === id)?.qty ?? 0;
   const c = count();
   const cartVisible = canOrder && c > 0 && !cartOpen;
   // Espaço para categorias na base (+ sacola se houver)
@@ -138,9 +137,15 @@ export function MenuView({
     ? "pb-[calc(9.5rem+env(safe-area-inset-bottom))]"
     : "pb-[calc(4.5rem+env(safe-area-inset-bottom))]";
 
-  function handleCartAdd(productId: string) {
-    const item = items.find((i) => i.product.id === productId);
-    if (item) add(item.product, { payAtCounter });
+  function handleCartAdd(productId: string, sizeLabel?: string) {
+    const item = items.find(
+      (i) =>
+        i.product.id === productId &&
+        (i.sizeLabel ?? "") === (sizeLabel ?? "")
+    );
+    if (item) {
+      add(item.product, { payAtCounter, sizeLabel: item.sizeLabel });
+    }
   }
 
   function handleSelectCategory(cat: string) {
@@ -318,9 +323,10 @@ export function MenuView({
           sellsOnline={canOrder}
           payAtCounter={payAtCounter}
           isOpen={pdv.is_open}
-          qty={qtyOf(openProduct.id)}
-          onAdd={() => add(openProduct, { payAtCounter })}
-          onRemove={() => remove(openProduct.id)}
+          onAdd={(sizeLabel) =>
+            add(openProduct, { payAtCounter, sizeLabel })
+          }
+          onRemove={(sizeLabel) => remove(openProduct.id, sizeLabel)}
           onClose={() => setOpenProduct(null)}
         />
       )}

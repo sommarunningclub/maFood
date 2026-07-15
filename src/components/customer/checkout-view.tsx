@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
-import { useCart } from "@/stores/cart-store";
+import { useCart, cartItemUnitPrice } from "@/stores/cart-store";
 import { brl } from "@/lib/utils";
+import { lineDisplayName } from "@/lib/product-sizes";
 import { IdentifyModal } from "@/components/customer/identify-modal";
 import { PixPayment } from "@/components/customer/pix-payment";
 import { EmptyState } from "@/components/customer/ui/mafood-states";
@@ -166,7 +167,12 @@ export function CheckoutView({
       method,
       notes: notes || null,
       coupon_code: code.trim() || null,
-      items: items.map((i) => ({ product_id: i.product.id, qty: i.qty, notes: i.notes })),
+      items: items.map((i) => ({
+        product_id: i.product.id,
+        qty: i.qty,
+        notes: i.notes,
+        size_label: i.sizeLabel ?? null,
+      })),
     };
     if (method === "card") {
       payload.card = {
@@ -567,7 +573,7 @@ export function CheckoutView({
       <section className="mt-5 rounded-mafood-md border border-mafood-border bg-mafood-surface-strong overflow-hidden">
         {items.map((i, idx) => (
           <div
-            key={i.product.id}
+            key={`${i.product.id}::${i.sizeLabel ?? ""}`}
             className={`flex items-center gap-3 px-4 py-3 ${
               idx > 0 ? "border-t border-mafood-border/60" : ""
             }`}
@@ -575,7 +581,7 @@ export function CheckoutView({
             {/* Qty controls */}
             <div className="flex items-center gap-1 shrink-0">
               <button
-                onClick={() => remove(i.product.id)}
+                onClick={() => remove(i.product.id, i.sizeLabel)}
                 aria-label="Remover um"
                 className="grid size-11 place-items-center rounded-full border border-mafood-border text-mafood-text-secondary hover:border-mafood-primary hover:text-mafood-primary-strong active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               >
@@ -583,7 +589,9 @@ export function CheckoutView({
               </button>
               <span className="num text-mafood-primary-strong text-sm w-6 text-center">{i.qty}</span>
               <button
-                onClick={() => add(i.product)}
+                onClick={() =>
+                  add(i.product, { payAtCounter, sizeLabel: i.sizeLabel })
+                }
                 aria-label="Adicionar um"
                 className="grid size-11 place-items-center rounded-full border border-mafood-border text-mafood-text-secondary hover:border-mafood-primary hover:text-mafood-primary-strong active:scale-95 transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               >
@@ -593,12 +601,12 @@ export function CheckoutView({
 
             {/* Nome */}
             <span className="text-mafood-text-primary text-sm min-w-0 flex-1 truncate">
-              {i.product.name}
+              {lineDisplayName(i.product.name, i.sizeLabel)}
             </span>
 
             {/* Subtotal */}
             <span className="num text-mafood-text-secondary text-sm shrink-0">
-              {brl(i.qty * i.product.price)}
+              {brl(i.qty * cartItemUnitPrice(i))}
             </span>
           </div>
         ))}

@@ -30,7 +30,7 @@ export default async function PdvMenuPage({
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, pdv_id, category, category_id, name, description, image_url, price, sale_price, status")
+    .select("id, pdv_id, category, category_id, name, description, image_url, price, sale_price, status, sizes")
     .eq("pdv_id", pdv.id)
     .in("status", ["active", "out_of_stock"])
     .order("created_at", { ascending: true });
@@ -52,6 +52,8 @@ export default async function PdvMenuPage({
         description: p.description ?? "",
         image_url: p.image_url ?? "",
         price: effectivePrice(p),
+        sale_price: p.sale_price == null ? null : Number(p.sale_price),
+        sizes: Array.isArray(p.sizes) ? p.sizes : null,
         status: p.status,
       }))}
     />

@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { X, Plus, Minus, Store, UtensilsCrossed } from "lucide-react";
 import { gsap } from "gsap";
 import { brl } from "@/lib/utils";
+import { parseProductSizes } from "@/lib/product-sizes";
+import { useCart } from "@/stores/cart-store";
 import type { Product } from "@/types";
 
 const STATUS_LABEL: Record<Product["status"], string> = {
@@ -22,7 +24,6 @@ export function ProductDetails({
   sellsOnline,
   payAtCounter = false,
   isOpen = true,
-  qty,
   onAdd,
   onRemove,
   onClose,
@@ -31,19 +32,30 @@ export function ProductDetails({
   sellsOnline: boolean;
   payAtCounter?: boolean;
   isOpen?: boolean;
-  qty: number;
-  onAdd: () => void;
-  onRemove: () => void;
+  onAdd: (sizeLabel?: string) => void;
+  onRemove: (sizeLabel?: string) => void;
   onClose: () => void;
 }) {
+  const qtyOf = useCart((s) => s.qtyOf);
   const panelRef = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
   const lightboxOpenRef = useRef(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const sizes = useMemo(() => parseProductSizes(product.sizes), [product.sizes]);
+  const [sizeLabel, setSizeLabel] = useState(sizes[0]?.label ?? "");
   const disabled = product.status !== "active";
   const canOrder = sellsOnline && isOpen && !disabled;
   const hasImage = Boolean(product.image_url);
+  const selected = sizes.find((s) => s.label === sizeLabel) ?? sizes[0];
+  const unit = selected?.price ?? product.price;
+  const sizeNote = selected?.note;
+  const qty = qtyOf(product.id, selected?.label);
+
+  useEffect(() => {
+    const next = parseProductSizes(product.sizes);
+    setSizeLabel(next[0]?.label ?? "");
+  }, [product.id, product.sizes]);
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -230,16 +242,55 @@ export function ProductDetails({
             {product.name}
           </h2>
           <p className="mt-2 text-fluid-lg font-semibold text-mafood-primary-strong">
-            {brl(product.price)}
+            {brl(unit)}
           </p>
           {disabled && (
             <span className="mt-2 inline-block rounded-mafood-sm bg-mafood-background-soft px-2.5 py-1 text-xs font-semibold text-mafood-text-secondary">
               {STATUS_LABEL[product.status]}
             </span>
           )}
+          {sizes.length > 0 && (
+            <div className="mt-4" role="radiogroup" aria-label="Tamanho">
+              <p className="num text-[11px] text-mafood-text-secondary mb-2">
+                Escolha o tamanho
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {sizes.map((s) => {
+                  const active = s.label === (selected?.label ?? "");
+                  return (
+                    <button
+                      key={s.label}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => setSizeLabel(s.label)}
+                      className={`rounded-mafood-md border px-3 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary ${
+                        active
+                          ? "border-mafood-primary bg-mafood-primary/10"
+                          : "border-mafood-border bg-mafood-surface-strong"
+                      }`}
+                    >
+                      <span className="block text-[15px] font-semibold text-mafood-text-primary">
+                        {s.label}
+                      </span>
+                      <span className="mt-0.5 block text-[13px] font-medium tabular-nums text-mafood-primary-strong">
+                        {brl(s.price)}
+                      </span>
+                      {s.note && (
+                        <span className="mt-1 block text-[11px] text-mafood-text-secondary">
+                          {s.note}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {product.description && (
             <p className="mt-4 text-[15px] leading-relaxed text-mafood-text-secondary text-pretty">
               {product.description}
+              {sizeNote && sizes.length > 0 ? ` ${sizeNote}.` : ""}
             </p>
           )}
         </div>
@@ -250,7 +301,7 @@ export function ProductDetails({
               <div className="flex items-center gap-1 rounded-full border border-mafood-border bg-mafood-surface-strong p-1 shadow-mafood-sm">
                 <button
                   type="button"
-                  onClick={onRemove}
+                  onClick={() => onRemove(selected?.label)}
                   disabled={qty === 0}
                   aria-label={`Remover 1 ${product.name}`}
                   className="grid size-11 place-items-center rounded-full text-mafood-primary-strong disabled:opacity-40 active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-mafood-primary"
@@ -266,7 +317,7 @@ export function ProductDetails({
                 </span>
                 <button
                   type="button"
-                  onClick={onAdd}
+                  onClick={() => onAdd(selected?.label)}
                   aria-label={`Adicionar mais 1 ${product.name}`}
                   className="grid size-11 place-items-center rounded-full bg-mafood-primary-strong text-white active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
                 >
@@ -275,11 +326,11 @@ export function ProductDetails({
               </div>
               <button
                 type="button"
-                onClick={onAdd}
+                onClick={() => onAdd(selected?.label)}
                 className="flex h-13 min-h-touch flex-1 items-center justify-between gap-3 rounded-mafood-md bg-mafood-primary-strong px-4 text-[15px] font-semibold text-white shadow-mafood-md active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               >
                 <span>{qty === 0 ? "Adicionar" : "Adicionar mais"}</span>
-                <span className="tabular-nums opacity-95">{brl(product.price)}</span>
+                <span className="tabular-nums opacity-95">{brl(unit)}</span>
               </button>
             </div>
           ) : (

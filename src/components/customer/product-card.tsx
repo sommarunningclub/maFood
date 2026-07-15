@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Plus, Minus, UtensilsCrossed } from "lucide-react";
 import { brl } from "@/lib/utils";
+import { listingPrice, productHasSizes } from "@/lib/product-sizes";
 import type { Product } from "@/types";
 
 const STATUS_LABEL: Record<Product["status"], string> = {
@@ -51,6 +52,8 @@ export function ProductCard({
 }) {
   const disabled = product.status !== "active";
   const showControls = sellsOnline && !disabled;
+  const hasSizes = productHasSizes(product);
+  const price = listingPrice(product);
 
   return (
     <div
@@ -75,8 +78,11 @@ export function ProductCard({
           </p>
         )}
         <div className="mt-2 flex flex-wrap items-center gap-2">
+          {hasSizes && (
+            <span className="text-[11px] text-mafood-text-secondary">a partir de</span>
+          )}
           <p className="text-[15px] font-semibold tabular-nums text-mafood-primary-strong">
-            {brl(product.price)}
+            {brl(price)}
           </p>
           {disabled && (
             <span className="inline-block rounded-mafood-sm bg-mafood-background-soft px-2 py-0.5 text-[11px] font-semibold text-mafood-text-secondary">
@@ -109,7 +115,19 @@ export function ProductCard({
 
         {showControls && (
           <div className="pointer-events-auto absolute -bottom-2 right-1">
-            {qty === 0 ? (
+            {hasSizes ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpen();
+                }}
+                aria-label={`Escolher tamanho de ${product.name}`}
+                className="grid size-11 place-items-center rounded-full bg-mafood-primary-strong text-white shadow-mafood-md active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+              >
+                <Plus className="size-5" />
+              </button>
+            ) : qty === 0 ? (
               <button
                 type="button"
                 onClick={(e) => {

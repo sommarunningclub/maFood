@@ -19,6 +19,11 @@ import {
 } from "@/lib/asaas";
 import { validateStock, decrementStockForOrder } from "@/lib/stock";
 import { customerReadyForCard } from "@/lib/customer-profile";
+import {
+  findSize,
+  lineDisplayName,
+  parseProductSizes,
+} from "@/lib/product-sizes";
 
 const CardSchema = z.object({
   holderName: z.string().min(2).max(120),
@@ -39,6 +44,7 @@ const Body = z.object({
         product_id: z.string().uuid(),
         qty: z.coerce.number().int().min(1).max(99),
         notes: z.string().max(200).optional().nullable(),
+        size_label: z.string().max(40).optional().nullable(),
       })
     )
     .min(1),
@@ -107,11 +113,31 @@ export async function POST(req: Request) {
   const productIds = body.items.map((i) => i.product_id);
   const { data: products, error: ePr } = await supabase
     .from("products")
-    .select("id, pdv_id, name, price, sale_price, status")
+    .select("id, pdv_id, name, price, sale_price, status, sizes")
     .in("id", productIds);
   if (ePr) return NextResponse.json({ error: ePr.message }, { status: 500 });
 
   const byId = new Map((products ?? []).map((p) => [p.id, p]));
+
+  function resolveLine(it: (typeof body.items)[number]) {
+    const p = byId.get(it.product_id)!;
+    const sizes = parseProductSizes(p.sizes);
+    if (sizes.length > 0) {
+      const match = findSize(sizes, it.size_label);
+      if (!match) {
+        return { error: `Escolha o tamanho de ${p.name}` as string };
+      }
+      return {
+        name: lineDisplayName(p.name, match.label),
+        unit_price: match.price,
+      };
+    }
+    return {
+      name: p.name,
+      unit_price: effectivePrice(p),
+    };
+  }
+
   for (const it of body.items) {
     const p = byId.get(it.product_id);
     if (!p) return NextResponse.json({ error: "Produto invalido" }, { status: 400 });
@@ -119,6 +145,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Produto nao pertence ao PDV" }, { status: 400 });
     if (p.status !== "active")
       return NextResponse.json({ error: `Produto indisponivel: ${p.name}` }, { status: 400 });
+    const line = resolveLine(it);
+    if ("error" in line && line.error) {
+      return NextResponse.json({ error: line.error }, { status: 400 });
+    }
   }
 
   const stockError = await validateStock(supabase, body.items);
@@ -128,8 +158,8 @@ export async function POST(req: Request) {
   let couponId: string | null = null;
   let discount = 0;
   const subtotal = body.items.reduce((s, it) => {
-    const p = byId.get(it.product_id)!;
-    return s + effectivePrice(p) * it.qty;
+    const line = resolveLine(it) as { unit_price: number };
+    return s + line.unit_price * it.qty;
   }, 0);
 
   if (body.coupon_code) {
@@ -267,12 +297,13 @@ export async function POST(req: Request) {
 
   const itemsToInsert = body.items.map((it) => {
     const p = byId.get(it.product_id)!;
+    const line = resolveLine(it) as { name: string; unit_price: number };
     return {
       order_id: order.id,
       product_id: p.id,
-      name: p.name,
+      name: line.name,
       qty: it.qty,
-      unit_price: effectivePrice(p),
+      unit_price: line.unit_price,
       notes: it.notes ?? null,
     };
   });

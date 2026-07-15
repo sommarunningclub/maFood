@@ -8,6 +8,8 @@ import { brl } from "@/lib/utils";
 import type { CartItem } from "@/types";
 import { isSommaBar } from "@/lib/pdv";
 import { BrandMomentGif } from "@/components/customer/brand-moment-gif";
+import { cartItemUnitPrice } from "@/stores/cart-store";
+import { lineDisplayName } from "@/lib/product-sizes";
 
 /**
  * Bottom sheet de revisão da sacola — permite ajustar quantidades e
@@ -29,8 +31,8 @@ export function CartSheet({
   pdvName: string;
   items: CartItem[];
   total: number;
-  onAdd: (productId: string) => void;
-  onRemove: (productId: string) => void;
+  onAdd: (productId: string, sizeLabel?: string) => void;
+  onRemove: (productId: string, sizeLabel?: string) => void;
   onClear: () => void;
   onClose: () => void;
 }) {
@@ -197,9 +199,13 @@ export function CartSheet({
         </div>
 
         <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain px-4 pb-3">
-          {items.map(({ product, qty }) => (
+          {items.map((item) => {
+            const { product, qty, sizeLabel } = item;
+            const unit = cartItemUnitPrice(item);
+            const label = lineDisplayName(product.name, sizeLabel);
+            return (
             <li
-              key={product.id}
+              key={`${product.id}::${sizeLabel ?? ""}`}
               className="flex gap-3 rounded-mafood-md border border-mafood-border bg-mafood-surface-strong p-3"
             >
               <div className="size-14 shrink-0 overflow-hidden rounded-mafood-sm border border-mafood-border bg-mafood-background-soft">
@@ -221,18 +227,18 @@ export function CartSheet({
 
               <div className="min-w-0 flex-1">
                 <p className="mafood-product-title text-[14px] leading-snug text-mafood-text-primary line-clamp-2">
-                  {product.name}
+                  {label}
                 </p>
                 <p className="mt-1 text-[13px] font-semibold tabular-nums text-mafood-primary-strong">
-                  {brl(product.price * qty)}
+                  {brl(unit * qty)}
                 </p>
               </div>
 
               <div className="flex shrink-0 items-center gap-0.5 self-center rounded-full border border-mafood-border bg-mafood-surface p-0.5">
                 <button
                   type="button"
-                  onClick={() => onRemove(product.id)}
-                  aria-label={`Remover 1 ${product.name}`}
+                  onClick={() => onRemove(product.id, sizeLabel)}
+                  aria-label={`Remover 1 ${label}`}
                   className="grid size-10 place-items-center rounded-full text-mafood-primary-strong active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-mafood-primary"
                 >
                   <Minus className="size-4" />
@@ -245,15 +251,16 @@ export function CartSheet({
                 </span>
                 <button
                   type="button"
-                  onClick={() => onAdd(product.id)}
-                  aria-label={`Adicionar mais 1 ${product.name}`}
+                  onClick={() => onAdd(product.id, sizeLabel)}
+                  aria-label={`Adicionar mais 1 ${label}`}
                   className="grid size-10 place-items-center rounded-full bg-mafood-primary-strong text-white active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
                 >
                   <Plus className="size-4" />
                 </button>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
 
         <div className="shrink-0 border-t border-mafood-border bg-mafood-surface px-4 pb-4 pt-3">

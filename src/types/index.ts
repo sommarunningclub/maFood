@@ -47,8 +47,10 @@ export interface Product {
   name: string;
   description: string;
   image_url: string;
-  price: number; // preço base ao cliente
+  price: number; // preço base ao cliente (ou menor tamanho)
   sale_price?: number | null; // override de venda (Somma Bear); quando definido, prevalece sobre price
+  /** Opções de tamanho [{label, price, note?}]. Ex.: 360 ml / 480 ml */
+  sizes?: Array<{ label: string; price: number; note?: string }> | null;
   status: ProductStatus;
 }
 
@@ -105,4 +107,6 @@ export interface CartItem {
   product: Product;
   qty: number;
   notes?: string;
+  /** Tamanho selecionado (ex.: "360 ml") quando o produto tem `sizes`. */
+  sizeLabel?: string;
 }
