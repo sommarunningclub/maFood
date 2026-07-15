@@ -8,7 +8,9 @@
 
   Produção:  ASAAS_BASE_URL=https://api.asaas.com/v3
   Sandbox:   ASAAS_BASE_URL=https://api-sandbox.asaas.com/v3
-  Sem chave  → modo simulado (devolve payload falso para dev local).
+  Sem chave  → erro explícito (não devolve QR/payload falso). Para dev local
+               sem Asaas, defina ASAAS_ALLOW_SIMULATED=true para reativar o
+               modo simulado conscientemente.
 
   Docs: https://docs.asaas.com/
 */
@@ -23,6 +25,21 @@ const API_KEY = process.env.ASAAS_API_KEY ?? "";
 
 export const asaasEnabled = !!API_KEY;
 export const asaasIsProd = BASE_URL.includes("api.asaas.com") && !BASE_URL.includes("sandbox");
+
+// Modo simulado agora exige opt-in explícito. Sem a chave e sem esse flag, as
+// funções lançam erro em vez de devolver QR/payload falsos (que o banco recusa).
+const asaasAllowSimulated = process.env.ASAAS_ALLOW_SIMULATED === "true";
+const ASAAS_NOT_CONFIGURED =
+  "Pagamento indisponível: Asaas não configurado (ASAAS_API_KEY ausente). " +
+  "Em dev, defina ASAAS_ALLOW_SIMULATED=true para usar o modo simulado.";
+
+// Retorna true quando devemos devolver dados simulados; lança quando o Asaas
+// não está configurado e o modo simulado não foi liberado.
+function useSimulated(): boolean {
+  if (asaasEnabled) return false;
+  if (asaasAllowSimulated) return true;
+  throw new Error(ASAAS_NOT_CONFIGURED);
+}
 
 const onlyDigits = (s?: string | null) => (s ? s.replace(/\D/g, "") : "");
 
@@ -135,7 +152,7 @@ async function asaasFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function findOrCreateCustomer(input: AsaasCustomerInput): Promise<AsaasCustomer> {
   const cpf = onlyDigits(input.cpfCnpj);
-  if (!asaasEnabled) {
+  if (useSimulated()) {
     return { id: `sim_cus_${cpf}`, name: input.name, cpfCnpj: cpf };
   }
   // Busca por cpfCnpj evita duplicar
@@ -161,7 +178,7 @@ export async function findOrCreateCustomer(input: AsaasCustomerInput): Promise<A
 }
 
 export async function createPixPayment(input: AsaasPaymentInput): Promise<AsaasPayment> {
-  if (!asaasEnabled) {
+  if (useSimulated()) {
     return {
       id: `sim_pay_${input.externalReference}_${Date.now()}`,
       status: "PENDING",
@@ -183,7 +200,7 @@ export async function createPixPayment(input: AsaasPaymentInput): Promise<AsaasP
 }
 
 export async function getPixQr(paymentId: string): Promise<AsaasPixQr> {
-  if (!asaasEnabled) {
+  if (useSimulated()) {
     return {
       encodedImage: "",
       payload: `00020126BR.GOV.BCB.PIX SIMULATED ${paymentId} ${Date.now()}`,
@@ -200,7 +217,7 @@ export async function getPixQr(paymentId: string): Promise<AsaasPixQr> {
   (ex: "O CCV informado é inválido"). Repasse a mensagem pro usuário.
 */
 export async function createCardPayment(input: AsaasCardInput): Promise<AsaasCardPayment> {
-  if (!asaasEnabled) {
+  if (useSimulated()) {
     return {
       id: `sim_card_${input.externalReference}_${Date.now()}`,
       status: "CONFIRMED",
