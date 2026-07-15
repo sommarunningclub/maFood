@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import QRCode from "qrcode";
 import { ArrowLeft } from "lucide-react";
 import { useCart } from "@/stores/cart-store";
 import { brl } from "@/lib/utils";
 import { IdentifyModal } from "@/components/customer/identify-modal";
+import { PixPayment } from "@/components/customer/pix-payment";
 
 type Step = "form" | "card-form" | "submitting" | "pix" | "failed";
 type PaymentMethod = "pix" | "card";
@@ -55,7 +56,6 @@ export function CheckoutView({
   const [finalTotal, setFinalTotal] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [pixPayload, setPixPayload] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [hasSession, setHasSession] = useState(initialHasSession);
   const [identifyOpen, setIdentifyOpen] = useState(false);
 
@@ -212,80 +212,19 @@ export function CheckoutView({
     );
   }
 
-  if (step === "pix") {
-    async function copyPix() {
-      if (!pixPayload) return;
-      try {
-        await navigator.clipboard.writeText(pixPayload);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2500);
-      } catch {
-        // fallback: select text from hidden input via document.execCommand
-      }
-    }
-
+  if (step === "pix" && orderId) {
     return (
-      <div className="min-h-dvh-100 p-4 sm:p-5 pt-safe pb-[88px]">
-        <Header venue={venue} title="Pagamento Pix" />
-        <div className="mt-6 flex flex-col items-center text-center">
-          <p className="num text-[11px] text-mafood-text-secondary">PEDIDO #{orderNumber}</p>
-          <PixTimer />
-
-          {/* QR Code */}
-          <div className="bg-white p-3 rounded-mafood-md mt-4 shadow-lg">
-            {qr ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={qr} alt="QR Code Pix" width={240} height={240} />
-            ) : (
-              <div className="size-[240px] grid place-items-center text-black/30 text-sm">
-                Carregando QR…
-              </div>
-            )}
-          </div>
-
-          <p className="num text-fluid-2xl text-mafood-text-primary mt-4">{brl(finalTotal)}</p>
-          {discount > 0 && (
-            <p className="num text-xs text-mafood-success-strong mt-1">
-              − {brl(discount)} de desconto aplicado
-            </p>
-          )}
-          <p className="text-mafood-text-secondary text-sm mt-1">Escaneie no app do seu banco</p>
-
-          {/* Copiar código PIX */}
-          {pixPayload && (
-            <div className="mt-5 w-full max-w-xs space-y-2">
-              <p className="num text-[10px] text-mafood-text-secondary uppercase tracking-wider">
-                Ou copie o código Pix:
-              </p>
-              <div className="flex items-center gap-2 rounded-mafood-md border border-mafood-border bg-mafood-surface-strong px-3 py-2">
-                <p className="num text-[11px] text-mafood-text-secondary flex-1 truncate text-left">
-                  {pixPayload.slice(0, 38)}…
-                </p>
-                <button
-                  onClick={() => void copyPix()}
-                  className={`num shrink-0 rounded px-3 min-h-[36px] text-[11px] uppercase tracking-wider transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary ${
-                    copied
-                      ? "bg-mafood-success/20 text-mafood-success-strong"
-                      : "bg-mafood-primary/15 text-mafood-primary-strong hover:bg-mafood-primary/25"
-                  }`}
-                >
-                  {copied ? "Copiado ✓" : "Copiar"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          <button
-            onClick={finalize}
-            className="mt-6 w-full max-w-xs rounded-mafood-md bg-mafood-success-strong min-h-touch h-12 text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
-          >
-            Acompanhar pedido
-          </button>
-          <p className="num text-[10px] text-mafood-text-secondary mt-3">
-            Confirmação automática via webhook Asaas
-          </p>
-        </div>
-      </div>
+      <PixPayment
+        venue={venue}
+        orderId={orderId}
+        orderNumber={orderNumber}
+        qr={qr}
+        pixPayload={pixPayload}
+        finalTotal={finalTotal}
+        discount={discount}
+        onRegenerate={() => void submitOrder()}
+        onFinalize={finalize}
+      />
     );
   }
 
@@ -725,21 +664,6 @@ function Input({
         className="mt-1 w-full rounded-mafood-md bg-mafood-surface-strong border border-mafood-border px-3 min-h-touch h-12 text-mafood-text-primary text-base outline-none focus:border-mafood-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
       />
     </label>
-  );
-}
-
-function PixTimer() {
-  const [s, setS] = useState(15 * 60);
-  useEffect(() => {
-    const t = setInterval(() => setS((x) => (x > 0 ? x - 1 : 0)), 1000);
-    return () => clearInterval(t);
-  }, []);
-  const mm = String(Math.floor(s / 60)).padStart(2, "0");
-  const ss = String(s % 60).padStart(2, "0");
-  return (
-    <p className="num text-mafood-primary-strong text-sm" aria-live="polite">
-      expira em {mm}:{ss}
-    </p>
   );
 }
 
