@@ -10,7 +10,7 @@ import { brl } from "@/lib/utils";
 import { IdentifyModal } from "@/components/customer/identify-modal";
 import { PixPayment } from "@/components/customer/pix-payment";
 
-type Step = "form" | "card-form" | "submitting" | "pix" | "failed";
+type Step = "form" | "card-form" | "submitting" | "pix" | "approved" | "failed";
 type PaymentMethod = "pix" | "card";
 
 interface CardData {
@@ -150,9 +150,9 @@ export function CheckoutView({
       };
     }
 
-    // Delay mínimo 5s — UX: garante que o usuário vê o "Processando..." mesmo
-    // se o Asaas responder muito rápido, evitando flash da tela de loading
-    const minDelay = new Promise<void>((res) => setTimeout(res, 1000));
+    // Delay mínimo 3s — UX: garante que o usuário veja "Processando..." e
+    // tenha um retorno claro de aprovado/negado mesmo se o Asaas responder rápido.
+    const minDelay = new Promise<void>((res) => setTimeout(res, 3000));
     const requestP = fetch("/api/customer/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -185,9 +185,8 @@ export function CheckoutView({
       }
       setStep("pix");
     } else {
-      // Cartão: independente de paid/pending, manda pro tracker (Realtime atualiza)
-      clear();
-      router.push(`/${venue}/order/${data.order_id}`);
+      // Cartão aprovado: mostra confirmação explícita antes do tracker.
+      setStep("approved");
     }
     return { ok: true };
   }
@@ -388,6 +387,30 @@ export function CheckoutView({
           <p className="num text-[10px] text-mafood-text-secondary/60 mt-1">
             Não feche esta tela
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "approved") {
+    return (
+      <div className="min-h-dvh-100 flex items-center justify-center p-6 pt-safe pb-safe">
+        <div className="text-center max-w-sm w-full">
+          <div className="size-20 mx-auto mb-5 rounded-full border-4 border-mafood-success-strong/40 bg-mafood-success/10 grid place-items-center">
+            <span className="text-4xl">✓</span>
+          </div>
+          <h2 className="mafood-display text-mafood-text-primary text-fluid-2xl">
+            Pagamento aprovado
+          </h2>
+          <p className="num text-sm text-mafood-text-secondary mt-3">
+            Aguardando o restaurante aceitar seu pedido
+          </p>
+          <button
+            onClick={finalize}
+            className="mt-6 w-full rounded-mafood-md bg-mafood-success-strong min-h-touch h-12 text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+          >
+            Acompanhar pedido
+          </button>
         </div>
       </div>
     );
