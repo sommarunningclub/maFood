@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { ArrowLeft, Trash2, XCircle, Receipt } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, Trash2, XCircle, Receipt, RefreshCw } from "lucide-react";
 import { OrderStatusBadge } from "@/components/customer/order-status-badge";
 import { PdvLogo } from "@/components/pdv-logo";
 import { brl, formatTime } from "@/lib/utils";
@@ -35,7 +35,24 @@ export function OrdersHistoryView({
   const { confirm, confirmElement } = useConfirm();
   const [orders, setOrders] = useState(initial);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOrders(initial);
+  }, [initial]);
+
+  async function refreshOrders() {
+    setError(null);
+    setRefreshing(true);
+    try {
+      router.refresh();
+      // Pequeno atraso pra feedback visual (RSC refresh é rápido)
+      await new Promise((r) => setTimeout(r, 400));
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   async function cancelOrder(id: string) {
     const ok = await confirm({
@@ -100,9 +117,19 @@ export function OrdersHistoryView({
         >
           <ArrowLeft className="size-5" />
         </Link>
-        <h1 className="mafood-display text-fluid-2xl text-mafood-text-primary">
+        <h1 className="mafood-display text-fluid-2xl text-mafood-text-primary flex-1 min-w-0">
           Meus pedidos
         </h1>
+        <button
+          type="button"
+          onClick={() => void refreshOrders()}
+          disabled={refreshing}
+          aria-label="Atualizar pedidos"
+          className="inline-flex items-center gap-1.5 min-h-touch px-2.5 -mr-1 rounded-mafood-md text-mafood-text-secondary hover:text-mafood-primary-strong num text-[11px] uppercase tracking-wider transition-colors disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+        >
+          <RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} />
+          {refreshing ? "…" : "Atualizar"}
+        </button>
       </header>
 
       {error && (
@@ -133,6 +160,7 @@ export function OrdersHistoryView({
             const isCancelled = o.status === "cancelled";
             const canDelete = isPending || isCancelled;
             const busy = busyId === o.id;
+            const isCounterPending = isPending && o.method === "counter";
 
             return (
               <div
@@ -164,12 +192,14 @@ export function OrdersHistoryView({
                   </div>
                   {isPending && (
                     <p className="num text-[11px] text-mafood-primary-strong mt-2 font-semibold uppercase tracking-wide">
-                      💳 Pagar agora →
+                      {isCounterPending
+                        ? "Pagar na tenda →"
+                        : "💳 Pagar agora →"}
                     </p>
                   )}
                   <div className="flex justify-between items-end mt-2">
                     <p className="num text-xs text-mafood-text-secondary">
-                      {o.method.toUpperCase()}
+                      {o.method === "counter" ? "TENDA" : o.method.toUpperCase()}
                       {o.created_by === "pdv" && (
                         <span className="ml-2 text-mafood-text-secondary/60">· criado pelo PDV</span>
                       )}
