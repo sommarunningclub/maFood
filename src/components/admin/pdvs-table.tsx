@@ -20,7 +20,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Pencil, ExternalLink, Check, X } from "lucide-react";
+import { GripVertical, Pencil, ExternalLink, Check, X, Trash2 } from "lucide-react";
 import { brl } from "@/lib/utils";
 import type { Pdv } from "@/types";
 import { PdvLogo, isImageLogo } from "@/components/pdv-logo";
@@ -31,7 +31,7 @@ export interface AdminPdvRow extends Pdv {
   email?: string | null;
 }
 
-const COLS = "32px 1fr 110px 80px 110px 140px 80px 96px";
+const COLS = "32px 1fr 110px 80px 110px 140px 80px 140px";
 
 export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
   const router = useRouter();
@@ -42,6 +42,7 @@ export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
   const [editTarget, setEditTarget] = useState<AdminPdvRow | null>(null);
   const [detailTarget, setDetailTarget] = useState<AdminPdvRow | null>(null);
   const [justSavedPin, setJustSavedPin] = useState<AdminPdvRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminPdvRow | null>(null);
 
   // TouchSensor com delay evita conflito com scroll vertical em mobile
   const sensors = useSensors(
@@ -107,6 +108,7 @@ export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
                 onDetail={() => setDetailTarget(p)}
                 onSetPin={() => setPinTarget(p)}
                 onEdit={() => setEditTarget(p)}
+                onDelete={() => setDeleteTarget(p)}
                 onClearPin={async () => {
                   if (!confirm(`Remover PIN de ${p.name}?`)) return;
                   const r = await fetch(`/api/admin/pdvs/${p.id}/pin`, { method: "DELETE" });
@@ -126,6 +128,7 @@ export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
                 onDetail={() => setDetailTarget(p)}
                 onSetPin={() => setPinTarget(p)}
                 onEdit={() => setEditTarget(p)}
+                onDelete={() => setDeleteTarget(p)}
                 onClearPin={async () => {
                   if (!confirm(`Remover PIN de ${p.name}?`)) return;
                   const r = await fetch(`/api/admin/pdvs/${p.id}/pin`, { method: "DELETE" });
@@ -176,6 +179,18 @@ export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
           }}
         />
       )}
+
+      {deleteTarget && (
+        <DeletePdvDialog
+          pdv={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={() => {
+            setPdvs((list) => list.filter((x) => x.id !== deleteTarget.id));
+            setDeleteTarget(null);
+            router.refresh();
+          }}
+        />
+      )}
     </>
   );
 }
@@ -189,6 +204,7 @@ function RowDesktop({
   onSetPin,
   onClearPin,
   onEdit,
+  onDelete,
 }: {
   pdv: AdminPdvRow;
   onToggle: (id: string) => void;
@@ -196,6 +212,7 @@ function RowDesktop({
   onSetPin: () => void;
   onClearPin: () => void;
   onEdit: () => void;
+  onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: pdv.id });
@@ -289,6 +306,14 @@ function RowDesktop({
         >
           <ExternalLink className="size-3.5" />
         </a>
+        <button
+          onClick={onDelete}
+          title="Apagar PDV"
+          aria-label="Apagar PDV"
+          className="grid size-9 place-items-center rounded-admin border border-palantir-border text-palantir-muted hover:bg-palantir-red/10 hover:text-palantir-red hover:border-palantir-red/40 focus-ring-admin"
+        >
+          <Trash2 className="size-3.5" />
+        </button>
       </div>
     </div>
   );
@@ -303,6 +328,7 @@ function CardMobile({
   onSetPin,
   onClearPin,
   onEdit,
+  onDelete,
 }: {
   pdv: AdminPdvRow;
   onToggle: (id: string) => void;
@@ -310,6 +336,7 @@ function CardMobile({
   onSetPin: () => void;
   onClearPin: () => void;
   onEdit: () => void;
+  onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: pdv.id });
@@ -418,6 +445,13 @@ function CardMobile({
               >
                 <ExternalLink className="size-4" />
               </a>
+              <button
+                onClick={onDelete}
+                aria-label="Apagar PDV"
+                className="grid size-touch place-items-center rounded-admin border border-palantir-border text-palantir-muted hover:bg-palantir-red/10 hover:text-palantir-red hover:border-palantir-red/40 focus-ring-admin"
+              >
+                <Trash2 className="size-4" />
+              </button>
             </div>
           </div>
         </div>
@@ -875,6 +909,79 @@ function DialogActions({
         {loading ? "Salvando..." : label}
       </button>
     </div>
+  );
+}
+
+// ── Delete PDV Dialog ────────────────────────────────────────────
+
+function DeletePdvDialog({
+  pdv,
+  onClose,
+  onDeleted,
+}: {
+  pdv: AdminPdvRow;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [confirmName, setConfirmName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const matches = confirmName.trim() === pdv.name.trim();
+
+  async function remove() {
+    if (!matches) return;
+    setError(null);
+    setLoading(true);
+    const r = await fetch(`/api/admin/pdvs/${pdv.id}`, { method: "DELETE" });
+    setLoading(false);
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({}));
+      // 409 = bloqueado (tem pedidos/saldo); demais = erro genérico
+      setError(data.error ?? "Não foi possível apagar o PDV");
+      return;
+    }
+    onDeleted();
+  }
+
+  return (
+    <Modal onClose={onClose} title={`Apagar PDV — ${pdv.name}`}>
+      <div className="rounded-admin border border-palantir-red/40 bg-palantir-red/10 px-3 py-2.5">
+        <p className="text-[13px] text-palantir-text">
+          Esta ação é <span className="font-semibold text-palantir-red">irreversível</span>.
+          O PDV e seus produtos/categorias/combos serão apagados. Só é permitido
+          se o PDV não tiver pedidos no histórico nem saldo em carteira.
+        </p>
+      </div>
+
+      <Field label={`Digite o nome exato para confirmar: "${pdv.name}"`}>
+        <input
+          value={confirmName}
+          onChange={(e) => setConfirmName(e.target.value)}
+          autoComplete="off"
+          autoFocus
+          placeholder={pdv.name}
+          className="w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 py-3 text-sm text-white focus-ring-admin"
+        />
+      </Field>
+
+      {error && <p className="mono text-xs text-palantir-red">{error}</p>}
+
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-3">
+        <button
+          onClick={onClose}
+          className="mono text-xs text-palantir-muted min-h-touch px-3 focus-ring-admin"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={remove}
+          disabled={loading || !matches}
+          className="rounded-admin bg-palantir-red min-h-touch px-4 text-sm font-semibold text-white disabled:opacity-40 focus-ring-admin"
+        >
+          {loading ? "Apagando..." : "Apagar PDV"}
+        </button>
+      </div>
+    </Modal>
   );
 }
 

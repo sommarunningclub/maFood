@@ -31,6 +31,41 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const supabase = createAdminClient();
+
+  // Trava de segurança: só permite apagar PDV "limpo". PDV com pedidos no
+  // histórico ou saldo em carteira NÃO pode ser apagado (o delete cascatearia
+  // pedidos/pagamentos e destruiria registro financeiro). Bloqueia com 409.
+  const { data: pdv, error: eFetch } = await supabase
+    .from("pdvs")
+    .select("id, name, wallet_balance")
+    .eq("id", params.id)
+    .maybeSingle();
+  if (eFetch) return NextResponse.json({ error: eFetch.message }, { status: 500 });
+  if (!pdv) return NextResponse.json({ error: "PDV não encontrado" }, { status: 404 });
+
+  const { count: orderCount, error: eCount } = await supabase
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("pdv_id", params.id);
+  if (eCount) return NextResponse.json({ error: eCount.message }, { status: 500 });
+
+  if ((orderCount ?? 0) > 0) {
+    return NextResponse.json(
+      {
+        error: `Este PDV tem ${orderCount} pedido(s) no histórico e não pode ser apagado. Desative-o (Fechado) em vez de excluir.`,
+      },
+      { status: 409 }
+    );
+  }
+  if (Number(pdv.wallet_balance ?? 0) !== 0) {
+    return NextResponse.json(
+      {
+        error: "Este PDV tem saldo em carteira e não pode ser apagado. Zere a carteira antes de excluir.",
+      },
+      { status: 409 }
+    );
+  }
+
   const { error } = await supabase.from("pdvs").delete().eq("id", params.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
