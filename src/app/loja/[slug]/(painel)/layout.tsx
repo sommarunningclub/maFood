@@ -44,7 +44,7 @@ export default async function PainelPdvLayout({
         Reservamos espaço com padding para o conteúdo não ser coberto.
         Em md+: sidebar fixa lateral, main ocupa o resto.
       */}
-      <main className="palantir-grid flex-1 min-w-0 overflow-x-hidden pt-[3.25rem] pb-[3.75rem] md:pt-0 md:pb-0">
+      <main className="palantir-grid flex-1 min-w-0 overflow-x-hidden pt-[calc(3.25rem_+_env(safe-area-inset-top))] pb-[calc(3.75rem_+_env(safe-area-inset-bottom))] md:pt-0 md:pb-0">
         {children}
       </main>
     </div>

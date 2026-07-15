@@ -21,16 +21,18 @@ export default async function PdvMenuPage({
 
   const { data: pdv } = await supabase
     .from("pdvs")
-    .select("id, slug, venue_id, name, category, logo_url, prep_time_min, is_open, instagram_handle, commission_pct, gateway_pct, sort_order, wallet_balance")
+    .select("id, slug, venue_id, name, category, logo_url, prep_time_min, is_open, is_visible, instagram_handle, commission_pct, gateway_pct, sort_order, wallet_balance")
     .eq("slug", params.pdv)
     .eq("venue_id", venue.id)
     .maybeSingle();
-  if (!pdv) notFound();
+  // PDV oculto do cardápio: link direto também fica inacessível.
+  if (!pdv || !pdv.is_visible) notFound();
 
   const { data: products } = await supabase
     .from("products")
     .select("id, pdv_id, category, category_id, name, description, image_url, price, sale_price, status")
     .eq("pdv_id", pdv.id)
+    .in("status", ["active", "out_of_stock"])
     .order("created_at", { ascending: true });
 
   return (

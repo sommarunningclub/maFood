@@ -16,8 +16,8 @@ export function MaFoodHeader({
     <header className="mafood-header-gradient sticky top-0 z-30 pt-safe rounded-b-mafood-lg text-white shadow-mafood-md">
       <div className="px-4 pt-3 pb-4 flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
-          <Link href={`/${venueSlug}`} aria-label="maFood — início" className="mafood-display text-lg tracking-tight">
-            maFood
+          <Link href={`/${venueSlug}`} aria-label="SommaFood — início" className="mafood-display text-lg tracking-tight">
+            SommaFood
           </Link>
           <button
             type="button"

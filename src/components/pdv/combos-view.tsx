@@ -387,7 +387,7 @@ function ComboDialog({
               {imageUrl && (
                 <button
                   onClick={() => setImageUrl(null)}
-                  className="mono text-[10px] uppercase text-palantir-muted hover:text-palantir-red focus-ring-admin"
+                  className="mono inline-flex min-h-touch items-center px-2 text-[10px] uppercase text-palantir-muted hover:text-palantir-red focus-ring-admin"
                 >
                   Remover
                 </button>
@@ -415,7 +415,7 @@ function ComboDialog({
                         onClick={() => setQty(p.id, q - 1)}
                         disabled={q <= 0}
                         aria-label="Menos"
-                        className="grid size-8 place-items-center rounded-admin border border-palantir-border text-palantir-text disabled:opacity-30 focus-ring-admin"
+                        className="grid size-touch place-items-center rounded-admin border border-palantir-border text-palantir-text disabled:opacity-30 focus-ring-admin"
                       >
                         <Minus className="size-3" />
                       </button>
@@ -423,7 +423,7 @@ function ComboDialog({
                       <button
                         onClick={() => setQty(p.id, q + 1)}
                         aria-label="Mais"
-                        className="grid size-8 place-items-center rounded-admin border border-palantir-border text-palantir-text focus-ring-admin"
+                        className="grid size-touch place-items-center rounded-admin border border-palantir-border text-palantir-text focus-ring-admin"
                       >
                         <Plus className="size-3" />
                       </button>

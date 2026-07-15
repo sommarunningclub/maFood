@@ -12,6 +12,7 @@ const Body = z.object({
   instagram_handle: z.string().max(60).nullable().optional(),
   email: z.string().email().nullable().optional().or(z.literal("").transform(() => null)),
   is_open: z.boolean().optional(),
+  is_visible: z.boolean().optional(),
 });
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {

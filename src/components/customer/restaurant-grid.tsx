@@ -111,14 +111,14 @@ export function RestaurantCard({
 
   if (!pdv.is_open) {
     return (
-      <div
+      <Link
         data-pdv-card
-        role="group"
-        aria-label={`${pdv.name} — fechado`}
-        className={`${shell} opacity-55 pointer-events-none select-none`}
+        href={`/${venueSlug}/${pdv.slug}`}
+        aria-label={`Ver cardápio de ${pdv.name} (fechado)`}
+        className={`${shell} opacity-70 transition-transform duration-200 hover:-translate-y-0.5 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary`}
       >
         {body}
-      </div>
+      </Link>
     );
   }
 

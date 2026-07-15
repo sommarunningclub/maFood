@@ -17,7 +17,7 @@ export function MaFoodFooter({ venueSlug }: { venueSlug: string }) {
   return (
     <footer className="mt-10 px-4">
       <div className="mafood-header-gradient rounded-mafood-xl px-5 py-7 text-white shadow-mafood-md">
-        <span className="mafood-display text-xl tracking-tight">maFood</span>
+        <span className="mafood-display text-xl tracking-tight">SommaFood</span>
         <p className="mt-1 text-sm text-white/75 text-pretty">
           Peça dos restaurantes do evento, num só lugar.
         </p>
@@ -36,7 +36,7 @@ export function MaFoodFooter({ venueSlug }: { venueSlug: string }) {
         </nav>
 
         <p className="mt-6 border-t border-white/15 pt-4 text-[11px] text-white/55">
-          © {new Date().getFullYear()} maFood
+          © {new Date().getFullYear()} SommaFood
         </p>
       </div>
     </footer>

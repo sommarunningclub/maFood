@@ -33,6 +33,7 @@ export interface Pdv {
   commission_pct: number;
   gateway_pct: number;
   is_open: boolean;
+  is_visible: boolean;
   sort_order: number;
   wallet_balance: number;
 }

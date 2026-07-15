@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import QRCode from "qrcode";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ShoppingBag } from "lucide-react";
 import { useCart } from "@/stores/cart-store";
 import { brl } from "@/lib/utils";
 import { IdentifyModal } from "@/components/customer/identify-modal";
 import { PixPayment } from "@/components/customer/pix-payment";
+import { EmptyState } from "@/components/customer/ui/mafood-states";
 
 type Step = "form" | "card-form" | "submitting" | "pix" | "approved" | "failed";
 type PaymentMethod = "pix" | "card";
@@ -207,12 +208,15 @@ export function CheckoutView({
 
   if (empty && step === "form") {
     return (
-      <div className="min-h-dvh-100 flex flex-col items-center justify-center gap-4 p-8 text-center pt-safe pb-safe">
-        <p className="text-6xl">🛒</p>
-        <p className="text-mafood-text-secondary">Seu carrinho está vazio</p>
+      <div className="min-h-dvh-100 flex flex-col items-center justify-center p-8 pt-safe pb-safe">
+        <EmptyState
+          icon={ShoppingBag}
+          title="Sua sacola está vazia"
+          hint="Escolha um restaurante e adicione itens para continuar."
+        />
         <Link
           href={`/${venue}`}
-          className="rounded-mafood-md bg-mafood-primary-strong px-5 min-h-touch h-12 inline-flex items-center text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+          className="mt-2 rounded-mafood-md bg-mafood-primary-strong px-5 min-h-touch h-12 inline-flex items-center text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
         >
           Ver praça
         </Link>

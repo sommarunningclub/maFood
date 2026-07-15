@@ -14,13 +14,18 @@ export default async function MarketplacePage({ params }: { params: { venue: str
     .maybeSingle();
   if (!venue) notFound();
 
-  const { data: pdvsData } = await supabase
+  const { data: pdvsData, error: pdvsError } = await supabase
     .from("pdvs")
     .select(
-      "id, slug, name, category, logo_url, is_open, sort_order, prep_time_min, instagram_handle"
+      "id, slug, name, category, logo_url, is_open, sort_order, prep_time_min, instagram_handle, is_visible"
     )
     .eq("venue_id", venue.id)
+    .eq("is_visible", true)
     .order("sort_order", { ascending: true });
+
+  if (pdvsError) {
+    console.error("[marketplace] failed to load pdvs", pdvsError.message);
+  }
 
   const pdvs = pdvsData ?? [];
 
@@ -64,7 +69,6 @@ export default async function MarketplacePage({ params }: { params: { venue: str
     <MarketplaceView
       venueSlug={params.venue}
       venueName={venue.name}
-      venueDescription={venue.description}
       pdvs={cards}
     />
   );

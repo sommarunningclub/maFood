@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import Image from "next/image";
-import { X, Plus, Minus, Store } from "lucide-react";
+import { X, Plus, Minus, Store, UtensilsCrossed } from "lucide-react";
 import { brl } from "@/lib/utils";
 import type { Product } from "@/types";
 
@@ -21,6 +21,7 @@ const STATUS_LABEL: Record<Product["status"], string> = {
 export function ProductDetails({
   product,
   sellsOnline,
+  isOpen = true,
   qty,
   onAdd,
   onRemove,
@@ -28,6 +29,7 @@ export function ProductDetails({
 }: {
   product: Product;
   sellsOnline: boolean;
+  isOpen?: boolean;
   qty: number;
   onAdd: () => void;
   onRemove: () => void;
@@ -37,7 +39,7 @@ export function ProductDetails({
   const opener = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
   const disabled = product.status !== "active";
-  const canOrder = sellsOnline && !disabled;
+  const canOrder = sellsOnline && isOpen && !disabled;
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -178,10 +180,10 @@ export function ProductDetails({
             />
           ) : (
             <div
-              className="grid size-full place-items-center text-6xl text-mafood-text-muted"
+              className="grid size-full place-items-center text-mafood-text-muted"
               aria-hidden="true"
             >
-              🍽
+              <UtensilsCrossed className="size-16 opacity-40" />
             </div>
           )}
           <button
@@ -247,16 +249,21 @@ export function ProductDetails({
               <button
                 type="button"
                 onClick={onAdd}
-                className="flex h-13 min-h-touch flex-1 items-center justify-center rounded-mafood-md bg-mafood-primary-strong px-4 text-[15px] font-semibold text-white shadow-mafood-md active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+                className="flex h-13 min-h-touch flex-1 items-center justify-between gap-3 rounded-mafood-md bg-mafood-primary-strong px-4 text-[15px] font-semibold text-white shadow-mafood-md active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
               >
-                Adicionar
+                <span>{qty === 0 ? "Adicionar" : "Adicionar mais"}</span>
+                <span className="tabular-nums opacity-95">{brl(product.price)}</span>
               </button>
             </div>
           ) : (
             <div className="flex items-center gap-3 rounded-mafood-md border border-mafood-border bg-mafood-background-soft px-4 py-3.5">
               <Store className="size-5 shrink-0 text-mafood-primary-strong" aria-hidden="true" />
               <p className="text-[14px] font-medium text-mafood-text-secondary">
-                Pagamento direto no balcão do PDV
+                {disabled
+                  ? STATUS_LABEL[product.status] || "Indisponível no momento"
+                  : !isOpen
+                    ? "PDV fechado — pedidos online indisponíveis"
+                    : "Pagamento direto no balcão do PDV"}
               </p>
             </div>
           )}

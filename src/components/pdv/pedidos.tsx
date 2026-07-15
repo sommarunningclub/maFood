@@ -253,7 +253,7 @@ export function Pedidos({ slug }: { slug: string }) {
   }
 
   return (
-    <div className="flex h-full min-h-[calc(100dvh-7rem)] md:min-h-dvh-100 flex-col">
+    <div className="flex h-full min-h-[calc(100dvh_-_7rem_-_env(safe-area-inset-top)_-_env(safe-area-inset-bottom))] md:min-h-dvh-100 flex-col">
       <header className="flex items-center justify-between gap-2 border-b border-palantir-border bg-palantir-bg/85 px-3 sm:px-6 py-3 backdrop-blur">
         <div className="min-w-0">
           <h1 className="text-base sm:text-lg font-semibold text-white">Pedidos</h1>

@@ -287,7 +287,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
       {/* Bloco de pagamento Pix (status pending) */}
       {isPending && (
         <section className="mt-6 rounded-mafood-md border border-mafood-primary/40 bg-mafood-primary/5 p-4 flex flex-col items-center">
-          <p className="num text-[11px] text-mafood-primary-strong tracking-widest uppercase">Pix · maFood</p>
+          <p className="num text-[11px] text-mafood-primary-strong tracking-widest uppercase">Pix · SommaFood</p>
           <p className="num text-3xl text-mafood-text-primary font-bold mt-1">{brl(order.total)}</p>
           {qr ? (
             <div className="bg-white p-3 rounded-mafood-md mt-4">

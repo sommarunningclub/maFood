@@ -20,7 +20,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Pencil, ExternalLink, Check, X, Trash2 } from "lucide-react";
+import { GripVertical, Pencil, ExternalLink, Check, X, Trash2, Eye, EyeOff } from "lucide-react";
 import { brl } from "@/lib/utils";
 import type { Pdv } from "@/types";
 import { PdvLogo, isImageLogo } from "@/components/pdv-logo";
@@ -31,7 +31,7 @@ export interface AdminPdvRow extends Pdv {
   email?: string | null;
 }
 
-const COLS = "32px 1fr 110px 80px 110px 140px 80px 140px";
+const COLS = "32px 1fr 110px 80px 110px 140px 96px 80px 140px";
 
 export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
   const router = useRouter();
@@ -68,6 +68,29 @@ export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
     );
   }
 
+  // Visibilidade no cardápio — persiste imediatamente (otimista + reverte on error)
+  async function toggleVisibility(id: string) {
+    const target = pdvs.find((p) => p.id === id);
+    if (!target) return;
+    const next = !target.is_visible;
+    setPdvs((items) =>
+      items.map((p) => (p.id === id ? { ...p, is_visible: next } : p))
+    );
+    const r = await fetch(`/api/admin/pdvs/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_visible: next }),
+    });
+    if (!r.ok) {
+      // reverte
+      setPdvs((items) =>
+        items.map((p) => (p.id === id ? { ...p, is_visible: !next } : p))
+      );
+      const d = await r.json().catch(() => ({}));
+      alert(d.error ?? "Não foi possível alterar a visibilidade");
+    }
+  }
+
   function markPinSet(id: string) {
     setPdvs((items) =>
       items.map((p) =>
@@ -97,6 +120,7 @@ export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
               <span>Preparo</span>
               <span>Carteira</span>
               <span>PIN</span>
+              <span>Visível</span>
               <span>Status</span>
               <span>Ações</span>
             </div>
@@ -105,6 +129,7 @@ export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
                 key={p.id}
                 pdv={p}
                 onToggle={toggle}
+                onToggleVisibility={toggleVisibility}
                 onDetail={() => setDetailTarget(p)}
                 onSetPin={() => setPinTarget(p)}
                 onEdit={() => setEditTarget(p)}
@@ -125,6 +150,7 @@ export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
                 key={p.id}
                 pdv={p}
                 onToggle={toggle}
+                onToggleVisibility={toggleVisibility}
                 onDetail={() => setDetailTarget(p)}
                 onSetPin={() => setPinTarget(p)}
                 onEdit={() => setEditTarget(p)}
@@ -200,6 +226,7 @@ export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
 function RowDesktop({
   pdv,
   onToggle,
+  onToggleVisibility,
   onDetail,
   onSetPin,
   onClearPin,
@@ -208,6 +235,7 @@ function RowDesktop({
 }: {
   pdv: AdminPdvRow;
   onToggle: (id: string) => void;
+  onToggleVisibility: (id: string) => void;
   onDetail: () => void;
   onSetPin: () => void;
   onClearPin: () => void;
@@ -280,6 +308,20 @@ function RowDesktop({
         )}
       </div>
       <button
+        onClick={() => onToggleVisibility(pdv.id)}
+        title={pdv.is_visible ? "Visível no cardápio — clique para ocultar" : "Oculto do cardápio — clique para exibir"}
+        aria-label={pdv.is_visible ? "Ocultar do cardápio" : "Exibir no cardápio"}
+        aria-pressed={pdv.is_visible}
+        className={`mono inline-flex items-center gap-1.5 rounded-admin border px-2 py-1 text-[10px] font-bold focus-ring-admin ${
+          pdv.is_visible
+            ? "border-palantir-green/40 bg-palantir-green/10 text-palantir-green"
+            : "border-palantir-border bg-palantir-surface2 text-palantir-muted"
+        }`}
+      >
+        {pdv.is_visible ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
+        {pdv.is_visible ? "VISÍVEL" : "OCULTO"}
+      </button>
+      <button
         onClick={() => onToggle(pdv.id)}
         className={`mono rounded-admin px-2 py-1 text-[10px] font-bold focus-ring-admin ${
           pdv.is_open ? "bg-palantir-green/15 text-palantir-green" : "bg-palantir-red/15 text-palantir-red"
@@ -324,6 +366,7 @@ function RowDesktop({
 function CardMobile({
   pdv,
   onToggle,
+  onToggleVisibility,
   onDetail,
   onSetPin,
   onClearPin,
@@ -332,6 +375,7 @@ function CardMobile({
 }: {
   pdv: AdminPdvRow;
   onToggle: (id: string) => void;
+  onToggleVisibility: (id: string) => void;
   onDetail: () => void;
   onSetPin: () => void;
   onClearPin: () => void;
@@ -401,6 +445,19 @@ function CardMobile({
               aria-pressed={pdv.is_open}
             >
               {pdv.is_open ? "ABERTO" : "FECHADO"}
+            </button>
+            <button
+              onClick={() => onToggleVisibility(pdv.id)}
+              aria-pressed={pdv.is_visible}
+              aria-label={pdv.is_visible ? "Ocultar do cardápio" : "Exibir no cardápio"}
+              className={`mono inline-flex items-center gap-1.5 min-h-touch rounded-admin border px-3 text-[10px] font-bold focus-ring-admin ${
+                pdv.is_visible
+                  ? "border-palantir-green/40 bg-palantir-green/10 text-palantir-green"
+                  : "border-palantir-border bg-palantir-surface2 text-palantir-muted"
+              }`}
+            >
+              {pdv.is_visible ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
+              {pdv.is_visible ? "VISÍVEL" : "OCULTO"}
             </button>
             {pdv.pin_set_at ? (
               <>
@@ -618,6 +675,7 @@ function EditPdvDialog({
     gateway_pct: pdv.gateway_pct,
     instagram_handle: pdv.instagram_handle ?? "",
     email: pdv.email ?? "",
+    is_visible: pdv.is_visible,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -824,6 +882,40 @@ function EditPdvDialog({
           />
         </Field>
       </div>
+
+      <button
+        type="button"
+        onClick={() => set("is_visible", !form.is_visible)}
+        aria-pressed={form.is_visible}
+        className="mt-1 flex w-full items-center justify-between gap-3 rounded-admin border border-palantir-border bg-palantir-bg px-3 py-3 text-left focus-ring-admin"
+      >
+        <span className="min-w-0">
+          <span className="flex items-center gap-2 text-sm text-palantir-text">
+            {form.is_visible ? (
+              <Eye className="size-4 text-palantir-green" />
+            ) : (
+              <EyeOff className="size-4 text-palantir-muted" />
+            )}
+            Visível no cardápio
+          </span>
+          <span className="mono mt-0.5 block text-[10px] text-palantir-muted">
+            {form.is_visible
+              ? "Aparece no marketplace e o link direto funciona."
+              : "Oculto do marketplace e o link direto fica inacessível."}
+          </span>
+        </span>
+        <span
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+            form.is_visible ? "bg-palantir-green" : "bg-palantir-surface2"
+          }`}
+        >
+          <span
+            className={`inline-block size-5 rounded-full bg-white transition-transform ${
+              form.is_visible ? "translate-x-5" : "translate-x-0.5"
+            }`}
+          />
+        </span>
+      </button>
 
       {error && <p className="mono text-xs text-palantir-red mt-2">{error}</p>}
 

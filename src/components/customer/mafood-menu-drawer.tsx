@@ -123,7 +123,7 @@ export function MaFoodMenuDrawer({
         onTouchEnd={onTouchEnd}
       >
         <div className="mafood-header-gradient px-5 py-5 flex items-center justify-between text-white">
-          <span className="mafood-display text-lg">maFood</span>
+          <span className="mafood-display text-lg">SommaFood</span>
           <button type="button" onClick={onClose} aria-label="Fechar menu" className="grid size-touch place-items-center rounded-mafood-md bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
             <X className="size-5" />
           </button>

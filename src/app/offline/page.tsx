@@ -1,4 +1,4 @@
-export const metadata = { title: "Sem conexão — maFood" };
+export const metadata = { title: "Sem conexão — SommaFood" };
 
 export default function OfflinePage() {
   return (

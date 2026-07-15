@@ -22,7 +22,7 @@ const plex = IBM_Plex_Mono({
   variable: "--font-plex-mono",
 });
 
-const APP_NAME = "maFood";
+const APP_NAME = "SommaFood";
 const APP_DESC = "Praça de alimentação digital · Somma Special Day";
 
 export const metadata: Metadata = {
@@ -55,8 +55,8 @@ export const viewport: Viewport = {
   ],
   width: "device-width",
   initialScale: 1,
-  maximumScale: 5,
-  userScalable: true,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 

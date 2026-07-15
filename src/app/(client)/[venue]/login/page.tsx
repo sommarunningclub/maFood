@@ -31,7 +31,6 @@ export default async function CustomerLoginPage({
     <CustomerLogin
       venue={params.venue}
       venueName={venue?.name ?? "Evento"}
-      venueDescription={venue?.description ?? ""}
       next={searchParams.next}
     />
   );

@@ -27,13 +27,13 @@ export interface PdvCardData {
 export function MarketplaceView({
   venueSlug,
   venueName,
-  venueDescription,
   pdvs,
 }: {
   venueSlug: string;
   venueName: string;
-  venueDescription: string | null;
+  venueDescription?: string | null;
   pdvs: PdvCardData[];
+  dateLabel?: string;
 }) {
   const heroRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLDivElement | null>(null);
@@ -51,8 +51,12 @@ export function MarketplaceView({
   }, [pdvs]);
 
   const visible = useMemo(() => {
-    if (activeCategory === "all") return pdvs;
-    return pdvs.filter((p) => p.category === activeCategory);
+    const list =
+      activeCategory === "all"
+        ? pdvs
+        : pdvs.filter((p) => p.category === activeCategory);
+    // Abertos primeiro — fechados continuam acessíveis no fim.
+    return [...list].sort((a, b) => Number(b.is_open) - Number(a.is_open));
   }, [activeCategory, pdvs]);
 
   // Entrada com GSAP — stagger no hero.
@@ -124,26 +128,21 @@ export function MarketplaceView({
         pdvs={pdvs}
       />
 
-      {/* Hero editorial */}
+      {/* Hero */}
       <header ref={heroRef} className="px-4 pt-6 pb-2">
-        <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-mafood-text-secondary">
-          18 jul 2026 · COPMDF · Brasília
-        </p>
-        <h1 className="mafood-display mt-3 text-fluid-3xl leading-[1.05] text-mafood-text-primary text-balance">
+        <h1 className="mafood-display text-fluid-3xl leading-[1.05] text-mafood-text-primary text-balance">
           {venueName}
         </h1>
-        {venueDescription && (
-          <p className="mt-3 max-w-md text-[15px] leading-relaxed text-mafood-text-secondary text-pretty">
-            {venueDescription}
-          </p>
-        )}
         <p className="mt-4 inline-flex items-center gap-2 rounded-mafood-sm bg-mafood-background-soft px-3 py-1.5 text-xs font-medium text-mafood-primary-strong">
           <span className="relative inline-flex size-2">
             <span className="absolute inset-0 rounded-full bg-mafood-success animate-ping opacity-60" />
             <span className="relative size-2 rounded-full bg-mafood-success" />
           </span>
-          {openCount} de {pdvs.length}{" "}
-          {pdvs.length === 1 ? "restaurante aberto" : "restaurantes abertos"}
+          {openCount === 0
+            ? "Nenhum restaurante aberto agora"
+            : `${openCount} de ${pdvs.length} ${
+                pdvs.length === 1 ? "restaurante aberto" : "restaurantes abertos"
+              }`}
         </p>
       </header>
 

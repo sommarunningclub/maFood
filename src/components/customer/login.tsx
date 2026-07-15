@@ -31,12 +31,11 @@ function maskPhone(v: string) {
 export function CustomerLogin({
   venue,
   venueName,
-  venueDescription,
   next,
 }: {
   venue: string;
   venueName: string;
-  venueDescription: string;
+  venueDescription?: string;
   next?: string;
 }) {
   const router = useRouter();
@@ -108,14 +107,11 @@ export function CustomerLogin({
         {/* Hero */}
         <header className="mb-6 text-center">
           <p className="num text-[11px] text-mafood-primary-strong tracking-[0.25em] mb-2">
-            18 JUL 2026 · COPMDF · BRASÍLIA
+            SOMMAFOOD
           </p>
           <h1 className="mafood-display text-fluid-3xl leading-[0.95] text-mafood-text-primary text-balance">
             {venueName}
           </h1>
-          {venueDescription && (
-            <p className="text-mafood-text-secondary text-sm mt-2 text-pretty">{venueDescription}</p>
-          )}
         </header>
 
         {/* Stage: CPF */}

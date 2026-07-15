@@ -8,7 +8,7 @@ export function PageHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <header className="sticky top-[3.25rem] lg:top-0 z-20 border-b border-palantir-border bg-palantir-bg/85 px-4 py-3 sm:px-6 sm:py-4 backdrop-blur">
+    <header className="sticky top-[calc(3.25rem_+_env(safe-area-inset-top))] lg:top-0 z-20 border-b border-palantir-border bg-palantir-bg/85 px-4 py-3 sm:px-6 sm:py-4 backdrop-blur">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-fluid-xl font-semibold text-white truncate">{title}</h1>

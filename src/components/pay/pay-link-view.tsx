@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CreditCard, Loader2, CheckCircle2, Lock, ShoppingBag } from "lucide-react";
+import { CreditCard, Loader2, Check, Lock, ShoppingBag, ShieldCheck, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { brl } from "@/lib/utils";
+import { brl, cn } from "@/lib/utils";
 
 interface Order {
   id: string;
@@ -25,6 +25,33 @@ interface CepHint {
 }
 
 type Step = "form" | "processing" | "success" | "failed";
+
+/* Marca — logo do Somma Club (arquivo em /public/somma-club.svg).
+   Enquanto o arquivo não existir, exibe wordmark tipográfico como fallback. */
+function Brand({ className }: { className?: string }) {
+  const [broken, setBroken] = useState(false);
+  if (broken) {
+    return (
+      <span
+        className={cn(
+          "font-body font-bold tracking-[0.18em] text-somma-orange text-sm uppercase",
+          className
+        )}
+      >
+        Somma Club
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- logo em /public trocável; <img> evita config de SVG do next/image
+    <img
+      src="/somma-club.svg"
+      alt="Somma Club"
+      onError={() => setBroken(true)}
+      className={cn("h-7 w-auto object-contain", className)}
+    />
+  );
+}
 
 export function PayLinkView({
   orderInitial,
@@ -56,7 +83,7 @@ export function PayLinkView({
   const [cepHint, setCepHint] = useState<CepHint | null>(null);
   const [cepLoading, setCepLoading] = useState(false);
 
-  // Realtime: status muda → atualiza UI (ex: cliente pagou e webhook confirmou)
+  // Realtime: status muda → atualiza UI (ex: webhook confirmou o pagamento)
   useEffect(() => {
     const supabase = createClient();
     const ch = supabase
@@ -141,90 +168,96 @@ export function PayLinkView({
     setStep("success");
   }
 
+  // ─── SUCESSO ───────────────────────────────────────────────
   if (step === "success") {
     return (
-      <div className="min-h-dvh-100 flex flex-col items-center justify-center px-6 pt-safe pb-safe text-center bg-somma-bg">
-        <div className="size-20 rounded-full bg-somma-green/15 border-4 border-somma-green/30 grid place-items-center mb-5">
-          <CheckCircle2 className="size-10 text-somma-green" />
+      <div className="min-h-dvh-100 flex flex-col items-center justify-center px-6 pt-safe pb-safe text-center bg-somma-bg somma-grain font-body">
+        <Brand className="mb-10" />
+        <div className="size-20 rounded-full bg-somma-green/15 ring-8 ring-somma-green/10 grid place-items-center mb-6 animate-fade-in">
+          <Check className="size-10 text-somma-green" strokeWidth={2.5} />
         </div>
-        <h1 className="text-fluid-2xl text-white font-display uppercase">
-          Pagamento confirmado!
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+          Pagamento confirmado
         </h1>
-        <p className="num text-[11px] text-somma-muted mt-2">PEDIDO #{order.number}</p>
-        <p className="text-somma-text text-sm mt-5 max-w-sm">
-          Vá até o <span className="text-white font-medium">{order.pdv_name}</span> e
-          retire o seu pedido com o atendente. Eles já receberam a confirmação.
+        <p className="text-[13px] text-somma-muted mt-2 tabular-nums">Pedido #{order.number}</p>
+        <p className="text-[15px] leading-relaxed text-somma-text mt-5 max-w-sm">
+          Vá até o <span className="text-white font-semibold">{order.pdv_name}</span> e
+          retire o seu pedido com o atendente — eles já receberam a confirmação.
         </p>
-        <div className="mt-8 w-full max-w-sm rounded-client border border-somma-border bg-somma-surface p-4 text-left">
+        <div className="mt-8 w-full max-w-sm rounded-2xl border border-somma-border bg-somma-surface p-5 text-left">
           {order.items.map((it) => (
-            <div key={it.id} className="flex justify-between text-sm py-0.5">
+            <div key={it.id} className="flex justify-between gap-3 text-[15px] py-1">
               <span className="text-somma-text">
-                <span className="num text-somma-orange">{it.qty}×</span> {it.name}
+                <span className="text-somma-orange font-semibold tabular-nums mr-1">{it.qty}×</span>
+                {it.name}
               </span>
-              <span className="num text-somma-muted">{brl(it.qty * it.unit_price)}</span>
+              <span className="text-somma-muted shrink-0 tabular-nums">
+                {brl(it.qty * it.unit_price)}
+              </span>
             </div>
           ))}
-          <div className="flex justify-between border-t border-somma-border mt-2 pt-2 text-white font-semibold">
+          <div className="flex justify-between border-t border-somma-border mt-3 pt-3 text-white font-semibold">
             <span>Total</span>
-            <span className="num">{brl(order.total)}</span>
+            <span className="tabular-nums">{brl(order.total)}</span>
           </div>
         </div>
       </div>
     );
   }
 
+  // ─── PROCESSANDO ───────────────────────────────────────────
   if (step === "processing") {
     return (
-      <div className="min-h-dvh-100 flex items-center justify-center p-8 pt-safe pb-safe bg-somma-bg">
-        <div className="text-center max-w-sm">
-          <div className="size-14 mx-auto mb-4 rounded-full border-4 border-somma-border border-t-somma-orange animate-spin" />
-          <h2 className="text-white font-display uppercase tracking-wide text-fluid-xl">
-            Processando pagamento
-          </h2>
-          <p className="num text-xs text-somma-muted mt-2">
-            Carregando dados do pagamento com segurança...
-          </p>
-          <p className="num text-[10px] text-somma-muted/60 mt-1">Não feche esta tela</p>
-        </div>
+      <div className="min-h-dvh-100 flex flex-col items-center justify-center p-8 pt-safe pb-safe bg-somma-bg somma-grain font-body text-center">
+        <Brand className="mb-10" />
+        <div className="size-14 mb-5 rounded-full border-4 border-somma-border border-t-somma-orange animate-spin" />
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+          Processando pagamento
+        </h2>
+        <p className="text-sm text-somma-muted mt-2 max-w-xs">
+          Confirmando os dados com segurança. Isso leva alguns segundos.
+        </p>
+        <p className="text-[12px] text-somma-muted/60 mt-1">Não feche esta tela</p>
       </div>
     );
   }
 
+  // ─── FALHA ─────────────────────────────────────────────────
   if (step === "failed") {
     return (
-      <div className="min-h-dvh-100 flex items-center justify-center p-6 pt-safe pb-safe bg-somma-bg">
-        <div className="text-center max-w-sm w-full">
-          <div className="size-20 mx-auto mb-5 rounded-full border-4 border-somma-red/40 bg-somma-red/10 grid place-items-center">
-            <span className="text-4xl">✕</span>
-          </div>
-          <h2 className="text-white font-display uppercase tracking-wide text-fluid-2xl">
-            Pagamento não foi concluído
-          </h2>
-          {error && (
-            <p
-              role="alert"
-              className="num text-sm text-somma-muted mt-3 border border-somma-red/20 bg-somma-red/5 px-3 py-2 rounded-client"
-            >
-              {error}
-            </p>
-          )}
-          <p className="num text-[11px] text-somma-muted/80 mt-3">
-            Nenhum valor foi cobrado. Tente novamente com outro cartão.
-          </p>
-          <button
-            onClick={() => {
-              setError(null);
-              setStep("form");
-            }}
-            className="mt-6 w-full rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide focus-ring"
-          >
-            Tentar novamente
-          </button>
+      <div className="min-h-dvh-100 flex flex-col items-center justify-center px-6 pt-safe pb-safe bg-somma-bg somma-grain font-body text-center">
+        <Brand className="mb-10" />
+        <div className="size-20 mb-6 rounded-full ring-8 ring-somma-red/10 bg-somma-red/10 grid place-items-center">
+          <X className="size-10 text-somma-red" strokeWidth={2.5} />
         </div>
+        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white max-w-sm">
+          Pagamento não concluído
+        </h2>
+        {error && (
+          <p
+            role="alert"
+            className="text-sm text-somma-text mt-4 border border-somma-red/25 bg-somma-red/5 px-4 py-3 rounded-xl max-w-sm"
+          >
+            {error}
+          </p>
+        )}
+        <p className="text-[13px] text-somma-muted/80 mt-3 max-w-xs">
+          Nenhum valor foi cobrado. Você pode tentar novamente com outro cartão.
+        </p>
+        <button
+          onClick={() => {
+            setError(null);
+            setStep("form");
+          }}
+          className="mt-7 w-full max-w-sm rounded-xl bg-somma-orange min-h-touch h-13 font-semibold text-white active:scale-[0.99] transition-transform focus-ring"
+        >
+          Tentar novamente
+        </button>
       </div>
     );
   }
 
+  // ─── FORMULÁRIO ────────────────────────────────────────────
   const subtotal = order.items.reduce((s, i) => s + i.qty * i.unit_price, 0);
   const cardFilled =
     card.holderName.trim().length >= 2 &&
@@ -236,76 +269,77 @@ export function PayLinkView({
     holder.postalCode.replace(/\D/g, "").length === 8 &&
     holder.addressNumber.trim().length >= 1;
 
-  // Resumo do pedido (DRY — usado em mobile sticky top e desktop sidebar)
+  // Resumo do pedido (DRY — mobile no topo, desktop na sidebar)
   const orderSummary = (
-    <div className="rounded-client border border-somma-border bg-somma-surface p-4 lg:p-5">
-      <div className="flex items-center gap-2 mb-3">
+    <div className="rounded-2xl border border-somma-border bg-somma-surface p-5">
+      <div className="flex items-center gap-2 mb-4">
         <ShoppingBag className="size-4 text-somma-orange" />
-        <p className="num text-[11px] uppercase tracking-widest text-somma-muted">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-somma-muted">
           Resumo do pedido
         </p>
       </div>
-      <ul className="space-y-1.5">
+      <ul className="space-y-2.5">
         {order.items.map((it) => (
-          <li key={it.id} className="flex justify-between gap-3 text-sm">
+          <li key={it.id} className="flex justify-between gap-3 text-[15px]">
             <span className="text-somma-text min-w-0">
-              <span className="num text-somma-orange mr-1">{it.qty}×</span>
+              <span className="text-somma-orange font-semibold tabular-nums mr-1.5">
+                {it.qty}×
+              </span>
               {it.name}
             </span>
-            <span className="num text-somma-muted shrink-0">
+            <span className="text-somma-muted shrink-0 tabular-nums">
               {brl(it.qty * it.unit_price)}
             </span>
           </li>
         ))}
       </ul>
-      <div className="border-t border-somma-border mt-3 pt-3 flex justify-between items-baseline">
-        <span className="num text-[11px] uppercase tracking-wider text-somma-muted">Total</span>
-        <span className="num text-fluid-2xl font-bold text-white">{brl(order.total)}</span>
+      <div className="border-t border-somma-border mt-4 pt-4 flex justify-between items-baseline">
+        <span className="text-[12px] font-semibold uppercase tracking-[0.14em] text-somma-muted">
+          Total
+        </span>
+        <span className="text-3xl font-bold tracking-tight text-white tabular-nums">
+          {brl(order.total)}
+        </span>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-dvh-100 bg-somma-bg somma-grain text-white">
-      {/* Header top — barra fina laranja */}
-      <header className="border-b border-somma-border bg-somma-bg/80 backdrop-blur pt-safe">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-          <p className="num text-[11px] text-somma-orange tracking-[0.3em] uppercase">
-            maFood
-          </p>
-          <p className="num text-[11px] text-somma-muted uppercase tracking-widest hidden sm:inline-flex items-center gap-1.5">
+    <div className="min-h-dvh-100 bg-somma-bg somma-grain text-white font-body">
+      {/* Header — marca Somma Club */}
+      <header className="sticky top-0 z-20 border-b border-somma-border bg-somma-bg/80 backdrop-blur pt-safe">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          <Brand />
+          <p className="text-[11px] text-somma-muted uppercase tracking-[0.14em] hidden sm:inline-flex items-center gap-1.5">
             <Lock className="size-3" />
             Pagamento seguro · Asaas
           </p>
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 lg:pt-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-7 lg:pt-10">
         {/* Hero */}
         <div className="text-center lg:text-left">
-          <p className="num text-[10px] text-somma-orange tracking-[0.3em] uppercase">
+          <p className="text-[11px] font-semibold text-somma-orange tracking-[0.2em] uppercase tabular-nums">
             Pedido #{order.number}
           </p>
-          <h1 className="text-fluid-3xl text-white font-display uppercase leading-[0.95] mt-2 text-balance">
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white leading-[1.05] mt-2 text-balance">
             {order.pdv_name}
           </h1>
-          <p className="num text-[12px] text-somma-muted mt-2">
-            {order.customer_name}
-          </p>
+          <p className="text-[14px] text-somma-muted mt-2">{order.customer_name}</p>
         </div>
 
-        {/* Mobile (lg-): resumo aparece logo aqui, depois form. Desktop: grid 2 col */}
-        <div className="mt-6 lg:mt-10 lg:grid lg:grid-cols-[1fr_400px] lg:gap-10 lg:items-start pb-32 lg:pb-16">
+        {/* Mobile: resumo no topo, depois form. Desktop: grid 2 col */}
+        <div className="mt-7 lg:mt-10 lg:grid lg:grid-cols-[1fr_400px] lg:gap-10 lg:items-start pb-36 lg:pb-16">
           {/* === FORM === */}
-          <div className="space-y-6 order-2 lg:order-1">
-            {/* Resumo só em mobile, antes do form */}
+          <div className="space-y-5 order-2 lg:order-1">
             <div className="lg:hidden">{orderSummary}</div>
 
-            {/* Card section */}
-            <section className="rounded-client border border-somma-border bg-somma-surface p-4 sm:p-5 space-y-3">
+            {/* Cartão */}
+            <section className="rounded-2xl border border-somma-border bg-somma-surface p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <CreditCard className="size-4 text-somma-orange" />
-                <p className="num text-[11px] text-somma-muted uppercase tracking-widest">
+                <p className="text-[11px] font-semibold text-somma-muted uppercase tracking-[0.16em]">
                   Dados do cartão
                 </p>
               </div>
@@ -315,13 +349,15 @@ export function PayLinkView({
                 onChange={(v) => setCard({ ...card, number: v.replace(/\D/g, "").slice(0, 19) })}
                 placeholder="0000 0000 0000 0000"
                 inputMode="numeric"
+                autoComplete="cc-number"
               />
               <Input
                 label="Nome impresso no cartão"
                 value={card.holderName}
                 onChange={(v) => setCard({ ...card, holderName: v })}
-                placeholder="COMO NO CARTÃO"
+                placeholder="Como no cartão"
                 autoCapitalize="characters"
+                autoComplete="cc-name"
               />
               <div className="grid grid-cols-3 gap-3">
                 <Input
@@ -330,6 +366,7 @@ export function PayLinkView({
                   onChange={(v) => setCard({ ...card, expiryMonth: v.replace(/\D/g, "").slice(0, 2) })}
                   placeholder="MM"
                   inputMode="numeric"
+                  autoComplete="cc-exp-month"
                 />
                 <Input
                   label="Ano"
@@ -337,6 +374,7 @@ export function PayLinkView({
                   onChange={(v) => setCard({ ...card, expiryYear: v.replace(/\D/g, "").slice(0, 4) })}
                   placeholder="AAAA"
                   inputMode="numeric"
+                  autoComplete="cc-exp-year"
                 />
                 <Input
                   label="CVV"
@@ -344,13 +382,14 @@ export function PayLinkView({
                   onChange={(v) => setCard({ ...card, ccv: v.replace(/\D/g, "").slice(0, 4) })}
                   placeholder="123"
                   inputMode="numeric"
+                  autoComplete="cc-csc"
                 />
               </div>
             </section>
 
-            {/* Titular section */}
-            <section className="rounded-client border border-somma-border bg-somma-surface p-4 sm:p-5 space-y-3">
-              <p className="num text-[11px] text-somma-muted uppercase tracking-widest">
+            {/* Titular */}
+            <section className="rounded-2xl border border-somma-border bg-somma-surface p-5 space-y-4">
+              <p className="text-[11px] font-semibold text-somma-muted uppercase tracking-[0.16em]">
                 Dados do titular
               </p>
               <Input
@@ -359,18 +398,21 @@ export function PayLinkView({
                 onChange={(v) => setHolder({ ...holder, email: v })}
                 placeholder="seu@email.com"
                 inputMode="email"
+                autoComplete="email"
               />
               <div>
                 <label className="block">
-                  <span className="num text-[11px] text-somma-muted flex items-center gap-2">
+                  <span className="text-[12px] font-medium text-somma-muted flex items-center gap-2">
                     CEP
                     {cepLoading && (
-                      <span className="num text-[10px] text-somma-orange inline-flex items-center gap-1">
+                      <span className="text-[11px] text-somma-orange inline-flex items-center gap-1">
                         <Loader2 className="size-3 animate-spin" /> buscando...
                       </span>
                     )}
                     {cepHint && !cepLoading && (
-                      <span className="num text-[10px] text-somma-green">✓ encontrado</span>
+                      <span className="text-[11px] text-somma-green inline-flex items-center gap-1">
+                        <Check className="size-3" /> encontrado
+                      </span>
                     )}
                   </span>
                   <input
@@ -383,11 +425,12 @@ export function PayLinkView({
                     }}
                     inputMode="numeric"
                     placeholder="00000-000"
-                    className="mt-1 w-full rounded-client bg-somma-bg border border-somma-border px-3 min-h-touch h-12 text-white text-sm outline-none focus:border-somma-orange focus-ring"
+                    autoComplete="postal-code"
+                    className="mt-1.5 w-full rounded-xl bg-somma-bg border border-somma-border px-4 min-h-touch h-13 text-white text-base outline-none transition-colors focus:border-somma-orange focus-ring placeholder:text-somma-muted/50"
                   />
                 </label>
                 {cepHint?.street && (
-                  <p className="num text-[11px] text-somma-muted mt-1.5">
+                  <p className="text-[12px] text-somma-muted mt-1.5">
                     {cepHint.street}
                     {cepHint.neighborhood ? ` · ${cepHint.neighborhood}` : ""} · {cepHint.city}/{cepHint.state}
                   </p>
@@ -414,36 +457,37 @@ export function PayLinkView({
                 onChange={(v) => setHolder({ ...holder, phone: v.replace(/\D/g, "").slice(0, 11) })}
                 placeholder="(00) 00000-0000"
                 inputMode="numeric"
+                autoComplete="tel"
               />
             </section>
 
-            {/* CTA desktop — inline na coluna do form */}
+            {/* CTA desktop */}
             <div className="hidden lg:block">
               <button
                 onClick={submit}
                 disabled={!cardFilled}
-                className="w-full rounded-client bg-somma-orange min-h-touch h-14 text-white font-display uppercase tracking-wide active:scale-[0.99] transition-transform focus-ring disabled:opacity-40 text-base"
+                className="w-full rounded-xl bg-somma-orange min-h-touch h-14 text-white font-semibold text-base active:scale-[0.99] transition-transform focus-ring disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Pagar {brl(subtotal)}
               </button>
-              <p className="num text-[10px] text-somma-muted text-center mt-3 inline-flex items-center justify-center gap-1.5 w-full">
+              <p className="text-[11px] text-somma-muted text-center mt-3 inline-flex items-center justify-center gap-1.5 w-full">
                 <Lock className="size-3" />
                 Pagamento seguro processado pelo Asaas
               </p>
             </div>
           </div>
 
-          {/* === DESKTOP SIDEBAR === */}
+          {/* === SIDEBAR DESKTOP === */}
           <aside className="hidden lg:block order-1 lg:order-2 lg:sticky lg:top-24">
             {orderSummary}
-            <div className="mt-4 rounded-client border border-somma-border/60 bg-somma-surface/40 p-4 space-y-2 text-xs text-somma-muted">
-              <div className="flex items-center gap-2 text-somma-text">
-                <Lock className="size-3.5 text-somma-green" />
-                <span className="num text-[11px] uppercase tracking-widest text-white">
+            <div className="mt-4 rounded-2xl border border-somma-border/60 bg-somma-surface/40 p-5 space-y-2.5">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="size-4 text-somma-green" />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
                   Seguro
                 </span>
               </div>
-              <p className="text-[11px] leading-relaxed">
+              <p className="text-[13px] leading-relaxed text-somma-muted">
                 Seus dados de pagamento são criptografados e processados pelo Asaas,
                 certificado PCI-DSS. A maFood não armazena seu cartão.
               </p>
@@ -452,17 +496,17 @@ export function PayLinkView({
         </div>
       </div>
 
-      {/* CTA mobile — sticky bottom */}
+      {/* CTA mobile — sticky bottom estilo app */}
       <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-somma-bg/95 backdrop-blur border-t border-somma-border pb-safe">
-        <div className="mx-auto max-w-md p-3 sm:p-4">
+        <div className="mx-auto max-w-md px-4 pt-3 pb-3">
           <button
             onClick={submit}
             disabled={!cardFilled}
-            className="w-full rounded-client bg-somma-orange min-h-touch h-13 text-white font-display uppercase tracking-wide active:scale-[0.98] transition-transform focus-ring disabled:opacity-40"
+            className="w-full rounded-xl bg-somma-orange min-h-touch h-13 text-white font-semibold text-base active:scale-[0.98] transition-transform focus-ring disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Pagar {brl(subtotal)}
           </button>
-          <p className="num text-[9px] text-somma-muted text-center mt-2 inline-flex items-center justify-center gap-1 w-full">
+          <p className="text-[11px] text-somma-muted text-center mt-2 inline-flex items-center justify-center gap-1 w-full">
             <Lock className="size-2.5" />
             Pagamento seguro · Asaas
           </p>
@@ -479,6 +523,7 @@ function Input({
   placeholder,
   inputMode,
   autoCapitalize,
+  autoComplete,
 }: {
   label: string;
   value?: string;
@@ -486,17 +531,19 @@ function Input({
   placeholder?: string;
   inputMode?: "text" | "numeric" | "email" | "tel";
   autoCapitalize?: "off" | "none" | "sentences" | "words" | "characters";
+  autoComplete?: string;
 }) {
   return (
     <label className="block">
-      <span className="num text-[11px] text-somma-muted">{label}</span>
+      <span className="text-[12px] font-medium text-somma-muted">{label}</span>
       <input
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder}
         inputMode={inputMode}
         autoCapitalize={autoCapitalize}
-        className="mt-1 w-full rounded-client bg-somma-surface border border-somma-border px-3 min-h-touch h-12 text-white text-sm outline-none focus:border-somma-orange focus-ring"
+        autoComplete={autoComplete}
+        className="mt-1.5 w-full rounded-xl bg-somma-bg border border-somma-border px-4 min-h-touch h-13 text-white text-base outline-none transition-colors focus:border-somma-orange focus-ring placeholder:text-somma-muted/50"
       />
     </label>
   );
