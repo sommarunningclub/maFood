@@ -20,7 +20,7 @@ export async function POST(_req: Request, { params }: Params) {
   const supabase = createAdminClient();
   const { data: order } = await supabase
     .from("orders")
-    .select("id, customer_id, status, asaas_payment_id")
+    .select("id, customer_id, status, asaas_payment_id, coupon_id")
     .eq("id", params.id)
     .maybeSingle();
 
@@ -40,12 +40,27 @@ export async function POST(_req: Request, { params }: Params) {
     await cancelPayment(order.asaas_payment_id);
   }
 
-  const { error } = await supabase
+  const { data: cancelled, error } = await supabase
     .from("orders")
     .update({ status: "cancelled" })
     .eq("id", order.id)
-    .eq("status", "pending"); // guard contra corrida com webhook de confirmação
+    .eq("status", "pending") // guard contra corrida com webhook de confirmação
+    .select("id")
+    .maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Só restaura o cupom se o cancelamento realmente ocorreu (não houve corrida com
+  // o webhook de confirmação) e o pedido usava cupom.
+  if (cancelled && order.coupon_id) {
+    const { data: cur } = await supabase
+      .from("coupons")
+      .select("used")
+      .eq("id", order.coupon_id)
+      .maybeSingle();
+    if (cur && cur.used > 0) {
+      await supabase.from("coupons").update({ used: cur.used - 1 }).eq("id", order.coupon_id);
+    }
+  }
 
   return NextResponse.json({ ok: true, status: "cancelled" });
 }
