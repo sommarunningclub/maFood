@@ -11,9 +11,11 @@
 */
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { ArrowLeft, Search, Plus, Minus, Copy, ExternalLink, Trash2, Mail, MessageCircle, Link2, Check } from "lucide-react";
 import { brl } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 function maskCpf(v: string) {
   const d = v.replace(/\D/g, "").slice(0, 11);
@@ -524,8 +526,10 @@ function ResultView({
   result: Result;
   onNew: () => void;
 }) {
+  const router = useRouter();
   const [qrImg, setQrImg] = useState<string | null>(result.pix_qr_code || null);
   const [copied, setCopied] = useState(false);
+  const [paid, setPaid] = useState(false);
 
   useEffect(() => {
     if (qrImg) return;
@@ -535,6 +539,44 @@ function ResultView({
       );
     }
   }, [qrImg, result.pix_payload, result.method]);
+
+  // Detecção automática de pagamento: assina o Realtime do pedido (mesmo canal
+  // do tracker do cliente). Quando o webhook do Asaas marca o pedido como pago,
+  // a tela reflete "Pago!" e volta ao Kanban — o operador não fica preso no QR.
+  useEffect(() => {
+    if (result.method !== "pix") return;
+    const supabase = createClient();
+    let redirect: ReturnType<typeof setTimeout>;
+    const markPaid = () => {
+      setPaid(true);
+      redirect = setTimeout(() => router.push(`/loja/${slug}/pedidos`), 2500);
+    };
+    // Fallback: se o status já mudou entre criar o pedido e assinar o canal,
+    // uma leitura inicial garante que não perdemos o evento.
+    supabase
+      .from("orders")
+      .select("status")
+      .eq("id", result.order_id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data && data.status !== "pending") markPaid();
+      });
+    const ch = supabase
+      .channel(`pdv-new-order-${result.order_id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "mafood", table: "orders", filter: `id=eq.${result.order_id}` },
+        (p) => {
+          const status = (p.new as { status?: string } | null)?.status;
+          if (status && status !== "pending" && status !== "cancelled") markPaid();
+        }
+      )
+      .subscribe();
+    return () => {
+      clearTimeout(redirect);
+      supabase.removeChannel(ch);
+    };
+  }, [result.method, result.order_id, router, slug]);
 
   async function copy(text: string | null) {
     if (!text) return;
@@ -562,7 +604,7 @@ function ResultView({
         <div>
           <h1 className="text-lg font-semibold text-white">Pedido criado</h1>
           <p className="mono text-[11px] text-palantir-muted">
-            #{result.order_number} · aguardando pagamento
+            #{result.order_number} · {paid ? "pago — indo para o Kanban" : "aguardando pagamento"}
           </p>
         </div>
       </header>
@@ -583,7 +625,25 @@ function ResultView({
           </div>
         )}
 
-        <div className="flex justify-center my-4">
+        {paid && (
+          <div className="my-6 flex flex-col items-center text-center gap-2">
+            <div className="size-16 rounded-full bg-palantir-green/15 border-2 border-palantir-green grid place-items-center text-3xl text-palantir-green">
+              <Check className="size-8" />
+            </div>
+            <p className="text-white font-semibold text-lg">Pagamento confirmado!</p>
+            <p className="mono text-[11px] text-palantir-muted">
+              Pedido entrou na fila &ldquo;NOVOS&rdquo;. Redirecionando ao Kanban…
+            </p>
+            <Link
+              href={`/loja/${slug}/pedidos`}
+              className="mono mt-1 text-xs text-palantir-blue hover:underline"
+            >
+              Ir agora
+            </Link>
+          </div>
+        )}
+
+        <div className={`flex justify-center my-4 ${paid ? "hidden" : ""}`}>
           {qrImg ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -598,7 +658,7 @@ function ResultView({
           )}
         </div>
 
-        {result.pix_payload && (
+        {result.pix_payload && !paid && (
           <div>
             <p className="mono text-[10px] uppercase text-palantir-muted mb-1">
               Cópia-cola Pix
@@ -632,10 +692,12 @@ function ResultView({
           </a>
         )}
 
-        <p className="text-sm text-palantir-muted mt-4">
-          Mostre o QR ao cliente. Assim que ele pagar, o pedido entra automaticamente
-          na fila &ldquo;NOVOS&rdquo; do Kanban.
-        </p>
+        {!paid && (
+          <p className="text-sm text-palantir-muted mt-4">
+            Mostre o QR ao cliente. Assim que ele pagar, o pedido entra automaticamente
+            na fila &ldquo;NOVOS&rdquo; do Kanban.
+          </p>
+        )}
       </div>
 
       <div className="mt-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
