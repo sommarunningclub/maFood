@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { gsap } from "gsap";
 import { Clock, ShoppingBag, Store, UtensilsCrossed } from "lucide-react";
 import { useCart } from "@/stores/cart-store";
 import { pdvSellsOnline } from "@/lib/pdv";
-import { brl, categoryAnchorId } from "@/lib/utils";
+import { brl } from "@/lib/utils";
 import type { Pdv, Product } from "@/types";
 import { RestaurantHeader } from "@/components/customer/restaurant-header";
 import { StickyCategoryNavigation } from "@/components/customer/sticky-category-nav";
@@ -31,9 +32,9 @@ export function MenuView({
   const canOrder = sellsOnline && pdv.is_open;
 
   const visibleProducts = useMemo(() => {
-    const active = products.filter((p) => p.status === "active");
+    const activeItems = products.filter((p) => p.status === "active");
     const oos = products.filter((p) => p.status === "out_of_stock");
-    return [...active, ...oos];
+    return [...activeItems, ...oos];
   }, [products]);
 
   const categories = useMemo(
@@ -44,6 +45,8 @@ export function MenuView({
   const [active, setActive] = useState(categories[0] ?? "");
   const [openProduct, setOpenProduct] = useState<Product | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const prevCatIndex = useRef(0);
 
   useEffect(() => {
     rememberLastPdv(venue, pdv.slug);
@@ -55,12 +58,86 @@ export function MenuView({
     }
   }, [categories, active]);
 
+  const categoryProducts = useMemo(
+    () =>
+      visibleProducts.filter((p) => (p.category || "Outros") === active),
+    [visibleProducts, active]
+  );
+
+  // Transição suave estilo app ao trocar categoria (slide + fade + stagger)
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+
+    const nextIndex = Math.max(0, categories.indexOf(active));
+    const dir = nextIndex >= prevCatIndex.current ? 1 : -1;
+    prevCatIndex.current = nextIndex;
+
+    const reduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (reduced) {
+      gsap.set(el, { autoAlpha: 1, x: 0 });
+      return;
+    }
+
+    const cards = el.querySelectorAll("[data-product-card]");
+    gsap.killTweensOf([el, ...Array.from(cards)]);
+
+    gsap.fromTo(
+      el,
+      { autoAlpha: 0, x: 18 * dir },
+      {
+        autoAlpha: 1,
+        x: 0,
+        duration: 0.22,
+        ease: "power2.out",
+        overwrite: "auto",
+        onComplete: () => {
+          gsap.set(el, { clearProps: "transform" });
+        },
+      }
+    );
+    if (cards.length) {
+      gsap.fromTo(
+        cards,
+        { autoAlpha: 0, y: 10 },
+        {
+          autoAlpha: 1,
+          y: 0,
+          duration: 0.2,
+          stagger: 0.04,
+          ease: "power2.out",
+          delay: 0.04,
+          overwrite: "auto",
+        }
+      );
+    }
+  }, [active, categories]);
+
   const qtyOf = (id: string) => items.find((i) => i.product.id === id)?.qty ?? 0;
   const c = count();
 
   function handleCartAdd(productId: string) {
     const item = items.find((i) => i.product.id === productId);
     if (item) add(item.product);
+  }
+
+  function handleSelectCategory(cat: string) {
+    if (cat === active) return;
+    setActive(cat);
+    // Garante que a lista fique visível sob as pills
+    window.requestAnimationFrame(() => {
+      const nav = document.querySelector<HTMLElement>('[aria-label="Categorias"]');
+      const top = nav
+        ? Math.round(nav.getBoundingClientRect().bottom) + 8
+        : 80;
+      const listTop = listRef.current?.getBoundingClientRect().top ?? 0;
+      if (listTop < top) {
+        window.scrollBy({ top: listTop - top, behavior: "smooth" });
+      }
+    });
   }
 
   return (
@@ -108,38 +185,37 @@ export function MenuView({
         <StickyCategoryNavigation
           categories={categories}
           active={active}
-          onSelect={setActive}
+          onSelect={handleSelectCategory}
         />
 
-        <div className="mt-5 space-y-8 pb-4">
+        <div ref={listRef} className="mt-5 space-y-8 pb-4" style={{ opacity: 0 }}>
           {visibleProducts.length === 0 ? (
             <EmptyState
               icon={UtensilsCrossed}
               title="Nenhum item disponível no momento"
               hint="Volte mais tarde para conferir o cardápio."
             />
+          ) : categoryProducts.length === 0 ? (
+            <EmptyState
+              icon={UtensilsCrossed}
+              title="Nada nesta categoria"
+              hint="Escolha outra categoria no menu acima."
+            />
           ) : (
-            categories.map((cat) => (
-              <ProductSection
-                key={cat}
-                id={categoryAnchorId(cat)}
-                title={cat}
-              >
-                {visibleProducts
-                  .filter((p) => (p.category || "Outros") === cat)
-                  .map((p) => (
-                    <ProductCard
-                      key={p.id}
-                      product={p}
-                      sellsOnline={canOrder}
-                      qty={qtyOf(p.id)}
-                      onAdd={() => add(p)}
-                      onRemove={() => remove(p.id)}
-                      onOpen={() => setOpenProduct(p)}
-                    />
-                  ))}
-              </ProductSection>
-            ))
+            <ProductSection id={`cat-${active}`} title={active}>
+              {categoryProducts.map((p) => (
+                <div key={p.id} data-product-card>
+                  <ProductCard
+                    product={p}
+                    sellsOnline={canOrder}
+                    qty={qtyOf(p.id)}
+                    onAdd={() => add(p)}
+                    onRemove={() => remove(p.id)}
+                    onOpen={() => setOpenProduct(p)}
+                  />
+                </div>
+              ))}
+            </ProductSection>
           )}
         </div>
       </div>

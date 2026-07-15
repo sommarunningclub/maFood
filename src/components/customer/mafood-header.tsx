@@ -13,10 +13,14 @@ export function MaFoodHeader({
   onOpenMenu?: () => void;
 }) {
   return (
-    <header className="mafood-header-gradient sticky top-0 z-30 pt-safe rounded-b-mafood-lg text-white shadow-mafood-md">
-      <div className="px-4 pt-3 pb-4 flex flex-col gap-3">
+    <header className="mafood-full-bleed mafood-header-gradient sticky top-0 z-30 pt-safe rounded-b-mafood-xl text-white shadow-mafood-md">
+      <div className="mx-auto flex w-full max-w-screen-mobile flex-col gap-3 px-4 pt-3 pb-4 lg:max-w-3xl">
         <div className="flex items-center justify-between gap-3">
-          <Link href={`/${venueSlug}`} aria-label="SommaFood — início" className="mafood-display text-lg tracking-tight">
+          <Link
+            href={`/${venueSlug}`}
+            aria-label="SommaFood — início"
+            className="mafood-display text-lg tracking-tight"
+          >
             SommaFood
           </Link>
           <button
@@ -32,7 +36,7 @@ export function MaFoodHeader({
           type="button"
           onClick={onOpenSearch}
           aria-label="Buscar"
-          className="flex items-center gap-2 w-full h-12 rounded-mafood-md bg-mafood-surface-strong text-mafood-text-muted px-4 shadow-mafood-sm active:scale-[0.99] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+          className="flex h-12 w-full items-center gap-2 rounded-mafood-md bg-mafood-surface-strong px-4 text-mafood-text-muted shadow-mafood-sm active:scale-[0.99] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
         >
           <Search className="size-4 text-mafood-primary-strong" />
           <span className="text-sm">Buscar restaurantes, categorias…</span>

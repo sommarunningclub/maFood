@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { X, Plus, Minus, Store, UtensilsCrossed } from "lucide-react";
+import { gsap } from "gsap";
 import { brl } from "@/lib/utils";
 import type { Product } from "@/types";
 
@@ -13,10 +14,8 @@ const STATUS_LABEL: Record<Product["status"], string> = {
 };
 
 /**
- * Bottom sheet com os detalhes do produto. Imagem larga, descrição completa
- * e, quando `sellsOnline`, controle de quantidade + botão "Adicionar".
- * Caso contrário exibe a nota de pagamento no balcão.
- * Foca o primeiro controle ao abrir, restaura o foco ao fechar e trava o scroll.
+ * Bottom sheet com os detalhes do produto. Tocar na imagem abre lightbox
+ * em tela cheia com botão X para fechar.
  */
 export function ProductDetails({
   product,
@@ -38,12 +37,19 @@ export function ProductDetails({
   const panelRef = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
+  const lightboxOpenRef = useRef(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const disabled = product.status !== "active";
   const canOrder = sellsOnline && isOpen && !disabled;
+  const hasImage = Boolean(product.image_url);
 
   useEffect(() => {
     onCloseRef.current = onClose;
   });
+
+  useEffect(() => {
+    lightboxOpenRef.current = lightboxOpen;
+  }, [lightboxOpen]);
 
   useEffect(() => {
     opener.current = document.activeElement as HTMLElement;
@@ -55,8 +61,14 @@ export function ProductDetails({
     const first = panelRef.current?.querySelector<HTMLElement>("button");
     first?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCloseRef.current();
-      if (e.key === "Tab" && panelRef.current) {
+      if (e.key === "Escape") {
+        if (lightboxOpenRef.current) {
+          setLightboxOpen(false);
+          return;
+        }
+        onCloseRef.current();
+      }
+      if (e.key === "Tab" && panelRef.current && !lightboxOpenRef.current) {
         const nodes = panelRef.current.querySelectorAll<HTMLElement>(
           "a,button,input,[tabindex]:not([tabindex='-1'])"
         );
@@ -87,16 +99,20 @@ export function ProductDetails({
   const startY = useRef(0);
   const currentDY = useRef(0);
   const dragging = useRef(false);
+  const moved = useRef(false);
 
   const onHeroTouchStart = (e: React.TouchEvent) => {
+    if (lightboxOpen) return;
     startY.current = e.touches[0].clientY;
     currentDY.current = 0;
+    moved.current = false;
     dragging.current = true;
   };
 
   const onHeroTouchMove = (e: React.TouchEvent) => {
-    if (!dragging.current || !panelRef.current) return;
+    if (!dragging.current || !panelRef.current || lightboxOpen) return;
     const dy = e.touches[0].clientY - startY.current;
+    if (Math.abs(dy) > 8) moved.current = true;
     if (dy <= 0) {
       currentDY.current = 0;
       panelRef.current.style.transform = "";
@@ -109,7 +125,7 @@ export function ProductDetails({
   const onHeroTouchEnd = () => {
     dragging.current = false;
     const panel = panelRef.current;
-    if (!panel) return;
+    if (!panel || lightboxOpen) return;
     if (currentDY.current > 120) {
       onCloseRef.current();
     } else {
@@ -138,6 +154,11 @@ export function ProductDetails({
     };
   }, []);
 
+  function openLightbox() {
+    if (!hasImage || moved.current) return;
+    setLightboxOpen(true);
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end"
@@ -153,7 +174,6 @@ export function ProductDetails({
         ref={panelRef}
         className="relative w-full max-h-[88dvh] overflow-y-auto overscroll-y-contain rounded-t-mafood-xl bg-mafood-surface shadow-mafood-lg pb-safe animate-slide-in"
       >
-        {/* Imagem larga + fechar */}
         <div
           className="relative aspect-[16/10] w-full overflow-hidden bg-mafood-background-soft"
           onTouchStart={onHeroTouchStart}
@@ -169,15 +189,22 @@ export function ProductDetails({
           >
             <div className="h-1.5 w-10 rounded-full bg-white/70 shadow-mafood-sm" />
           </div>
-          {product.image_url ? (
-            <Image
-              src={product.image_url}
-              alt={product.name}
-              fill
-              sizes="100vw"
-              priority
-              className="size-full object-cover"
-            />
+          {hasImage ? (
+            <button
+              type="button"
+              onClick={openLightbox}
+              aria-label={`Ampliar imagem de ${product.name}`}
+              className="absolute inset-0 z-[1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+            >
+              <Image
+                src={product.image_url}
+                alt={product.name}
+                fill
+                sizes="100vw"
+                priority
+                className="size-full object-cover"
+              />
+            </button>
           ) : (
             <div
               className="grid size-full place-items-center text-mafood-text-muted"
@@ -190,13 +217,12 @@ export function ProductDetails({
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="absolute right-3 top-3 grid size-11 place-items-center rounded-full bg-black/45 text-white backdrop-blur-sm active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+            className="absolute right-3 top-3 z-20 grid size-11 place-items-center rounded-full bg-black/45 text-white backdrop-blur-sm active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
           >
             <X className="size-5" />
           </button>
         </div>
 
-        {/* Conteúdo */}
         <div className="px-5 pt-5">
           <h2 className="mafood-product-title text-fluid-xl leading-tight text-mafood-text-primary text-balance">
             {product.name}
@@ -216,7 +242,6 @@ export function ProductDetails({
           )}
         </div>
 
-        {/* Rodapé de ação */}
         <div className="px-5 pb-5 pt-6">
           {canOrder ? (
             <div className="flex items-center gap-3">
@@ -268,6 +293,94 @@ export function ProductDetails({
             </div>
           )}
         </div>
+      </div>
+
+      {lightboxOpen && hasImage && (
+        <ProductImageLightbox
+          src={product.image_url}
+          alt={product.name}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ProductImageLightbox({
+  src,
+  alt,
+  onClose,
+}: {
+  src: string;
+  alt: string;
+  onClose: () => void;
+}) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    closeRef.current?.focus();
+    const el = rootRef.current;
+    if (!el) return;
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduced) {
+      gsap.set(el, { autoAlpha: 1 });
+      return;
+    }
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        el,
+        { autoAlpha: 0 },
+        { autoAlpha: 1, duration: 0.2, ease: "power2.out" }
+      );
+      gsap.fromTo(
+        el.querySelector("[data-lightbox-img]"),
+        { scale: 0.92, autoAlpha: 0 },
+        { scale: 1, autoAlpha: 1, duration: 0.24, ease: "power2.out" }
+      );
+    }, rootRef);
+
+    return () => ctx.revert();
+  }, []);
+
+  return (
+    <div
+      ref={rootRef}
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/92 pt-safe pb-safe"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Imagem ampliada: ${alt}`}
+      style={{ opacity: 0 }}
+    >
+      <button
+        type="button"
+        className="absolute inset-0 cursor-zoom-out"
+        aria-label="Fechar imagem"
+        onClick={onClose}
+      />
+      <button
+        ref={closeRef}
+        type="button"
+        onClick={onClose}
+        aria-label="Fechar"
+        className="absolute right-3 top-3 z-10 grid size-11 place-items-center rounded-full bg-white/15 text-white backdrop-blur-sm active:scale-90 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+      >
+        <X className="size-5" />
+      </button>
+      <div
+        data-lightbox-img
+        className="relative z-[1] mx-4 aspect-square w-full max-w-lg overflow-hidden rounded-mafood-lg"
+      >
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          sizes="(max-width: 512px) 100vw, 512px"
+          priority
+          className="object-contain"
+        />
       </div>
     </div>
   );

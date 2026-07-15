@@ -327,6 +327,14 @@ a {
   color: var(--mafood-section-title);
 }
 
+/* Quebra o max-width do container — header/faixas edge-to-edge em qualquer tela */
+.mafood-full-bleed {
+  width: 100vw;
+  max-width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+}
+
 /* Header orange gradient + CSS-only geometric texture */
 .mafood-header-gradient {
   background:

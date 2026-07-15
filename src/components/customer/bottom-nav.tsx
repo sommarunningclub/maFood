@@ -2,7 +2,8 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { gsap } from "gsap";
 import { Home, ShoppingBag, UtensilsCrossed, User } from "lucide-react";
 
 const LAST_PDV_KEY = "mafood-last-pdv";
@@ -54,6 +55,13 @@ function shouldHideNav(segments: string[]): boolean {
   return !venue || HIDDEN_SEGMENTS.includes(second) || isPdvMenu || segments.length === 0;
 }
 
+function prefersReducedMotion() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
 /** Persiste o último PDV visitado para o atalho "Cardápio" na bottom nav. */
 export function rememberLastPdv(venue: string, pdvSlug: string) {
   try {
@@ -93,11 +101,30 @@ function NavChrome({
   venue: string;
   segments: string[];
 }) {
+  const chromeRef = useRef<HTMLDivElement>(null);
   const textRefs = useRef<(HTMLElement | null)[]>([]);
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([]);
   const [lastPdv, setLastPdv] = useState<string | null>(null);
 
   const activeIndex = NAV_ITEMS.findIndex((item) => item.match(segments));
+
+  useLayoutEffect(() => {
+    const el = chromeRef.current;
+    if (!el || prefersReducedMotion()) {
+      if (el) gsap.set(el, { autoAlpha: 1, y: 0 });
+      return;
+    }
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        el,
+        { y: 16, autoAlpha: 0 },
+        { y: 0, autoAlpha: 1, duration: 0.2, ease: "power2.out" }
+      );
+    }, chromeRef);
+
+    return () => ctx.revert();
+  }, []);
 
   useEffect(() => {
     setLastPdv(readLastPdv(venue));
@@ -116,10 +143,24 @@ function NavChrome({
     return () => window.removeEventListener("resize", update);
   }, [activeIndex]);
 
+  useEffect(() => {
+    const icon = itemRefs.current[activeIndex]?.querySelector(".menu__icon");
+    if (!icon || prefersReducedMotion()) return;
+    gsap.fromTo(
+      icon,
+      { scale: 0.86 },
+      { scale: 1, duration: 0.18, ease: "back.out(2)", overwrite: "auto" }
+    );
+  }, [activeIndex]);
+
   return (
-    <div className="fixed bottom-0 inset-x-0 z-40 mx-auto max-w-screen-mobile lg:max-w-3xl bg-mafood-surface-strong/95 backdrop-blur border-t border-mafood-border pb-safe">
+    <div
+      ref={chromeRef}
+      className="fixed bottom-0 inset-x-0 z-40 w-full bg-mafood-surface-strong/95 backdrop-blur border-t border-mafood-border pb-safe"
+      style={{ opacity: 0 }}
+    >
       <nav
-        className="menu"
+        className="menu mx-auto max-w-screen-mobile lg:max-w-3xl"
         style={
           {
             "--component-active-color": "var(--mafood-primary-strong)",

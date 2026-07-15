@@ -74,8 +74,8 @@ export function RestaurantHeader({
         )}
       </AnimatePresence>
 
-      <header className="mafood-header-gradient pt-safe text-white">
-        <div className="px-4 pb-6 pt-3">
+      <header className="mafood-full-bleed mafood-header-gradient pt-safe text-white">
+        <div className="mx-auto w-full max-w-screen-mobile px-4 pb-6 pt-3 lg:max-w-3xl">
           <div className="flex items-center">
             <Link
               href={`/${venue}`}
