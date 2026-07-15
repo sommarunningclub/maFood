@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { brl } from "@/lib/utils";
 import { PdvLogo } from "@/components/pdv-logo";
-import { pdvSellsOnline } from "@/lib/pdv";
+import { pdvPayAtCounter, pdvSellsOnline } from "@/lib/pdv";
 import type { PdvCardData } from "@/components/customer/marketplace-view";
 import { EmptyState } from "@/components/customer/ui/mafood-states";
 
@@ -37,12 +37,19 @@ export function CategoryBadge({ label }: { label: string }) {
   );
 }
 
-/** Selo derivado só de pdvSellsOnline(pdv). */
-function Selo({ online }: { online: boolean }) {
-  if (online) {
+/** Selo: Asaas online, pedido+pagamento na tenda, ou só cardápio. */
+function Selo({ pdv }: { pdv: PdvCardData }) {
+  if (pdvSellsOnline(pdv)) {
     return (
       <span className="inline-flex items-center rounded-mafood-sm bg-mafood-accent-dark px-2 py-0.5 text-[10px] font-semibold text-white shadow-mafood-sm">
         Pedir &amp; pagar aqui
+      </span>
+    );
+  }
+  if (pdvPayAtCounter(pdv)) {
+    return (
+      <span className="inline-flex items-center rounded-mafood-sm bg-mafood-primary-strong px-2 py-0.5 text-[10px] font-semibold text-white shadow-mafood-sm">
+        Pedir · pagar na tenda
       </span>
     );
   }
@@ -60,7 +67,6 @@ export function RestaurantCard({
   venueSlug: string;
   pdv: PdvCardData;
 }) {
-  const online = pdvSellsOnline(pdv);
   const hasRange =
     pdv.price_min != null && pdv.price_max != null && pdv.product_count > 0;
   const priceLabel = hasRange
@@ -75,7 +81,7 @@ export function RestaurantCard({
         <span className="grid size-14 place-items-center overflow-hidden rounded-full bg-mafood-background-soft ring-1 ring-mafood-border">
           <PdvLogo logoUrl={pdv.logo_url} size={56} alt={pdv.name} />
         </span>
-        <Selo online={online} />
+        <Selo pdv={pdv} />
       </div>
 
       <h3 className="mafood-restaurant-title text-[15px] leading-tight text-mafood-text-primary line-clamp-2 text-pretty">

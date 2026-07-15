@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
 import { useCart } from "@/stores/cart-store";
@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/customer/ui/mafood-states";
 import { BrandMomentGif } from "@/components/customer/brand-moment-gif";
 
 type Step = "form" | "card-form" | "submitting" | "pix" | "approved" | "failed";
-type PaymentMethod = "pix" | "card";
+type PaymentMethod = "pix" | "card" | "counter";
 
 interface CardData {
   holderName: string;
@@ -46,10 +46,10 @@ export function CheckoutView({
   initialHasSession: boolean;
 }) {
   const router = useRouter();
-  const { items, pdvId, total, clear, add, remove } = useCart();
+  const { items, pdvId, payAtCounter, total, clear, add, remove } = useCart();
   const [notes, setNotes] = useState("");
   const [code, setCode] = useState("");
-  const [method, setMethod] = useState<PaymentMethod>("pix");
+  const [method, setMethod] = useState<PaymentMethod>(payAtCounter ? "counter" : "pix");
   const [step, setStep] = useState<Step>("form");
   const [qr, setQr] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -81,16 +81,21 @@ export function CheckoutView({
   const subtotal = total();
   const empty = items.length === 0;
 
+  useEffect(() => {
+    if (payAtCounter) setMethod("counter");
+    else setMethod((m) => (m === "counter" ? "pix" : m));
+  }, [payAtCounter]);
+
   function handleSubmitClick() {
     if (!hasSession) {
       setIdentifyOpen(true);
       return;
     }
-    if (method === "pix") {
-      void submitOrder();
-    } else {
+    if (method === "card") {
       setStep("card-form");
+      return;
     }
+    void submitOrder();
   }
 
   async function lookupCep(rawCep: string) {
@@ -187,7 +192,7 @@ export function CheckoutView({
       }
       setStep("pix");
     } else {
-      // Cartão aprovado: mostra confirmação explícita antes do tracker.
+      // Cartão aprovado ou pedido na tenda: confirmação antes do tracker.
       setStep("approved");
     }
     return { ok: true };
@@ -393,10 +398,16 @@ export function CheckoutView({
         <div className="text-center max-w-sm">
           <BrandMomentGif variant="cart" size={180} className="mb-2" />
           <h2 className="mafood-display text-mafood-text-primary text-fluid-xl">
-            {method === "pix" ? "Gerando Pix" : "Processando pagamento"}
+            {method === "counter"
+              ? "Enviando pedido"
+              : method === "pix"
+                ? "Gerando Pix"
+                : "Processando pagamento"}
           </h2>
           <p className="num text-xs text-mafood-text-secondary mt-2">
-            Carregando dados do pagamento com segurança...
+            {method === "counter"
+              ? "Registrando seu pedido na fila do PDV…"
+              : "Carregando dados do pagamento com segurança..."}
           </p>
           <p className="num text-[10px] text-mafood-text-secondary/60 mt-1">
             Não feche esta tela
@@ -412,11 +423,18 @@ export function CheckoutView({
         <div className="text-center max-w-sm w-full">
           <BrandMomentGif variant="success" size={200} className="mb-3" />
           <h2 className="mafood-display text-mafood-text-primary text-fluid-2xl">
-            Pagamento aprovado
+            {method === "counter" ? "Pedido enviado" : "Pagamento aprovado"}
           </h2>
           <p className="num text-sm text-mafood-text-secondary mt-3">
-            Aguardando o restaurante aceitar seu pedido
+            {method === "counter"
+              ? "Pague na tenda do Dopa na maquininha. Mostre o número do pedido."
+              : "Aguardando o restaurante aceitar seu pedido"}
           </p>
+          {orderNumber != null && method === "counter" && (
+            <p className="mt-4 text-fluid-xl font-semibold tabular-nums text-mafood-primary-strong">
+              Pedido #{orderNumber}
+            </p>
+          )}
           <button
             onClick={finalize}
             className="mt-6 w-full rounded-mafood-md bg-mafood-success-strong min-h-touch h-12 text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
@@ -564,23 +582,35 @@ export function CheckoutView({
 
       <section className="mt-5">
         <p className="num text-[11px] text-mafood-text-secondary mb-2">Pagamento</p>
-        <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Método de pagamento">
-          {(["pix", "card"] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMethod(m)}
-              role="radio"
-              aria-checked={method === m}
-              className={`rounded-mafood-md border min-h-touch h-12 num text-sm uppercase transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary ${
-                method === m
-                  ? "border-mafood-primary bg-mafood-primary/10 text-mafood-primary-strong"
-                  : "border-mafood-border text-mafood-text-secondary"
-              }`}
-            >
-              {m === "pix" ? "Pix" : "Cartão"}
-            </button>
-          ))}
-        </div>
+        {payAtCounter ? (
+          <div className="rounded-mafood-md border border-mafood-primary/40 bg-mafood-primary/5 px-4 py-3.5">
+            <p className="text-[14px] font-semibold text-mafood-text-primary">
+              Pagar na tenda do Dopa
+            </p>
+            <p className="mt-1 text-[12px] leading-snug text-mafood-text-secondary">
+              Seu pedido vai para a fila do PDV. O pagamento é na maquininha da tenda —
+              mostre o número do pedido.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Método de pagamento">
+            {(["pix", "card"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMethod(m)}
+                role="radio"
+                aria-checked={method === m}
+                className={`rounded-mafood-md border min-h-touch h-12 num text-sm uppercase transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary ${
+                  method === m
+                    ? "border-mafood-primary bg-mafood-primary/10 text-mafood-primary-strong"
+                    : "border-mafood-border text-mafood-text-secondary"
+                }`}
+              >
+                {m === "pix" ? "Pix" : "Cartão"}
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="mt-5 border-t border-mafood-border pt-4 space-y-1 num text-sm">
@@ -589,7 +619,9 @@ export function CheckoutView({
           <span>{brl(subtotal)}</span>
         </div>
         <p className="num text-[10px] text-mafood-text-secondary">
-          Cupom (se houver) será aplicado no servidor antes de gerar a cobrança.
+          {payAtCounter
+            ? "Cupom (se houver) será aplicado ao enviar o pedido."
+            : "Cupom (se houver) será aplicado no servidor antes de gerar a cobrança."}
         </p>
       </section>
 
@@ -609,8 +641,10 @@ export function CheckoutView({
             className="w-full rounded-mafood-md bg-mafood-primary-strong min-h-touch h-13 text-white font-semibold active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
           >
             {hasSession
-              ? `${method === "pix" ? "Gerar Pix" : "Ir para pagamento"} · ${brl(subtotal)}`
-              : `Identificar e pagar · ${brl(subtotal)}`}
+              ? payAtCounter
+                ? `Enviar pedido · ${brl(subtotal)}`
+                : `${method === "pix" ? "Gerar Pix" : "Ir para pagamento"} · ${brl(subtotal)}`
+              : `Identificar e continuar · ${brl(subtotal)}`}
           </button>
         </div>
       </div>
@@ -621,8 +655,8 @@ export function CheckoutView({
         onSuccess={() => {
           setIdentifyOpen(false);
           setHasSession(true);
-          if (method === "pix") void submitOrder();
-          else setStep("card-form");
+          if (method === "card") setStep("card-form");
+          else void submitOrder();
         }}
       />
     </div>

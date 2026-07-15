@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { gsap } from "gsap";
 import { Clock, ShoppingBag, Store, UtensilsCrossed } from "lucide-react";
 import { useCart } from "@/stores/cart-store";
-import { pdvSellsOnline } from "@/lib/pdv";
+import { pdvAcceptsAppOrders, pdvPayAtCounter } from "@/lib/pdv";
 import { brl } from "@/lib/utils";
 import type { Pdv, Product } from "@/types";
 import { RestaurantHeader } from "@/components/customer/restaurant-header";
@@ -31,8 +31,9 @@ export function MenuView({
   products: Product[];
 }) {
   const { items, add, remove, clear, count, total } = useCart();
-  const sellsOnline = pdvSellsOnline(pdv);
-  const canOrder = sellsOnline && pdv.is_open;
+  const payAtCounter = pdvPayAtCounter(pdv);
+  const acceptsOrders = pdvAcceptsAppOrders(pdv);
+  const canOrder = acceptsOrders && pdv.is_open;
 
   const visibleProducts = useMemo(() => {
     const activeItems = products.filter((p) => p.status === "active");
@@ -139,7 +140,7 @@ export function MenuView({
 
   function handleCartAdd(productId: string) {
     const item = items.find((i) => i.product.id === productId);
-    if (item) add(item.product);
+    if (item) add(item.product, { payAtCounter });
   }
 
   function handleSelectCategory(cat: string) {
@@ -182,7 +183,23 @@ export function MenuView({
             </div>
           )}
 
-          {pdv.is_open && !sellsOnline && (
+          {pdv.is_open && payAtCounter && (
+            <div className="flex items-center gap-3 rounded-mafood-md border border-mafood-border bg-mafood-background-soft px-4 py-3.5 shadow-mafood-sm">
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-mafood-primary/10">
+                <Store className="size-5 text-mafood-primary-strong" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[14px] font-semibold text-mafood-text-primary">
+                  Pedido no app · pagamento na tenda
+                </p>
+                <p className="text-[12px] leading-snug text-mafood-text-secondary">
+                  Monte a sacola aqui. O pagamento é na maquininha da tenda do Dopa.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {pdv.is_open && !acceptsOrders && (
             <div className="flex items-center gap-3 rounded-mafood-md border border-mafood-border bg-mafood-background-soft px-4 py-3.5 shadow-mafood-sm">
               <span className="grid size-9 shrink-0 place-items-center rounded-full bg-mafood-primary/10">
                 <Store className="size-5 text-mafood-primary-strong" aria-hidden="true" />
@@ -223,7 +240,7 @@ export function MenuView({
                         product={p}
                         sellsOnline={canOrder}
                         qty={qtyOf(p.id)}
-                        onAdd={() => add(p)}
+                        onAdd={() => add(p, { payAtCounter })}
                         onRemove={() => remove(p.id)}
                         onOpen={() => setOpenProduct(p)}
                       />
@@ -239,7 +256,7 @@ export function MenuView({
                     product={p}
                     sellsOnline={canOrder}
                     qty={qtyOf(p.id)}
-                    onAdd={() => add(p)}
+                    onAdd={() => add(p, { payAtCounter })}
                     onRemove={() => remove(p.id)}
                     onOpen={() => setOpenProduct(p)}
                   />
@@ -298,10 +315,11 @@ export function MenuView({
       {openProduct && (
         <ProductDetails
           product={openProduct}
-          sellsOnline={sellsOnline}
+          sellsOnline={canOrder}
+          payAtCounter={payAtCounter}
           isOpen={pdv.is_open}
           qty={qtyOf(openProduct.id)}
-          onAdd={() => add(openProduct)}
+          onAdd={() => add(openProduct, { payAtCounter })}
           onRemove={() => remove(openProduct.id)}
           onClose={() => setOpenProduct(null)}
         />

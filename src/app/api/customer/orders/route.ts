@@ -1,18 +1,14 @@
 /*
-  Criação de pedido pelo cliente (PWA). Sempre integra com Asaas:
-  - Pix: createPixPayment + getPixQr → devolve payload + QR base64 (frente exibe)
-  - Cartão de crédito (checkout transparente): createCardPayment + holderInfo
-    + remoteIp. Se Asaas retorna CONFIRMED/RECEIVED na hora, marca order como
-    paid imediatamente; caso contrário deixa pending até o webhook confirmar.
-
-  Asaas falhou (erro de validação ou rejeição): NÃO cria pedido — devolve 4xx
-  com a mensagem que o Asaas retornou (`errors[0].description`).
+  Criação de pedido pelo cliente (PWA):
+  - Pix / cartão: integra Asaas (checkout transparente)
+  - counter: pedido no app · pagamento na tenda/balcão (sem Asaas);
+    entra direto como `paid` no Kanban do PDV
 */
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCustomerSession } from "@/lib/auth/customer-session";
-import { pdvSellsOnline } from "@/lib/pdv";
+import { pdvAcceptsAppOrders, pdvPayAtCounter, pdvSellsOnline } from "@/lib/pdv";
 import { effectivePrice } from "@/lib/pricing";
 import {
   asaasEnabled,
@@ -41,7 +37,7 @@ const HolderInfoSchema = z.object({
 
 const Body = z.object({
   pdv_id: z.string().uuid(),
-  method: z.enum(["pix", "card"]),
+  method: z.enum(["pix", "card", "counter"]),
   notes: z.string().max(500).optional().nullable(),
   coupon_code: z.string().max(60).optional().nullable(),
   items: z
@@ -91,16 +87,30 @@ export async function POST(req: Request) {
 
   const { data: pdv, error: ePdv } = await supabase
     .from("pdvs")
-    .select("id, venue_id, name, is_open, category, sells_online")
+    .select("id, venue_id, name, is_open, category, sells_online, pay_at_counter")
     .eq("id", body.pdv_id)
     .maybeSingle();
   if (ePdv || !pdv) return NextResponse.json({ error: "PDV invalido" }, { status: 400 });
   if (!pdv.is_open) return NextResponse.json({ error: "PDV fechado" }, { status: 400 });
-  if (!pdvSellsOnline(pdv))
+  if (!pdvAcceptsAppOrders(pdv))
+    return NextResponse.json(
+      { error: "Este PDV não aceita pedidos pelo app" },
+      { status: 422 }
+    );
+
+  const counterCheckout = body.method === "counter";
+  if (counterCheckout && !pdvPayAtCounter(pdv)) {
+    return NextResponse.json(
+      { error: "Este PDV não aceita pagamento no local" },
+      { status: 422 }
+    );
+  }
+  if (!counterCheckout && !pdvSellsOnline(pdv)) {
     return NextResponse.json(
       { error: "Este PDV não aceita pagamento pelo app" },
       { status: 422 }
     );
+  }
 
   const productIds = body.items.map((i) => i.product_id);
   const { data: products, error: ePr } = await supabase
@@ -168,66 +178,69 @@ export async function POST(req: Request) {
       ? body.holder_info.email
       : customer.email ?? null;
 
-  // Asaas: cria/recupera cliente, cria cobrança
   let asaasPaymentId: string | null = null;
   let pixPayload: string | null = null;
   let pixQrCode: string | null = null;
   let cardInstantlyConfirmed = false;
 
-  try {
-    const asaasCustomer = await findOrCreateCustomer({
-      name: customer.name,
-      cpfCnpj: customer.cpf,
-      email: customerEmail,
-      phone: customer.phone,
-      externalReference: customer.id,
-    });
+  if (!counterCheckout) {
+    try {
+      const asaasCustomer = await findOrCreateCustomer({
+        name: customer.name,
+        cpfCnpj: customer.cpf,
+        email: customerEmail,
+        phone: customer.phone,
+        externalReference: customer.id,
+      });
 
-    if (body.method === "pix") {
-      const payment = await createPixPayment({
-        customerId: asaasCustomer.id,
-        value: total,
-        description: `maFood · ${pdv.name}`,
-        externalReference: customer.id,
-        dueDate: tomorrow(),
-      });
-      const qr = await getPixQr(payment.id);
-      asaasPaymentId = payment.id;
-      pixPayload = qr.payload;
-      pixQrCode = qr.encodedImage || null;
-    } else {
-      // Asaas exige email no holderInfo — garantido pelo schema do form
-      if (!customerEmail) {
-        return NextResponse.json({ error: "E-mail é obrigatório para cartão" }, { status: 400 });
+      if (body.method === "pix") {
+        const payment = await createPixPayment({
+          customerId: asaasCustomer.id,
+          value: total,
+          description: `maFood · ${pdv.name}`,
+          externalReference: customer.id,
+          dueDate: tomorrow(),
+        });
+        const qr = await getPixQr(payment.id);
+        asaasPaymentId = payment.id;
+        pixPayload = qr.payload;
+        pixQrCode = qr.encodedImage || null;
+      } else {
+        // Asaas exige email no holderInfo — garantido pelo schema do form
+        if (!customerEmail) {
+          return NextResponse.json({ error: "E-mail é obrigatório para cartão" }, { status: 400 });
+        }
+        const payment = await createCardPayment({
+          customerId: asaasCustomer.id,
+          value: total,
+          description: `maFood · ${pdv.name}`,
+          externalReference: customer.id,
+          dueDate: tomorrow(),
+          remoteIp: getClientIp(req),
+          creditCard: body.card!,
+          creditCardHolderInfo: {
+            name: customer.name,
+            email: customerEmail,
+            cpfCnpj: customer.cpf,
+            postalCode: body.holder_info!.postalCode,
+            addressNumber: body.holder_info!.addressNumber,
+            addressComplement: body.holder_info!.addressComplement ?? undefined,
+            phone: body.holder_info!.phone ?? customer.phone ?? undefined,
+          },
+        });
+        asaasPaymentId = payment.id;
+        cardInstantlyConfirmed = payment.status === "CONFIRMED" || payment.status === "RECEIVED";
       }
-      const payment = await createCardPayment({
-        customerId: asaasCustomer.id,
-        value: total,
-        description: `maFood · ${pdv.name}`,
-        externalReference: customer.id,
-        dueDate: tomorrow(),
-        remoteIp: getClientIp(req),
-        creditCard: body.card!,
-        creditCardHolderInfo: {
-          name: customer.name,
-          email: customerEmail,
-          cpfCnpj: customer.cpf,
-          postalCode: body.holder_info!.postalCode,
-          addressNumber: body.holder_info!.addressNumber,
-          addressComplement: body.holder_info!.addressComplement ?? undefined,
-          phone: body.holder_info!.phone ?? customer.phone ?? undefined,
-        },
-      });
-      asaasPaymentId = payment.id;
-      cardInstantlyConfirmed = payment.status === "CONFIRMED" || payment.status === "RECEIVED";
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao processar pagamento";
+      return NextResponse.json({ error: msg }, { status: 502 });
     }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Erro ao processar pagamento";
-    return NextResponse.json({ error: msg }, { status: 502 });
   }
 
-  // Cria pedido (pending por padrão; paid se cartão já confirmou)
-  const orderStatus = cardInstantlyConfirmed ? "paid" : "pending";
+  // counter → paid (Kanban NOVOS); cartão confirmado → paid; senão pending
+  const orderStatus = counterCheckout || cardInstantlyConfirmed ? "paid" : "pending";
+  const paidAt =
+    counterCheckout || cardInstantlyConfirmed ? new Date().toISOString() : null;
   const { data: order, error: eOrder } = await supabase
     .from("orders")
     .insert({
@@ -239,7 +252,7 @@ export async function POST(req: Request) {
       total,
       method: body.method,
       status: orderStatus,
-      paid_at: cardInstantlyConfirmed ? new Date().toISOString() : null,
+      paid_at: paidAt,
       notes: body.notes ?? null,
       coupon_id: couponId,
       asaas_payment_id: asaasPaymentId,
@@ -271,7 +284,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: eItems.message }, { status: 500 });
   }
 
-  if (cardInstantlyConfirmed) {
+  if (orderStatus === "paid") {
     await decrementStockForOrder(supabase, order.id);
   }
 

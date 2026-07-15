@@ -36,7 +36,7 @@ interface Order {
   customer_name: string;
   customer_cpf: string | null;
   total: number;
-  method: "pix" | "card";
+  method: "pix" | "card" | "counter";
   status: Status;
   notes: string | null;
   created_at: string;
@@ -552,7 +552,11 @@ export function OrderDetailModal({
                 </div>
                 <div className="flex items-center gap-1.5 mt-1 mono text-[10px] uppercase tracking-wider text-palantir-muted">
                   <CreditCard className="size-3" />
-                  {order.method === "pix" ? "Pix" : "Cartão de crédito"}
+                  {order.method === "pix"
+                    ? "Pix"
+                    : order.method === "counter"
+                      ? "Pagar na tenda"
+                      : "Cartão de crédito"}
                 </div>
               </>
             )}

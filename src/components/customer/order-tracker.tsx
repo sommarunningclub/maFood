@@ -28,6 +28,7 @@ interface Order {
   customer_name: string;
   total: number;
   status: Status;
+  method: "pix" | "card" | "counter";
   created_at: string;
   paid_at: string | null;
   ready_at: string | null;
@@ -39,6 +40,12 @@ interface Order {
 
 const STEPS: { status: Status; label: string }[] = [
   { status: "paid", label: "Pago" },
+  { status: "preparing", label: "Em preparo" },
+  { status: "ready", label: "Pronto" },
+  { status: "delivered", label: "Entregue" },
+];
+const STEPS_COUNTER: { status: Status; label: string }[] = [
+  { status: "paid", label: "Pedido" },
   { status: "preparing", label: "Em preparo" },
   { status: "ready", label: "Pronto" },
   { status: "delivered", label: "Entregue" },
@@ -67,7 +74,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
     const { data: o } = await supabase
       .from("orders")
       .select(
-        "id, number, customer_name, total, status, created_at, paid_at, ready_at, pdv_id, pix_payload, pix_qr_code, created_by"
+        "id, number, customer_name, total, status, method, created_at, paid_at, ready_at, pdv_id, pix_payload, pix_qr_code, created_by"
       )
       .eq("id", orderId)
       .maybeSingle();
@@ -89,6 +96,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
       customer_name: o.customer_name,
       total: Number(o.total),
       status: o.status as Status,
+      method: (o.method as Order["method"]) ?? "pix",
       created_at: o.created_at,
       paid_at: o.paid_at,
       ready_at: o.ready_at,
@@ -223,6 +231,8 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
   }
 
   const isCancelled = order.status === "cancelled";
+  const isCounter = order.method === "counter";
+  const timelineSteps = isCounter ? STEPS_COUNTER : STEPS;
 
   return (
     <div className="min-h-dvh-100 p-4 sm:p-5 pb-safe">
@@ -258,6 +268,12 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
             Pedido criado pelo balcão — pague para liberar o preparo
           </p>
         )}
+        {isCounter && !isCancelled && !isPending && (
+          <p className="mt-2 text-[13px] leading-snug text-mafood-text-secondary max-w-sm mx-auto">
+            Pagamento na tenda do Dopa (maquininha). Mostre o pedido{" "}
+            <span className="font-semibold text-mafood-text-primary">#{order.number}</span>.
+          </p>
+        )}
       </div>
 
       {/* Bloco "aguarde + atualizar" — visível enquanto pedido não está pronto/entregue */}
@@ -271,7 +287,9 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
           <p className="num text-[11px] text-mafood-text-secondary mt-3 max-w-xs">
             {isPreparing
               ? "Estamos preparando seu pedido — avisamos aqui assim que estiver pronto."
-              : "Aguardando o PDV aceitar o pedido…"}
+              : isCounter
+                ? "Pedido na fila do PDV — pague na tenda e aguarde o preparo."
+                : "Aguardando o PDV aceitar o pedido…"}
           </p>
           <button
             onClick={refreshNow}
@@ -377,7 +395,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
       {/* Timeline — oculta quando cancelado */}
       {!isCancelled && (
       <div className="mt-8 space-y-0">
-        {STEPS.map((step, i) => {
+        {timelineSteps.map((step, i) => {
           const done = rank >= RANK[step.status];
           const current = order.status === step.status || (isPartial && step.status === "ready");
           return (
@@ -392,7 +410,7 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
                 >
                   {done ? "✓" : i + 1}
                 </div>
-                {i < STEPS.length - 1 && (
+                {i < timelineSteps.length - 1 && (
                   <div
                     className={`w-0.5 h-10 ${
                       rank > RANK[step.status] ? "bg-mafood-primary" : "bg-mafood-border"

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { PdvLogo } from "@/components/pdv-logo";
-import { pdvSellsOnline } from "@/lib/pdv";
+import { pdvAcceptsAppOrders, pdvPayAtCounter, pdvSellsOnline } from "@/lib/pdv";
 import type { PdvCardData } from "@/components/customer/marketplace-view";
 import { EmptyState } from "@/components/customer/ui/mafood-states";
 
@@ -183,6 +183,18 @@ function SearchResult({
   onNavigate: () => void;
 }) {
   const online = pdvSellsOnline(pdv);
+  const payAtCounter = pdvPayAtCounter(pdv);
+  const acceptsOrders = pdvAcceptsAppOrders(pdv);
+  const sealLabel = online
+    ? "Pedir aqui"
+    : payAtCounter
+      ? "Pedir · tenda"
+      : "Cardápio";
+  const sealClass = acceptsOrders
+    ? online
+      ? "bg-mafood-accent-dark text-white"
+      : "bg-mafood-primary-strong text-white"
+    : "border border-mafood-border text-mafood-text-secondary";
   const inner = (
     <div className="flex items-center gap-3 rounded-mafood-md bg-mafood-surface-strong border border-mafood-border p-3 shadow-mafood-sm">
       <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-full bg-mafood-background-soft ring-1 ring-mafood-border">
@@ -197,14 +209,8 @@ function SearchResult({
           {!pdv.is_open && " · Fechado"}
         </p>
       </div>
-      <span
-        className={`shrink-0 rounded-mafood-sm px-2 py-0.5 text-[10px] font-semibold ${
-          online
-            ? "bg-mafood-accent-dark text-white"
-            : "border border-mafood-border text-mafood-text-secondary"
-        }`}
-      >
-        {online ? "Pedir aqui" : "Cardápio"}
+      <span className={`shrink-0 rounded-mafood-sm px-2 py-0.5 text-[10px] font-semibold ${sealClass}`}>
+        {sealLabel}
       </span>
     </div>
   );

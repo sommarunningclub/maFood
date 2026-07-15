@@ -4,8 +4,10 @@ import type { CartItem, Product } from "@/types";
 
 interface CartState {
   pdvId: string | null;
+  /** Pedido no app · pagamento na tenda/balcão (sem Asaas). */
+  payAtCounter: boolean;
   items: CartItem[];
-  add: (product: Product) => void;
+  add: (product: Product, opts?: { payAtCounter?: boolean }) => void;
   remove: (productId: string) => void;
   setNotes: (productId: string, notes: string) => void;
   clear: () => void;
@@ -17,8 +19,9 @@ export const useCart = create<CartState>()(
   persist(
     (set, get) => ({
       pdvId: null,
+      payAtCounter: false,
       items: [],
-      add: (product) =>
+      add: (product, opts) =>
         set((state) => {
           // Carrinho é por PDV — trocar de PDV limpa o carrinho
           const sameContext = state.pdvId === null || state.pdvId === product.pdv_id;
@@ -29,7 +32,10 @@ export const useCart = create<CartState>()(
                 i.product.id === product.id ? { ...i, qty: i.qty + 1 } : i
               )
             : [...items, { product, qty: 1 }];
-          return { pdvId: product.pdv_id, items: next };
+          const payAtCounter = sameContext
+            ? (opts?.payAtCounter ?? state.payAtCounter)
+            : Boolean(opts?.payAtCounter);
+          return { pdvId: product.pdv_id, payAtCounter, items: next };
         }),
       remove: (productId) =>
         set((state) => {
@@ -38,7 +44,11 @@ export const useCart = create<CartState>()(
               i.product.id === productId ? { ...i, qty: i.qty - 1 } : i
             )
             .filter((i) => i.qty > 0);
-          return { items, pdvId: items.length ? state.pdvId : null };
+          return {
+            items,
+            pdvId: items.length ? state.pdvId : null,
+            payAtCounter: items.length ? state.payAtCounter : false,
+          };
         }),
       setNotes: (productId, notes) =>
         set((state) => ({
@@ -46,7 +56,7 @@ export const useCart = create<CartState>()(
             i.product.id === productId ? { ...i, notes } : i
           ),
         })),
-      clear: () => set({ items: [], pdvId: null }),
+      clear: () => set({ items: [], pdvId: null, payAtCounter: false }),
       count: () => get().items.reduce((s, i) => s + i.qty, 0),
       total: () => get().items.reduce((s, i) => s + i.qty * i.product.price, 0),
     }),

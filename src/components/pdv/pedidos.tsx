@@ -39,7 +39,7 @@ interface Order {
   customer_name: string;
   customer_cpf: string | null;
   total: number;
-  method: "pix" | "card";
+  method: "pix" | "card" | "counter";
   status: Status;
   notes: string | null;
   created_at: string;

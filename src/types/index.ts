@@ -9,7 +9,7 @@ export type OrderStatus =
   | "delivered" // entregue
   | "cancelled";
 
-export type PaymentMethod = "pix" | "card";
+export type PaymentMethod = "pix" | "card" | "counter";
 
 export type ProductStatus = "active" | "paused" | "out_of_stock";
 
@@ -35,6 +35,7 @@ export interface Pdv {
   is_open: boolean;
   is_visible: boolean;
   sells_online: boolean;
+  pay_at_counter: boolean;
   sort_order: number;
   wallet_balance: number;
 }

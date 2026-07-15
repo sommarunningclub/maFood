@@ -20,6 +20,7 @@ const STATUS_LABEL: Record<Product["status"], string> = {
 export function ProductDetails({
   product,
   sellsOnline,
+  payAtCounter = false,
   isOpen = true,
   qty,
   onAdd,
@@ -28,6 +29,7 @@ export function ProductDetails({
 }: {
   product: Product;
   sellsOnline: boolean;
+  payAtCounter?: boolean;
   isOpen?: boolean;
   qty: number;
   onAdd: () => void;
@@ -288,7 +290,9 @@ export function ProductDetails({
                   ? STATUS_LABEL[product.status] || "Indisponível no momento"
                   : !isOpen
                     ? "PDV fechado — pedidos online indisponíveis"
-                    : "Pagamento direto no balcão do PDV"}
+                    : payAtCounter
+                      ? "Pedido no app · pagamento na tenda do Dopa"
+                      : "Pagamento direto no balcão do PDV"}
               </p>
             </div>
           )}
