@@ -62,6 +62,7 @@ export function ProductsView({
   const [selectedPrice, setSelectedPrice] = useState<number>(initialProducts[0]?.price ?? 38);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState<"category" | "pdv" | null>(null);
+  const [deleteTargets, setDeleteTargets] = useState<ProductRow[] | null>(null);
 
   // Keep localProducts in sync when the server refreshes initialProducts
   useEffect(() => {
@@ -276,18 +277,30 @@ export function ProductsView({
                       {STATUS_META[p.status].label}
                     </td>
                     <td className="px-3 py-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const fresh = localProducts.find((x) => x.id === p.id) ?? p;
-                          setSelectedPrice(fresh.price);
-                          setEditTarget(fresh);
-                        }}
-                        aria-label={`Editar ${p.name}`}
-                        className="grid size-9 place-items-center rounded-admin border border-palantir-border text-palantir-text hover:bg-palantir-surface2 focus-ring-admin"
-                      >
-                        <Pencil className="size-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const fresh = localProducts.find((x) => x.id === p.id) ?? p;
+                            setSelectedPrice(fresh.price);
+                            setEditTarget(fresh);
+                          }}
+                          aria-label={`Editar ${p.name}`}
+                          className="grid size-9 place-items-center rounded-admin border border-palantir-border text-palantir-text hover:bg-palantir-surface2 focus-ring-admin"
+                        >
+                          <Pencil className="size-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTargets([localProducts.find((x) => x.id === p.id) ?? p]);
+                          }}
+                          aria-label={`Excluir ${p.name}`}
+                          className="grid size-9 place-items-center rounded-admin border border-palantir-border text-palantir-muted hover:bg-palantir-red/10 hover:text-palantir-red hover:border-palantir-red/40 focus-ring-admin"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -340,16 +353,28 @@ export function ProductsView({
                         {p.category && <> · {p.category}</>}
                       </p>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditTarget(localProducts.find((x) => x.id === p.id) ?? p);
-                      }}
-                      aria-label={`Editar ${p.name}`}
-                      className="grid size-touch shrink-0 place-items-center rounded-admin border border-palantir-border text-palantir-text hover:bg-palantir-surface2 focus-ring-admin"
-                    >
-                      <Pencil className="size-4" />
-                    </button>
+                    <div className="flex shrink-0 gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditTarget(localProducts.find((x) => x.id === p.id) ?? p);
+                        }}
+                        aria-label={`Editar ${p.name}`}
+                        className="grid size-touch place-items-center rounded-admin border border-palantir-border text-palantir-text hover:bg-palantir-surface2 focus-ring-admin"
+                      >
+                        <Pencil className="size-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTargets([localProducts.find((x) => x.id === p.id) ?? p]);
+                        }}
+                        aria-label={`Excluir ${p.name}`}
+                        className="grid size-touch place-items-center rounded-admin border border-palantir-border text-palantir-muted hover:bg-palantir-red/10 hover:text-palantir-red hover:border-palantir-red/40 focus-ring-admin"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
                   </div>
                   <div className="mt-1.5 flex items-center justify-between gap-2">
                     <span className="mono text-sm text-palantir-text">
@@ -417,6 +442,14 @@ export function ProductsView({
             Mover p/ PDV
           </button>
           <button
+            onClick={() =>
+              setDeleteTargets(localProducts.filter((p) => selected.has(p.id)))
+            }
+            className="mono rounded-admin border border-palantir-red/50 px-3 min-h-touch text-[10px] uppercase text-palantir-red hover:bg-palantir-red/10 focus-ring-admin"
+          >
+            Excluir
+          </button>
+          <button
             onClick={clearSelection}
             aria-label="Cancelar seleção"
             className="grid size-touch place-items-center text-palantir-muted hover:text-palantir-text focus-ring-admin"
@@ -440,6 +473,19 @@ export function ProductsView({
               )
             );
             setBulkAction(null);
+            clearSelection();
+            router.refresh();
+          }}
+        />
+      )}
+
+      {deleteTargets && (
+        <DeleteProductsDialog
+          products={deleteTargets}
+          onClose={() => setDeleteTargets(null)}
+          onDeleted={(deletedIds) => {
+            setLocalProducts((prev) => prev.filter((p) => !deletedIds.includes(p.id)));
+            setDeleteTargets(null);
             clearSelection();
             router.refresh();
           }}
@@ -1076,6 +1122,88 @@ function CategoriesDialog({
 }
 
 // ─── shared ────────────────────────────────────────────────────────
+
+// ─── Delete products dialog (destrutivo) ──────────────────────────
+
+function DeleteProductsDialog({
+  products,
+  onClose,
+  onDeleted,
+}: {
+  products: ProductRow[];
+  onClose: () => void;
+  onDeleted: (deletedIds: string[]) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const many = products.length > 1;
+
+  async function confirmDelete() {
+    setError(null);
+    setLoading(true);
+    const results = await Promise.all(
+      products.map((p) =>
+        fetch(`/api/admin/products/${p.id}`, { method: "DELETE" })
+          .then((r) => ({ id: p.id, ok: r.ok }))
+          .catch(() => ({ id: p.id, ok: false }))
+      )
+    );
+    const okIds = results.filter((r) => r.ok).map((r) => r.id);
+    const failed = products.length - okIds.length;
+    setLoading(false);
+    if (failed > 0) {
+      setError(`${failed} produto(s) não puderam ser excluídos. Tente de novo.`);
+      return;
+    }
+    onDeleted(okIds);
+  }
+
+  return (
+    <Modal
+      onClose={onClose}
+      title={many ? `Excluir ${products.length} produtos` : `Excluir — ${products[0].name}`}
+    >
+      <div className="rounded-admin border border-palantir-red/40 bg-palantir-red/10 px-3 py-2.5 mb-3">
+        <p className="text-[13px] text-palantir-text">
+          Esta ação é <span className="font-semibold text-palantir-red">irreversível</span>.
+          {many
+            ? " Os produtos selecionados serão removidos do cardápio."
+            : " O produto será removido do cardápio."}{" "}
+          Pedidos antigos não são afetados (guardam nome e preço próprios).
+        </p>
+      </div>
+
+      {many && (
+        <ul className="mb-3 max-h-40 overflow-y-auto rounded-admin border border-palantir-border divide-y divide-palantir-border">
+          {products.map((p) => (
+            <li key={p.id} className="px-3 py-1.5 text-[13px] text-palantir-text flex justify-between gap-2">
+              <span className="truncate">{p.name}</span>
+              <span className="mono text-palantir-muted shrink-0">{brl(p.price)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {error && <p className="mono text-xs text-palantir-red mb-3">{error}</p>}
+
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-1">
+        <button
+          onClick={onClose}
+          className="mono text-xs text-palantir-muted min-h-touch px-3 focus-ring-admin"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={confirmDelete}
+          disabled={loading}
+          className="rounded-admin bg-palantir-red min-h-touch px-4 text-sm font-semibold text-white disabled:opacity-40 focus-ring-admin"
+        >
+          {loading ? "Excluindo..." : many ? `Excluir ${products.length}` : "Excluir produto"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
 
 function Modal({
   children,
