@@ -1,24 +1,111 @@
 import { PageHeader } from "@/components/admin/page-header";
-import { PDVS } from "@/lib/mock-data";
-import { breakdownFromFinal } from "@/lib/pricing";
+import { logServerError } from "@/lib/server-errors";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { brl } from "@/lib/utils";
 
-const GROSS: Record<string, number> = {
-  "pdv-smash": 3710,
-  "pdv-beer": 2308,
-  "pdv-acai": 1485,
-  "pdv-coffee": 495,
-  "pdv-store": 247,
+export const dynamic = "force-dynamic";
+
+const REVENUE_STATUSES = ["paid", "preparing", "ready", "partial", "delivered"];
+
+type FinancialPdv = {
+  id: string;
+  name: string;
+  commission_pct: number | string | null;
+  gateway_pct: number | string | null;
 };
 
-export default function FinancialPage() {
-  const rows = PDVS.map((p) => {
-    const gross = GROSS[p.id] ?? 0;
-    const b = breakdownFromFinal(gross, {
-      commissionPct: p.commission_pct,
-      gatewayPct: p.gateway_pct,
+type FinancialOrder = {
+  pdv_id: string;
+  total: number | string | null;
+  method: "pix" | "card" | "counter";
+};
+
+type PayoutRecord = {
+  pdv_id: string;
+  status: string;
+  period_end: string;
+  created_at: string;
+};
+
+export default async function FinancialPage() {
+  let pdvs: FinancialPdv[] = [];
+  let orders: FinancialOrder[] = [];
+  let payouts: PayoutRecord[] = [];
+  let errorReference: string | null = null;
+
+  try {
+    const supabase = createAdminClient();
+    const [pdvResult, orderResult, payoutResult] = await Promise.all([
+      supabase
+        .from("pdvs")
+        .select("id, name, commission_pct, gateway_pct")
+        .order("sort_order")
+        .returns<FinancialPdv[]>(),
+      supabase
+        .from("orders")
+        .select("pdv_id, total, method")
+        .in("status", REVENUE_STATUSES)
+        .returns<FinancialOrder[]>(),
+      supabase
+        .from("payouts")
+        .select("pdv_id, status, period_end, created_at")
+        .order("period_end", { ascending: false })
+        .order("created_at", { ascending: false })
+        .returns<PayoutRecord[]>(),
+    ]);
+
+    const loadError = pdvResult.error ?? orderResult.error ?? payoutResult.error;
+    if (loadError) throw loadError;
+    pdvs = pdvResult.data ?? [];
+    orders = orderResult.data ?? [];
+    payouts = payoutResult.data ?? [];
+  } catch (error) {
+    errorReference = logServerError("admin-financial", error);
+  }
+
+  const pdvById = new Map(pdvs.map((pdv) => [pdv.id, pdv]));
+  const totalsByPdv = new Map<
+    string,
+    { final: number; commission: number; gateway: number; net: number }
+  >();
+  for (const order of orders) {
+    const pdv = pdvById.get(order.pdv_id);
+    const value = Number(order.total ?? 0);
+    if (!pdv || !Number.isFinite(value)) continue;
+    const commission = (value * Number(pdv.commission_pct ?? 0)) / 100;
+    const gateway =
+      order.method === "counter"
+        ? 0
+        : (value * Number(pdv.gateway_pct ?? 0)) / 100;
+    const current = totalsByPdv.get(order.pdv_id) ?? {
+      final: 0,
+      commission: 0,
+      gateway: 0,
+      net: 0,
+    };
+    totalsByPdv.set(order.pdv_id, {
+      final: current.final + value,
+      commission: current.commission + commission,
+      gateway: current.gateway + gateway,
+      net: current.net + value - commission - gateway,
     });
-    return { pdv: p, ...b };
+  }
+
+  const latestPayoutByPdv = new Map<string, PayoutRecord>();
+  for (const payout of payouts) {
+    if (!latestPayoutByPdv.has(payout.pdv_id)) {
+      latestPayoutByPdv.set(payout.pdv_id, payout);
+    }
+  }
+
+  const rows = pdvs.map((pdv) => {
+    const totals = totalsByPdv.get(pdv.id) ?? {
+      final: 0,
+      commission: 0,
+      gateway: 0,
+      net: 0,
+    };
+    return { pdv, payout: latestPayoutByPdv.get(pdv.id) ?? null, ...totals };
   });
 
   const totals = rows.reduce(
@@ -33,8 +120,21 @@ export default function FinancialPage() {
 
   return (
     <>
-      <PageHeader title="Financeiro" subtitle="Espelho de repasses por PDV" />
+      <PageHeader
+        title="Financeiro"
+        subtitle="Acumulado real de vendas confirmadas · repasses cadastrados"
+      />
       <div className="p-4 sm:p-6">
+        {errorReference && (
+          <div
+            role="alert"
+            className="mb-4 border border-palantir-red/40 bg-palantir-red/10 px-4 py-3 text-sm text-palantir-red"
+          >
+            Não foi possível carregar o financeiro. Referência:{" "}
+            <span className="mono">{errorReference}</span>
+          </div>
+        )}
+
         {/* KPIs financeiros */}
         <div className="mb-6 grid grid-cols-2 lg:grid-cols-4 gap-px bg-palantir-border">
           {[
@@ -74,12 +174,21 @@ export default function FinancialPage() {
                   <td className="mono px-4 py-2 text-right text-palantir-red whitespace-nowrap">{brl(r.gateway)}</td>
                   <td className="mono px-4 py-2 text-right text-palantir-green whitespace-nowrap">{brl(r.net)}</td>
                   <td className="px-4 py-2 text-right">
-                    <span className="mono rounded-admin bg-palantir-green/15 px-2 py-0.5 text-[10px] text-palantir-green">
-                      LIQUIDADO
+                    <span
+                      className={`mono rounded-admin px-2 py-0.5 text-[10px] ${payoutTone(r.payout?.status)}`}
+                    >
+                      {payoutLabel(r.payout?.status)}
                     </span>
                   </td>
                 </tr>
               ))}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-palantir-muted">
+                    Nenhum PDV cadastrado
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -90,8 +199,10 @@ export default function FinancialPage() {
             <li key={r.pdv.id} className="border border-palantir-border bg-palantir-surface p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-palantir-text font-medium truncate">{r.pdv.name}</p>
-                <span className="mono shrink-0 rounded-admin bg-palantir-green/15 px-2 py-0.5 text-[10px] text-palantir-green">
-                  LIQUIDADO
+                <span
+                  className={`mono shrink-0 rounded-admin px-2 py-0.5 text-[10px] ${payoutTone(r.payout?.status)}`}
+                >
+                  {payoutLabel(r.payout?.status)}
                 </span>
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
@@ -102,10 +213,34 @@ export default function FinancialPage() {
               </div>
             </li>
           ))}
+          {rows.length === 0 && (
+            <li className="border border-palantir-border bg-palantir-surface p-6 text-center text-palantir-muted">
+              Nenhum PDV cadastrado
+            </li>
+          )}
         </ul>
       </div>
     </>
   );
+}
+
+function payoutLabel(status: string | undefined) {
+  if (!status) return "SEM REPASSE";
+  const normalized = status.toLowerCase();
+  if (["paid", "completed", "liquidated"].includes(normalized)) return "LIQUIDADO";
+  if (["pending", "processing"].includes(normalized)) return "PENDENTE";
+  return normalized.replaceAll("_", " ").toUpperCase();
+}
+
+function payoutTone(status: string | undefined) {
+  const normalized = status?.toLowerCase();
+  if (normalized && ["paid", "completed", "liquidated"].includes(normalized)) {
+    return "bg-palantir-green/15 text-palantir-green";
+  }
+  if (normalized && ["pending", "processing"].includes(normalized)) {
+    return "bg-palantir-yellow/15 text-palantir-yellow";
+  }
+  return "bg-palantir-muted/15 text-palantir-muted";
 }
 
 function Stat({ label, value, className }: { label: string; value: string; className?: string }) {

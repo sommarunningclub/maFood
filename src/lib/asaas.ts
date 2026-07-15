@@ -14,6 +14,7 @@
 
   Docs: https://docs.asaas.com/
 */
+import { logServerError } from "@/lib/server-errors";
 
 function normalizeBaseUrl(raw: string | undefined): string {
   const base = (raw || "https://api.asaas.com/v3").replace(/\/+$/, "");
@@ -269,7 +270,7 @@ export async function cancelPayment(paymentId: string): Promise<boolean> {
     await asaasFetch(`/payments/${paymentId}`, { method: "DELETE" });
     return true;
   } catch (err) {
-    console.error("[asaas] cancelPayment failed", { paymentId, err });
+    logServerError("asaas-cancel-payment", err);
     return false;
   }
 }

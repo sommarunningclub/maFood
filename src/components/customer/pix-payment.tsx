@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { brl } from "@/lib/utils";
 import {
   formatCountdown,
@@ -39,13 +38,17 @@ export function PixPayment({
   phaseRef.current = phase;
 
   const checkStatus = useCallback(async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("orders")
-      .select("status")
-      .eq("id", orderId)
-      .maybeSingle();
-    if (data && isPaidStatus(data.status)) setPhase("paid");
+    try {
+      const response = await fetch(`/api/customer/orders/${orderId}?view=status`, {
+        cache: "no-store",
+      });
+      if (!response.ok) return;
+      const data = (await response.json().catch(() => ({}))) as { status?: string };
+      if (isPaidStatus(data.status)) setPhase("paid");
+      if (data.status === "cancelled") setPhase("expired");
+    } catch {
+      // Polling tenta novamente; não derruba a tela por uma falha transitória.
+    }
   }, [orderId]);
 
   // Contador de expiração
@@ -62,24 +65,14 @@ export function PixPayment({
     return () => clearInterval(t);
   }, []);
 
-  // Realtime + polling de reforço
+  // Polling autenticado: evita expor o payload completo de `orders` ao browser.
   useEffect(() => {
     void checkStatus();
-    const supabase = createClient();
-    const ch = supabase
-      .channel(`order-${orderId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "mafood", table: "orders", filter: `id=eq.${orderId}` },
-        () => void checkStatus()
-      )
-      .subscribe();
     const poll = setInterval(() => void checkStatus(), PIX_POLL_MS);
     return () => {
-      supabase.removeChannel(ch);
       clearInterval(poll);
     };
-  }, [orderId, checkStatus]);
+  }, [checkStatus]);
 
   async function copyPix() {
     if (!pixPayload) return;

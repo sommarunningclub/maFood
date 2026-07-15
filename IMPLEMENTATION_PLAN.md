@@ -1,59 +1,61 @@
-# maFood Implementation Plan
+# maFood — plano de implementação
 
-## 1. Project Setup
-1. Initialize Next.js 14 project with TypeScript
-2. Install all required dependencies:
-   - Next.js 14 (App Router)
-   - Tailwind CSS with two design systems
-   - shadcn/ui with custom radius settings
-   - React Hook Form + Zod for all forms
-   - TanStack Query v5 for server state
-   - TanStack Table v8 for all backoffice tables
-   - Zustand for client state
-   - Framer Motion for animations
-   - Recharts for analytics
-   - @dnd-kit/sort0able for PDV reordering
+Atualizado em 15 de julho de 2026. O produto base já está implementado; este
+plano cobre os próximos ciclos.
 
-## 2. Backend Implementation (Supabase setup)
-1. Set up Supabase project with PostgreSQL
-2. Run database SQL migrations
-3. Configure RLS and Realtime
-4. Set up Supabase Auth and configure middleware for route protection
+## Concluído neste ciclo
 
-## 3. Core Libraries Implementation
-1. Set up Asaas API wrapper
-2. Implement pricing engine hook
-3. Create API routes for:
-   - pricing calculation
-   - order creation
-   - coupon validation
-   - Pix payment
-   - Asaas webhooks
-   - credit card payments
+- upload seguro com decode e reencode;
+- respostas de erro privadas e correlacionadas;
+- polling autenticado para dados de pedido do cliente;
+- reconciliação do carrinho e correções de checkout/cardápio;
+- dashboard, financeiro e cupons com dados reais;
+- remoção de mocks e dependências não utilizadas;
+- documentação técnica e operacional.
 
-## 4. Frontend Development - Client Interface (PWA Mobile-first)
-1. Implement marketplace for venues
-2. Create PDV pages
-3. Build checkout flow (Pix and credit card)
-4. Implement order tracking with realtime updates
-5. Build order history page
-6. Implement coupon system in checkout
+## Ciclo 1 — banco e autorização
 
-## 5. PDV Panel (Tablet-first)
-1. Build Kanban board for order management
-2. Implement product management (pause vs out of stock)
-3. Realtime notifications and WebSocket updates
+1. Criar migration de hardening para grants, default privileges e RLS.
+2. Criar views/RPCs mínimas para catálogo público.
+3. Remover acesso anônimo a customers, orders, order_items e dados internos de
+   PDV.
+4. Testar políticas com os papéis `anon`, `authenticated` e `service_role`.
+5. Rotacionar PINs e segredos depois da correção.
 
-## 6. Admin Interface (Desktop)
-1. Dashboard with KPIs
-2. Order management system
-3. PDV management with drag-and-drop
-4. Product management
-5. Coupon management
-6. Financial reports
+Critério de saída: nenhum dado pessoal, financeiro ou credencial é legível por
+`anon`.
 
-## 7. Deployment
-1. PWA configuration
-2. Service worker setup
-3. Vercel deployment
-4. Sentry integration
+## Ciclo 2 — consistência financeira
+
+1. Tornar pedido, itens, estoque e uso de cupom uma operação transacional.
+2. Adicionar idempotência à criação de cobranças e ao webhook.
+3. Formalizar a máquina de estados de pedidos.
+4. Tratar reembolso/cancelamento e falhas parciais.
+
+Critério de saída: reenvios e concorrência não duplicam cobrança, pedido,
+desconto ou baixa de estoque.
+
+## Ciclo 3 — proteção contra abuso
+
+1. Rate limiting compartilhado em login, lookup, checkout e pagamento.
+2. Fortalecer a autenticação do cliente além do conhecimento do CPF.
+3. Adicionar expiração e tentativas máximas aos links de pagamento.
+4. Registrar eventos de segurança sem armazenar dados sensíveis.
+
+## Ciclo 4 — qualidade e observabilidade
+
+1. Testes de integração dos Route Handlers.
+2. E2E de Pix, cartão, balcão, cupom e carrinho desatualizado.
+3. Testes de concorrência de estoque e cupom.
+4. Monitoramento de erros, métricas, alertas e runbooks.
+5. CI com testes, lint, build e auditoria de dependências.
+
+## Ciclo 5 — release
+
+1. Ensaio completo em sandbox Asaas.
+2. Revisão de variáveis e domínios.
+3. Backup e plano de rollback das migrations.
+4. Teste de carga do PDV e webhook.
+5. Liberação gradual e monitorada.
+
+Consulte `_docs/SECURITY.md` e `_docs/OPERATIONS.md` antes do deploy.

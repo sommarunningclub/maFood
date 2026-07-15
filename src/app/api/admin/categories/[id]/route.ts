@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 const Patch = z.object({
   name: z.string().min(1).max(80).optional(),
@@ -26,16 +27,29 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       .eq("id", params.id)
       .maybeSingle();
     if (cat && cat.name !== body.name) {
-      await supabase
+      const { error: productsError } = await supabase
         .from("products")
         .update({ category: body.name })
         .eq("pdv_id", cat.pdv_id)
         .eq("category_id", params.id);
+      if (productsError) {
+        return internalErrorResponse(
+          "admin-category-products",
+          productsError,
+          "Não foi possível atualizar os produtos da categoria"
+        );
+      }
     }
   }
 
   const { error } = await supabase.from("product_categories").update(body).eq("id", params.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "admin-category-update",
+      error,
+      "Não foi possível atualizar a categoria"
+    );
+  }
   return NextResponse.json({ ok: true });
 }
 
@@ -43,6 +57,12 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   const supabase = createAdminClient();
   // products que referenciam vão ficar com category_id = null (on delete set null)
   const { error } = await supabase.from("product_categories").delete().eq("id", params.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "admin-category-delete",
+      error,
+      "Não foi possível excluir a categoria"
+    );
+  }
   return NextResponse.json({ ok: true });
 }

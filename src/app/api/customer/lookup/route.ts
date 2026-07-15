@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient, createAdminClientPublic } from "@/lib/supabase/admin";
 import { signCustomer, setCustomerCookie } from "@/lib/auth/customer-session";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 const Body = z.object({ cpf: z.string().min(11).max(14) });
 
@@ -19,11 +20,18 @@ export async function POST(req: Request) {
   const mafood = createAdminClient();
 
   // 1) Já existe em customers?
-  const { data: existing } = await mafood
+  const { data: existing, error: existingError } = await mafood
     .from("customers")
     .select("id, name, cpf, is_vip")
     .eq("cpf", cpf)
     .maybeSingle();
+  if (existingError) {
+    return internalErrorResponse(
+      "customer-lookup",
+      existingError,
+      "Não foi possível consultar o cadastro"
+    );
+  }
 
   if (existing) {
     // Já cadastrado → cria sessão direto
@@ -34,16 +42,23 @@ export async function POST(req: Request) {
       is_vip: existing.is_vip,
     });
     await setCustomerCookie(token);
-    return NextResponse.json({ status: "existing", customer: existing });
+    return NextResponse.json({ status: "existing" });
   }
 
   // 2) Está na lista_vip? (lê do schema public via cliente apropriado)
   const pub = createAdminClientPublic();
-  const { data: vip } = await pub
+  const { data: vip, error: vipError } = await pub
     .from("lista_vip_publico")
     .select("id, nome, cpf, email, telefone")
     .eq("cpf", cpf)
     .maybeSingle();
+  if (vipError) {
+    return internalErrorResponse(
+      "customer-lookup-vip",
+      vipError,
+      "Não foi possível consultar o cadastro"
+    );
+  }
 
   if (vip) {
     return NextResponse.json({

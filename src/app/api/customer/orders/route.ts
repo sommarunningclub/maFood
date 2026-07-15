@@ -24,12 +24,16 @@ import {
   lineDisplayName,
   parseProductSizes,
 } from "@/lib/product-sizes";
+import { internalErrorResponse, upstreamErrorResponse } from "@/lib/server-errors";
 
 const CardSchema = z.object({
   holderName: z.string().min(2).max(120),
-  number: z.string().min(13).max(25),
-  expiryMonth: z.string().regex(/^\d{1,2}$/),
-  expiryYear: z.string().regex(/^\d{2}|\d{4}$/),
+  number: z
+    .string()
+    .transform((value) => value.replace(/\s+/g, ""))
+    .pipe(z.string().regex(/^\d{13,19}$/, "Número de cartão inválido")),
+  expiryMonth: z.string().regex(/^(0?[1-9]|1[0-2])$/, "Mês inválido"),
+  expiryYear: z.string().regex(/^(?:\d{2}|\d{4})$/, "Ano inválido"),
   ccv: z.string().regex(/^\d{3,4}$/),
 });
 
@@ -57,6 +61,18 @@ function tomorrow(): string {
   return d.toISOString().slice(0, 10);
 }
 
+function todayInSaoPaulo(): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return `${value("year")}-${value("month")}-${value("day")}`;
+}
+
 function getClientIp(req: Request): string {
   const xff = req.headers.get("x-forwarded-for");
   if (xff) return xff.split(",")[0].trim();
@@ -81,7 +97,16 @@ export async function POST(req: Request) {
     );
   }
 
-  const supabase = createAdminClient();
+  let supabase: ReturnType<typeof createAdminClient>;
+  try {
+    supabase = createAdminClient();
+  } catch (error) {
+    return internalErrorResponse(
+      "customer-order-client",
+      error,
+      "Pagamento temporariamente indisponível"
+    );
+  }
 
   const { data: pdv, error: ePdv } = await supabase
     .from("pdvs")
@@ -115,7 +140,13 @@ export async function POST(req: Request) {
     .from("products")
     .select("id, pdv_id, name, price, sale_price, status, sizes")
     .in("id", productIds);
-  if (ePr) return NextResponse.json({ error: ePr.message }, { status: 500 });
+  if (ePr) {
+    return internalErrorResponse(
+      "customer-order-products",
+      ePr,
+      "Não foi possível validar os produtos"
+    );
+  }
 
   const byId = new Map((products ?? []).map((p) => [p.id, p]));
 
@@ -164,34 +195,86 @@ export async function POST(req: Request) {
 
   if (body.coupon_code) {
     const code = body.coupon_code.trim().toUpperCase();
-    const { data: coupon } = await supabase
+    const { data: coupon, error: couponError } = await supabase
       .from("coupons")
-      .select("id, type, value, min_order, max_uses, used, is_active, valid_until")
+      .select(
+        "id, venue_id, type, value, min_order, max_uses, used, is_active, valid_until"
+      )
       .eq("code", code)
       .maybeSingle();
-    if (coupon && coupon.is_active && (coupon.max_uses === 0 || coupon.used < coupon.max_uses)) {
-      const exp = coupon.valid_until ? new Date(coupon.valid_until) : null;
-      const ok = !exp || exp >= new Date();
-      const min = Number(coupon.min_order);
-      if (ok && subtotal >= min) {
-        couponId = coupon.id;
-        discount =
-          coupon.type === "percent"
-            ? (subtotal * Number(coupon.value)) / 100
-            : Number(coupon.value);
-      }
+    if (couponError) {
+      return internalErrorResponse(
+        "customer-order-coupon",
+        couponError,
+        "Não foi possível validar o cupom"
+      );
     }
+    if (!coupon) {
+      return NextResponse.json({ error: "Cupom não encontrado" }, { status: 400 });
+    }
+    if (!coupon.is_active) {
+      return NextResponse.json({ error: "Cupom inativo" }, { status: 400 });
+    }
+    if (coupon.venue_id && coupon.venue_id !== pdv.venue_id) {
+      return NextResponse.json(
+        { error: "Cupom não válido para este evento" },
+        { status: 400 }
+      );
+    }
+    if (coupon.max_uses > 0 && coupon.used >= coupon.max_uses) {
+      return NextResponse.json({ error: "Cupom esgotado" }, { status: 400 });
+    }
+    if (coupon.valid_until && coupon.valid_until < todayInSaoPaulo()) {
+      return NextResponse.json({ error: "Cupom expirado" }, { status: 400 });
+    }
+    if (subtotal < Number(coupon.min_order)) {
+      return NextResponse.json(
+        { error: `Pedido mínimo de R$ ${Number(coupon.min_order).toFixed(2)}` },
+        { status: 400 }
+      );
+    }
+
+    const { data: couponPdvs, error: couponPdvsError } = await supabase
+      .from("coupons_pdvs")
+      .select("pdv_id")
+      .eq("coupon_id", coupon.id);
+    if (couponPdvsError) {
+      return internalErrorResponse(
+        "customer-order-coupon-scope",
+        couponPdvsError,
+        "Não foi possível validar o cupom"
+      );
+    }
+    if ((couponPdvs ?? []).length > 0 && !couponPdvs?.some((item) => item.pdv_id === pdv.id)) {
+      return NextResponse.json(
+        { error: "Cupom não válido para este PDV" },
+        { status: 400 }
+      );
+    }
+
+    couponId = coupon.id;
+    discount =
+      coupon.type === "percent"
+        ? (subtotal * Number(coupon.value)) / 100
+        : Number(coupon.value);
   }
 
   const total = Math.max(0, subtotal - discount);
   if (total <= 0) return NextResponse.json({ error: "Total inválido" }, { status: 400 });
 
   // Cliente completo do banco (Asaas holderInfo vem do cadastro)
-  const { data: customer } = await supabase
+  const { data: customer, error: customerError } = await supabase
     .from("customers")
     .select("id, name, email, phone, cpf, postal_code, address_number, address_complement")
     .eq("id", session.customer_id)
     .maybeSingle();
+  if (customerError) {
+    return internalErrorResponse(
+      "customer-order-customer",
+      customerError,
+      "Não foi possível consultar o cadastro"
+    );
+  }
   if (!customer) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
 
   if (body.method === "card") {
@@ -261,8 +344,11 @@ export async function POST(req: Request) {
         cardInstantlyConfirmed = payment.status === "CONFIRMED" || payment.status === "RECEIVED";
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erro ao processar pagamento";
-      return NextResponse.json({ error: msg }, { status: 502 });
+      return upstreamErrorResponse(
+        "customer-order-payment",
+        err,
+        "Não foi possível processar o pagamento. Confira os dados e tente novamente."
+      );
     }
   }
 
@@ -291,7 +377,11 @@ export async function POST(req: Request) {
     .single();
 
   if (eOrder || !order) {
-    return NextResponse.json({ error: eOrder?.message ?? "Erro ao criar pedido" }, { status: 500 });
+    return internalErrorResponse(
+      "customer-order-create",
+      eOrder ?? new Error("order insert returned no row"),
+      "Não foi possível criar o pedido"
+    );
   }
 
   const itemsToInsert = body.items.map((it) => {
@@ -310,7 +400,11 @@ export async function POST(req: Request) {
   const { error: eItems } = await supabase.from("order_items").insert(itemsToInsert);
   if (eItems) {
     await supabase.from("orders").delete().eq("id", order.id);
-    return NextResponse.json({ error: eItems.message }, { status: 500 });
+    return internalErrorResponse(
+      "customer-order-items",
+      eItems,
+      "Não foi possível salvar os itens do pedido"
+    );
   }
 
   if (orderStatus === "paid") {

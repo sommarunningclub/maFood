@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPdvSession } from "@/lib/auth/session";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 export async function GET() {
   const session = await getPdvSession();
@@ -14,7 +15,13 @@ export async function GET() {
     .eq("pdv_id", session.pdv_id)
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "pdv-categories-list",
+      error,
+      "Não foi possível carregar as categorias"
+    );
+  }
   return NextResponse.json({ categories: data ?? [] });
 }
 
@@ -45,6 +52,12 @@ export async function POST(req: Request) {
     .select("id, name, sort_order, is_active")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "pdv-category-create",
+      error,
+      "Não foi possível criar a categoria"
+    );
+  }
   return NextResponse.json({ ok: true, category: data });
 }

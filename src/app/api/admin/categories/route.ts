@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 const CategoryInput = z.object({
   pdv_id: z.string().uuid(),
@@ -21,7 +22,13 @@ export async function GET(req: Request) {
     .eq("pdv_id", pdvId)
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "admin-categories-list",
+      error,
+      "Não foi possível carregar as categorias"
+    );
+  }
   return NextResponse.json({ items: data ?? [] });
 }
 
@@ -52,6 +59,12 @@ export async function POST(req: Request) {
     .insert(body)
     .select("id")
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "admin-category-create",
+      error,
+      "Não foi possível criar a categoria"
+    );
+  }
   return NextResponse.json({ ok: true, id: data.id });
 }

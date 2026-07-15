@@ -11,6 +11,7 @@ import {
   signCustomer,
   setCustomerCookie,
 } from "@/lib/auth/customer-session";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 const CUSTOMER_SELECT =
   "id, name, cpf, email, phone, postal_code, address_number, address_complement, is_vip, created_at";
@@ -25,14 +26,28 @@ export async function GET() {
     .select(CUSTOMER_SELECT)
     .eq("id", session.customer_id)
     .maybeSingle();
-  if (error || !customer) {
+  if (error) {
+    return internalErrorResponse(
+      "customer-profile-read",
+      error,
+      "Não foi possível carregar o cadastro"
+    );
+  }
+  if (!customer) {
     return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
   }
 
-  const { count } = await supabase
+  const { count, error: countError } = await supabase
     .from("orders")
     .select("id", { count: "exact", head: true })
     .eq("customer_id", session.customer_id);
+  if (countError) {
+    return internalErrorResponse(
+      "customer-profile-orders-count",
+      countError,
+      "Não foi possível carregar o cadastro"
+    );
+  }
 
   return NextResponse.json({ customer, orders_count: count ?? 0 });
 }
@@ -90,7 +105,13 @@ export async function PATCH(req: Request) {
     .eq("id", session.customer_id)
     .select(CUSTOMER_SELECT)
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "customer-profile-update",
+      error,
+      "Não foi possível salvar o cadastro"
+    );
+  }
 
   if (patch.name && patch.name !== session.name) {
     const token = await signCustomer({

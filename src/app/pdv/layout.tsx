@@ -1,9 +1,11 @@
-import { Providers } from "@/components/providers";
+import { adminMono, adminSans } from "@/lib/fonts/admin";
 
 export default function PdvLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Providers>
-      <div className="theme-admin min-h-screen">{children}</div>
-    </Providers>
+    <div
+      className={`${adminSans.variable} ${adminMono.variable} theme-admin min-h-screen`}
+    >
+      {children}
+    </div>
   );
 }

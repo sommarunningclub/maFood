@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPdvSession } from "@/lib/auth/session";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 const Item = z.object({
   product_id: z.string().uuid(),
@@ -50,7 +51,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   if (Object.keys(patch).length) {
     const { error } = await supabase.from("combos").update(patch).eq("id", params.id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      return internalErrorResponse(
+        "pdv-combo-update",
+        error,
+        "Não foi possível atualizar o combo"
+      );
+    }
   }
 
   // Reescreve itens se vieram (replace all)
@@ -72,7 +79,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         sort_order: idx,
       }))
     );
-    if (eItems) return NextResponse.json({ error: eItems.message }, { status: 500 });
+    if (eItems) {
+      return internalErrorResponse(
+        "pdv-combo-items",
+        eItems,
+        "Não foi possível atualizar os itens do combo"
+      );
+    }
   }
 
   return NextResponse.json({ ok: true });
@@ -86,6 +99,12 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
 
   const supabase = createAdminClient();
   const { error } = await supabase.from("combos").delete().eq("id", params.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "pdv-combo-delete",
+      error,
+      "Não foi possível excluir o combo"
+    );
+  }
   return NextResponse.json({ ok: true });
 }

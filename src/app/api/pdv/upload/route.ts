@@ -1,41 +1,63 @@
-/*
-  Upload de imagem scoped ao PDV autenticado. Reusa o bucket `pdv-assets`.
-  Caminho: pdvs/<pdv_id>/<kind>/<uuid>.<ext>  (kind = product | combo).
-*/
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { z } from "zod";
 import { getPdvSession } from "@/lib/auth/session";
+import {
+  ImageUploadError,
+  MAX_IMAGE_BYTES,
+  prepareImageUpload,
+  storePdvAsset,
+} from "@/lib/image-upload";
+import { internalErrorResponse } from "@/lib/server-errors";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+const KindSchema = z.enum(["product", "combo"]);
 
 export async function POST(req: Request) {
   const session = await getPdvSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const form = await req.formData();
-  const file = form.get("file");
-  const kindRaw = String(form.get("kind") || "product");
-  const kind = ["product", "combo"].includes(kindRaw) ? kindRaw : "product";
-
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: "file obrigatorio" }, { status: 400 });
-  }
-  if (file.size > 5 * 1024 * 1024) {
-    return NextResponse.json({ error: "Arquivo maior que 5MB" }, { status: 400 });
-  }
-  if (!file.type.startsWith("image/")) {
-    return NextResponse.json({ error: "Apenas imagens" }, { status: 400 });
+  const contentLength = Number(req.headers.get("content-length") ?? 0);
+  if (contentLength > MAX_IMAGE_BYTES + 256 * 1024) {
+    return NextResponse.json({ error: "A imagem deve ter no máximo 5 MB" }, { status: 413 });
   }
 
-  const supabase = createAdminClient();
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-  const path = `pdvs/${session.pdv_id}/${kind}/${crypto.randomUUID()}.${ext}`;
+  try {
+    const form = await req.formData();
+    const file = form.get("file");
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "Selecione uma imagem" }, { status: 400 });
+    }
 
-  const bytes = await file.arrayBuffer();
-  const { error } = await supabase.storage
-    .from("pdv-assets")
-    .upload(path, bytes, { contentType: file.type, upsert: false });
+    const parsedKind = KindSchema.safeParse(String(form.get("kind") || "product"));
+    if (!parsedKind.success) {
+      return NextResponse.json({ error: "Tipo de imagem inválido" }, { status: 400 });
+    }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const supabase = createAdminClient();
+    const { data: pdv, error: pdvError } = await supabase
+      .from("pdvs")
+      .select("id")
+      .eq("id", session.pdv_id)
+      .maybeSingle();
+    if (pdvError) {
+      return internalErrorResponse("pdv-upload-pdv", pdvError, "Não foi possível validar o PDV");
+    }
+    if (!pdv) {
+      return NextResponse.json({ error: "PDV não encontrado" }, { status: 404 });
+    }
 
-  const { data } = supabase.storage.from("pdv-assets").getPublicUrl(path);
-  return NextResponse.json({ ok: true, url: data.publicUrl, path });
+    const bytes = await prepareImageUpload(file);
+    const asset = await storePdvAsset({
+      pdvId: session.pdv_id,
+      kind: parsedKind.data,
+      bytes,
+    });
+
+    return NextResponse.json({ ok: true, ...asset });
+  } catch (error) {
+    if (error instanceof ImageUploadError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    return internalErrorResponse("pdv-upload", error, "Não foi possível enviar a imagem");
+  }
 }

@@ -413,17 +413,22 @@ function ProductDialog({
   async function upload(file: File) {
     setUploading(true);
     setError(null);
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("kind", "product");
-    const r = await fetch("/api/pdv/upload", { method: "POST", body: fd });
-    const data = await r.json();
-    setUploading(false);
-    if (!r.ok) {
-      setError(data.error ?? "Falha no upload");
-      return;
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("kind", "product");
+      const r = await fetch("/api/pdv/upload", { method: "POST", body: fd });
+      const data = (await r.json().catch(() => ({}))) as { error?: string; url?: string };
+      if (!r.ok || !data.url) {
+        setError(data.error ?? "Falha no upload");
+        return;
+      }
+      setImageUrl(data.url);
+    } catch {
+      setError("Falha de conexão durante o upload");
+    } finally {
+      setUploading(false);
     }
-    setImageUrl(data.url);
   }
 
   async function save() {
@@ -579,7 +584,7 @@ function ProductDialog({
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   if (f) void upload(f);

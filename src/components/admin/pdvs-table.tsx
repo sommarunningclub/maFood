@@ -751,15 +751,19 @@ function EditPdvDialog({
     fd.append("file", file);
     fd.append("pdv_id", pdv.id);
     fd.append("kind", "logo");
-    const r = await fetch("/api/admin/upload", { method: "POST", body: fd });
-    setUploading(false);
-    if (!r.ok) {
-      const d = await r.json().catch(() => ({}));
-      setError(d.error ?? "Falha no upload");
-      return;
+    try {
+      const r = await fetch("/api/admin/upload", { method: "POST", body: fd });
+      const data = (await r.json().catch(() => ({}))) as { error?: string; url?: string };
+      if (!r.ok || !data.url) {
+        setError(data.error ?? "Falha no upload");
+        return;
+      }
+      set("logo_url", data.url);
+    } catch {
+      setError("Falha de conexão durante o upload");
+    } finally {
+      setUploading(false);
     }
-    const data = await r.json();
-    set("logo_url", data.url);
   }
 
   async function save() {
@@ -839,7 +843,7 @@ function EditPdvDialog({
                   {uploading ? "Enviando..." : form.logo_url ? "Trocar imagem" : "Enviar imagem"}
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp"
                     className="hidden"
                     onChange={handleLogoFile}
                     disabled={uploading}

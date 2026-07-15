@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { signCustomer, setCustomerCookie } from "@/lib/auth/customer-session";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 const Body = z.object({
   cpf: z.string().min(11),
@@ -55,7 +56,11 @@ export async function POST(req: Request) {
     if (error.code === "23505") {
       return NextResponse.json({ error: "CPF ja cadastrado" }, { status: 409 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return internalErrorResponse(
+      "customer-register",
+      error,
+      "Não foi possível concluir o cadastro"
+    );
   }
 
   const token = await signCustomer({

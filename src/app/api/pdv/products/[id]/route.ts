@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPdvSession } from "@/lib/auth/session";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 const PatchBody = z.object({
   name: z.string().min(1).max(120).optional(),
@@ -59,7 +60,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 
   const { error } = await supabase.from("products").update(patch).eq("id", params.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "pdv-product-update",
+      error,
+      "Não foi possível atualizar o produto"
+    );
+  }
   return NextResponse.json({ ok: true });
 }
 
@@ -72,6 +79,12 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
 
   const supabase = createAdminClient();
   const { error } = await supabase.from("products").delete().eq("id", params.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "pdv-product-delete",
+      error,
+      "Não foi possível excluir o produto"
+    );
+  }
   return NextResponse.json({ ok: true });
 }

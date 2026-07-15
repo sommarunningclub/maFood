@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getPdvSession } from "@/lib/auth/session";
 import { sendPaymentLinkEmail } from "@/lib/email/send-payment-link";
 import { brl } from "@/lib/utils";
+import { internalErrorResponse, upstreamErrorResponse } from "@/lib/server-errors";
 
 const Body = z.object({
   channel: z.enum(["email", "whatsapp"]),
@@ -23,11 +24,18 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   }
 
   const supabase = createAdminClient();
-  const { data: order } = await supabase
+  const { data: order, error: orderError } = await supabase
     .from("orders")
     .select("id, number, customer_name, total, method, status, pdv_id")
     .eq("id", params.id)
     .maybeSingle();
+  if (orderError) {
+    return internalErrorResponse(
+      "pdv-payment-link-order",
+      orderError,
+      "Não foi possível consultar o pedido"
+    );
+  }
   if (!order) return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
   if (order.pdv_id !== session.pdv_id) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
@@ -36,13 +44,21 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ error: "Link de pagamento só vale pra pedidos com cartão" }, { status: 400 });
   }
 
-  const { data: pdv } = await supabase
+  const { data: pdv, error: pdvError } = await supabase
     .from("pdvs")
     .select("name")
     .eq("id", order.pdv_id)
     .maybeSingle();
+  if (pdvError) {
+    return internalErrorResponse(
+      "pdv-payment-link-pdv",
+      pdvError,
+      "Não foi possível consultar o PDV"
+    );
+  }
 
-  const origin = req.headers.get("origin") ?? new URL(req.url).origin;
+  const origin =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ?? new URL(req.url).origin;
   const payUrl = `${origin}/pay/${order.id}`;
 
   if (body.channel === "email") {
@@ -55,7 +71,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       totalBrl: brl(Number(order.total)),
       payUrl,
     });
-    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 502 });
+    if (!result.ok) {
+      return upstreamErrorResponse(
+        "pdv-payment-link-email",
+        new Error(result.error),
+        "Não foi possível enviar o e-mail"
+      );
+    }
     return NextResponse.json({ ok: true, sent_to: body.email });
   }
 

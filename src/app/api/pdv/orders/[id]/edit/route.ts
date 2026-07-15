@@ -15,6 +15,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPdvSession } from "@/lib/auth/session";
+import { internalErrorResponse } from "@/lib/server-errors";
 import { effectivePrice } from "@/lib/pricing";
 
 const Body = z.object({
@@ -151,7 +152,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     .from("orders")
     .update(orderPatch)
     .eq("id", params.id);
-  if (eOrder) return NextResponse.json({ error: eOrder.message }, { status: 500 });
+  if (eOrder) {
+    return internalErrorResponse(
+      "pdv-order-edit",
+      eOrder,
+      "Não foi possível atualizar o pedido"
+    );
+  }
 
   return NextResponse.json({ ok: true, total: newTotal });
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPdvSession } from "@/lib/auth/session";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 export async function GET() {
   const session = await getPdvSession();
@@ -13,15 +14,24 @@ export async function GET() {
     .select("id, type, name, description, image_url, price, status, sort_order, created_at")
     .eq("pdv_id", session.pdv_id)
     .order("sort_order", { ascending: true });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse("pdv-combos-list", error, "Não foi possível carregar os combos");
+  }
 
   const ids = (combos ?? []).map((c) => c.id);
   let items: { combo_id: string; product_id: string; qty: number; name: string; price: number }[] = [];
   if (ids.length) {
-    const { data } = await supabase
+    const { data, error: itemsError } = await supabase
       .from("combo_items")
       .select("combo_id, product_id, qty, products(name, price)")
       .in("combo_id", ids);
+    if (itemsError) {
+      return internalErrorResponse(
+        "pdv-combos-items-list",
+        itemsError,
+        "Não foi possível carregar os itens dos combos"
+      );
+    }
     items =
       data?.map((r) => ({
         combo_id: r.combo_id,
@@ -87,7 +97,13 @@ export async function POST(req: Request) {
     })
     .select("id")
     .single();
-  if (error || !combo) return NextResponse.json({ error: error?.message ?? "Erro" }, { status: 500 });
+  if (error || !combo) {
+    return internalErrorResponse(
+      "pdv-combo-create",
+      error ?? new Error("combo insert returned no row"),
+      "Não foi possível criar o combo"
+    );
+  }
 
   const { error: eItems } = await supabase.from("combo_items").insert(
     body.items.map((it, idx) => ({
@@ -99,7 +115,11 @@ export async function POST(req: Request) {
   );
   if (eItems) {
     await supabase.from("combos").delete().eq("id", combo.id);
-    return NextResponse.json({ error: eItems.message }, { status: 500 });
+    return internalErrorResponse(
+      "pdv-combo-items-create",
+      eItems,
+      "Não foi possível salvar os itens do combo"
+    );
   }
 
   return NextResponse.json({ ok: true, id: combo.id });

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyPin } from "@/lib/auth/pin";
 import { signSession, setPdvSessionCookie } from "@/lib/auth/session";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 const Body = z.object({
   slug: z.string().min(1).max(80),
@@ -25,10 +26,14 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: "Erro interno" }, { status: 500 });
+    return internalErrorResponse(
+      "pdv-login",
+      error,
+      "Não foi possível entrar no PDV"
+    );
   }
   if (!pdv) {
-    return NextResponse.json({ error: "PDV nao encontrado" }, { status: 404 });
+    return NextResponse.json({ error: "PDV ou PIN inválido" }, { status: 401 });
   }
   if (!pdv.pin_hash) {
     return NextResponse.json(
@@ -39,7 +44,7 @@ export async function POST(req: Request) {
 
   const ok = await verifyPin(body.pin, pdv.pin_hash);
   if (!ok) {
-    return NextResponse.json({ error: "PIN incorreto" }, { status: 401 });
+    return NextResponse.json({ error: "PDV ou PIN inválido" }, { status: 401 });
   }
 
   const token = await signSession({ pdv_id: pdv.id, pdv_slug: pdv.slug });

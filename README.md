@@ -1,109 +1,142 @@
 # maFood
 
-Plataforma operacional de praças de alimentação para eventos. Três interfaces, schema dedicado, pagamento simulado por ora.
+Plataforma operacional para praças de alimentação e eventos, com marketplace
+mobile, painel do PDV, backoffice e pagamentos via Asaas.
 
-> **Evento alvo:** Somma Special Day · 18 jul 2026 · COPMDF · Brasília
+## Superfícies
 
-## Interfaces
+- `/<venue>`: marketplace, cardápio, carrinho e checkout do cliente.
+- `/<venue>/history` e `/<venue>/order/<id>`: histórico e acompanhamento.
+- `/loja/<slug>`: pedidos, cardápio, combos e perfil do PDV.
+- `/admin`: dashboard, pedidos, PDVs, produtos, cupons e financeiro.
+- `/pay/<id>`: link público para pagamento de pedido com cartão.
 
-| Rota                          | Quem usa            | O que faz                                            |
-| ----------------------------- | ------------------- | ---------------------------------------------------- |
-| `/[venue]`                    | Cliente (mobile)    | Marketplace, cardápio, carrinho, checkout, tracking  |
-| `/loja/[slug]`                | Operador do PDV     | Painel: pedidos (Kanban), cardápio, combos, perfil   |
-| `/admin`                      | Admin do evento     | Dashboard, PDVs, produtos, cupons, financeiro        |
+## Stack real
 
-## Stack
+- Next.js 14 App Router, React 18, TypeScript strict e Tailwind CSS 3.
+- Supabase PostgreSQL no schema dedicado `mafood` e Supabase Storage.
+- Zustand persistido para o carrinho, com migração e reconciliação no servidor.
+- JWT em cookies `httpOnly` para cliente, PDV e administrador.
+- PIN e senhas com bcrypt.
+- Asaas para Pix, cartão e webhooks.
+- Resend para envio opcional de links de pagamento.
+- Serwist para manifest e service worker.
+- Vitest para testes unitários.
 
-- **Frontend:** Next.js 14 (App Router) · TypeScript · Tailwind v3
-- **State:** TanStack Query (server) · Zustand (cart)
-- **Backend:** Supabase Postgres + Auth + Realtime + Storage
-- **Schema dedicado** `mafood` (isolado de outros sistemas no mesmo banco)
-- **Auth PDV:** PIN bcrypt + cookie JWT (12h)
-- **Auth cliente:** CPF lookup (lista_vip → customers) + cookie JWT (30d)
-- **Pagamento:** simulado (Pix QR fake) — Asaas a integrar
-- **Bundler/Deploy:** Vercel-ready
+## Requisitos
 
-## Setup local
+- Node.js LTS atual.
+- pnpm.
+- Um projeto Supabase.
+- Conta Asaas sandbox ou produção para pagamentos reais.
 
-1. **Clonar e instalar:**
+## Configuração local
+
+1. Instale as dependências:
+
    ```bash
-   git clone git@github.com:sommarunningclub/maFood.git
-   cd maFood
    pnpm install
    ```
 
-2. **Copiar `.env.example` para `.env.local`** e preencher:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
-   SUPABASE_SERVICE_ROLE_KEY=eyJ...           # secreta!
-   PDV_SESSION_SECRET=<gerar com: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">
-   ASAAS_API_KEY=                              # vazio = pagamento simulado
-   ASAAS_BASE_URL=https://api-sandbox.asaas.com/v3
-   ASAAS_WEBHOOK_TOKEN=<token combinado com o webhook do Asaas>
+2. Copie e preencha as variáveis:
+
+   ```bash
+   cp .env.example .env.local
    ```
 
-3. **Rodar setup do schema no Supabase** — abra o SQL Editor e cole o arquivo `supabase/setup_mafood_schema.sql` inteiro de uma vez. Depois rode também as migrations adicionais em ordem (`0003`, `0004`, `0005`).
+   Gere `PDV_SESSION_SECRET` com:
 
-4. **No Supabase Settings → API**, adicione `mafood` em **Exposed schemas** e em **Extra search path**.
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
 
-5. **Dev:**
+3. Configure o banco.
+
+   O ambiente usado pela aplicação é o schema `mafood`. O arquivo
+   `supabase/setup_mafood_schema.sql` contém o baseline idempotente. As
+   evoluções posteriores estão em `supabase/migrations/`.
+
+   Atenção: os scripts históricos ainda contêm políticas permissivas de MVP.
+   Não trate o SQL atual como baseline seguro de produção sem aplicar o
+   endurecimento de RLS e privilégios descrito em `_docs/SECURITY.md`.
+
+4. No Supabase, disponibilize o schema `mafood` ao PostgREST usado pelo cliente
+   server-side e restrinja os privilégios por papel. Nunca exponha a chave
+   `service_role` ao navegador.
+
+5. Inicie:
+
    ```bash
    pnpm dev
    ```
 
-## Estrutura
+## Pagamentos
 
+- Com `ASAAS_API_KEY`, as cobranças usam o ambiente definido em
+  `ASAAS_BASE_URL`.
+- Sem chave, o pagamento falha de forma explícita.
+- Simulação local só é ativada com `ASAAS_ALLOW_SIMULATED=true`.
+- O webhook deve enviar o token configurado em `ASAAS_WEBHOOK_TOKEN`.
+- Dados de cartão são encaminhados ao Asaas e não devem ser persistidos.
+
+## Uploads
+
+Uploads administrativos e do PDV aceitam JPEG, PNG ou WebP de até 5 MB. O
+servidor valida os bytes, decodifica a imagem, limita dimensões, remove
+metadados e reencoda o arquivo como WebP antes do Storage.
+
+## Verificação
+
+```bash
+pnpm test
+pnpm lint
+pnpm build
 ```
+
+Não execute `next dev` e `next build` simultaneamente na mesma cópia do
+repositório: ambos escrevem em `.next`.
+
+## Estrutura principal
+
+```text
 src/
-├── app/
-│   ├── (client)/[venue]/        # PWA do cliente
-│   ├── loja/[slug]/             # painel do PDV (sidebar + 4 seções)
-│   ├── admin/                   # backoffice
-│   ├── api/                     # endpoints (admin, pdv, customer)
-│   ├── layout.tsx
-│   └── globals.css              # 2 temas: Somma + Palantir
+├── app/                         rotas, layouts e Route Handlers
 ├── components/
-│   ├── customer/                # marketplace, menu, checkout, tracking
-│   ├── pdv/                     # Kanban, sidebar, login PIN
-│   ├── admin/                   # PDVs, produtos, dashboard
-│   └── ui/                      # button, badge, etc.
+│   ├── customer/                experiência do cliente
+│   ├── pdv/                     operação do lojista
+│   └── admin/                   backoffice
 ├── lib/
-│   ├── supabase/{client,server,admin}.ts
-│   ├── auth/{pin,session,customer-session}.ts
-│   ├── pricing.ts
-│   ├── storage.ts
-│   └── utils.ts
-├── stores/cart-store.ts          # Zustand persist
-├── types/index.ts
-└── middleware.ts                 # protege /loja, /pdv, /[venue]
+│   ├── auth/                    sessões e PIN
+│   ├── supabase/                cliente server-side service_role
+│   ├── image-upload.ts          processamento seguro de imagens
+│   ├── server-errors.ts         erros públicos e logs internos
+│   └── asaas.ts                 integração de pagamentos
+├── stores/cart-store.ts         carrinho persistido e reconciliado
+└── types/
 
 supabase/
-├── setup_mafood_schema.sql       # schema completo, idempotente
-└── migrations/                   # alterações pós-setup
+├── setup_mafood_schema.sql      baseline do schema dedicado
+└── migrations/                  evoluções incrementais
 ```
 
-## Status atual
+## Estado atual
 
-✅ Schema completo no Supabase (mafood)
-✅ Admin: dashboard, PDVs (CRUD + PIN + drag-and-drop), produtos (CRUD + categorias + upload)
-✅ PDV: login por PIN, Kanban real com Realtime, retirada parcial
-✅ Cliente: login por CPF, marketplace real, cardápio real, checkout cria pedido real, tracking realtime
+- Admin dashboard, financeiro, pedidos, PDVs, produtos e cupons usam dados
+  reais do Supabase.
+- Checkout revalida produtos, preços, disponibilidade e cupons no servidor.
+- Acompanhamento do cliente consulta uma API autenticada; o navegador não lê
+  pedidos diretamente do Supabase.
+- O painel PDV atualiza pedidos por uma API autenticada, sem leitura direta das
+  tabelas no navegador.
+- PWA e service worker estão configurados.
 
-🔄 Em desenvolvimento:
-- Painel PDV self-service (cardápio, combos, perfil)
-- /admin/coupons com multi-PDV
-- /admin/orders lendo Supabase real (hoje ainda mock)
-- Integração Asaas real (Pix + webhook)
-- PWA + service worker
-- Sentry
+Limitações de segurança ainda abertas, fora deste conjunto de correções:
+endurecimento completo de RLS/grants, rate limiting distribuído e
+idempotência/transações atômicas em todos os fluxos financeiros e de estoque.
 
-## Avisos de segurança
+Mais detalhes:
 
-- **NUNCA** commitar `.env.local`. O `.gitignore` cobre, mas verifique antes de qualquer push.
-- A `SUPABASE_SERVICE_ROLE_KEY` ignora RLS. Use só no servidor (Route Handlers / Server Components).
-- A `lista_vip` é exposta via view `lista_vip_publico` que omite `codigo_unico`, `status_cupom`, `quantidade_usos`.
-
----
-
-Co-Authored-By: Claude Opus 4.7
+- `_docs/QUICK_REFERENCE.md`
+- `_docs/PROJECT_STATUS.md`
+- `_docs/SECURITY.md`
+- `_docs/OPERATIONS.md`

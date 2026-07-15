@@ -30,7 +30,8 @@ export function MenuView({
   pdv: MenuPdv;
   products: Product[];
 }) {
-  const { items, add, remove, clear, count, total, qtyOf } = useCart();
+  const { items, add, remove, clear, count, total, qtyOf, hasHydrated, reconcile } =
+    useCart();
   const payAtCounter = pdvPayAtCounter(pdv);
   const acceptsOrders = pdvAcceptsAppOrders(pdv);
   const canOrder = acceptsOrders && pdv.is_open;
@@ -60,10 +61,16 @@ export function MenuView({
   const [cartOpen, setCartOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const prevCatIndex = useRef(0);
+  const categoryAnimationReady = useRef(false);
 
   useEffect(() => {
     rememberLastPdv(venue, pdv.slug);
   }, [venue, pdv.slug]);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+    reconcile(products, { pdvId: pdv.id, payAtCounter });
+  }, [hasHydrated, payAtCounter, pdv.id, products, reconcile]);
 
   useEffect(() => {
     if (navCategories.length && !navCategories.includes(active)) {
@@ -82,6 +89,12 @@ export function MenuView({
   useLayoutEffect(() => {
     const el = listRef.current;
     if (!el) return;
+
+    if (!categoryAnimationReady.current) {
+      categoryAnimationReady.current = true;
+      gsap.set(el, { autoAlpha: 1, x: 0 });
+      return;
+    }
 
     const nextIndex = Math.max(0, navCategories.indexOf(active));
     const dir = nextIndex >= prevCatIndex.current ? 1 : -1;
@@ -198,7 +211,7 @@ export function MenuView({
                   Pedido no app · pagamento na tenda
                 </p>
                 <p className="text-[12px] leading-snug text-mafood-text-secondary">
-                  Monte a sacola aqui. O pagamento é na maquininha da tenda do Dopa.
+                  Monte a sacola aqui. O pagamento é feito na maquininha deste PDV.
                 </p>
               </div>
             </div>
@@ -221,7 +234,7 @@ export function MenuView({
           )}
         </div>
 
-        <div ref={listRef} className="mt-5 space-y-8 pb-4" style={{ opacity: 0 }}>
+        <div ref={listRef} className="mt-5 space-y-8 pb-4">
           {visibleProducts.length === 0 ? (
             <EmptyState
               icon={UtensilsCrossed}

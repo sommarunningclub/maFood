@@ -15,6 +15,7 @@ import {
   findOrCreateCustomer,
 } from "@/lib/asaas";
 import { decrementStockForOrder } from "@/lib/stock";
+import { internalErrorResponse, upstreamErrorResponse } from "@/lib/server-errors";
 
 interface Params { params: { id: string } }
 
@@ -31,31 +32,62 @@ function getClientIp(req: Request): string {
 }
 
 export async function GET(_req: Request, { params }: Params) {
-  const supabase = createAdminClient();
-  const { data: order } = await supabase
+  if (!z.string().uuid().safeParse(params.id).success) {
+    return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
+  }
+
+  let supabase: ReturnType<typeof createAdminClient>;
+  try {
+    supabase = createAdminClient();
+  } catch (error) {
+    return internalErrorResponse(
+      "pay-link-read-client",
+      error,
+      "Não foi possível carregar o pedido"
+    );
+  }
+  const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("id, number, customer_name, total, method, status, notes, pdv_id, customer_id")
+    .select("id, number, total, method, status, pdv_id")
     .eq("id", params.id)
     .maybeSingle();
+  if (orderError) {
+    return internalErrorResponse(
+      "pay-link-read-order",
+      orderError,
+      "Não foi possível carregar o pedido"
+    );
+  }
   if (!order) return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
+  if (order.method !== "card") {
+    return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
+  }
 
-  const [{ data: items }, { data: pdv }] = await Promise.all([
+  const [
+    { data: items, error: itemsError },
+    { data: pdv, error: pdvError },
+  ] = await Promise.all([
     supabase
       .from("order_items")
       .select("id, name, qty, unit_price")
       .eq("order_id", params.id),
     supabase.from("pdvs").select("name, venue_id").eq("id", order.pdv_id).maybeSingle(),
   ]);
+  if (itemsError || pdvError) {
+    return internalErrorResponse(
+      "pay-link-read-summary",
+      itemsError ?? pdvError,
+      "Não foi possível carregar o pedido"
+    );
+  }
 
   return NextResponse.json({
     order: {
       id: order.id,
       number: order.number,
-      customer_name: order.customer_name,
       total: Number(order.total),
       method: order.method,
       status: order.status,
-      notes: order.notes,
       pdv_name: pdv?.name ?? "PDV",
       items: (items ?? []).map((i) => ({
         id: i.id,
@@ -69,9 +101,12 @@ export async function GET(_req: Request, { params }: Params) {
 
 const CardSchema = z.object({
   holderName: z.string().min(2).max(120),
-  number: z.string().min(13).max(25),
-  expiryMonth: z.string().regex(/^\d{1,2}$/),
-  expiryYear: z.string().regex(/^\d{2}|\d{4}$/),
+  number: z
+    .string()
+    .transform((value) => value.replace(/\s+/g, ""))
+    .pipe(z.string().regex(/^\d{13,19}$/, "Número de cartão inválido")),
+  expiryMonth: z.string().regex(/^(0?[1-9]|1[0-2])$/, "Mês inválido"),
+  expiryYear: z.string().regex(/^(?:\d{2}|\d{4})$/, "Ano inválido"),
   ccv: z.string().regex(/^\d{3,4}$/),
 });
 
@@ -89,6 +124,10 @@ const PostBody = z.object({
 });
 
 export async function POST(req: Request, { params }: Params) {
+  if (!z.string().uuid().safeParse(params.id).success) {
+    return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
+  }
+
   let body: z.infer<typeof PostBody>;
   try { body = PostBody.parse(await req.json()); }
   catch (e) {
@@ -96,12 +135,28 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 
-  const supabase = createAdminClient();
-  const { data: order } = await supabase
+  let supabase: ReturnType<typeof createAdminClient>;
+  try {
+    supabase = createAdminClient();
+  } catch (error) {
+    return internalErrorResponse(
+      "pay-link-payment-client",
+      error,
+      "Pagamento temporariamente indisponível"
+    );
+  }
+  const { data: order, error: orderError } = await supabase
     .from("orders")
-    .select("id, customer_id, customer_name, customer_cpf, total, method, status, pdv_id")
+    .select("id, customer_id, total, method, status, pdv_id")
     .eq("id", params.id)
     .maybeSingle();
+  if (orderError) {
+    return internalErrorResponse(
+      "pay-link-payment-order",
+      orderError,
+      "Não foi possível consultar o pedido"
+    );
+  }
   if (!order) return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
   if (order.method !== "card") return NextResponse.json({ error: "Link inválido" }, { status: 400 });
   if (order.status !== "pending") {
@@ -109,18 +164,38 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   // Customer do banco (pra ter email/phone se faltarem no holderInfo)
-  const { data: customer } = await supabase
+  const { data: customer, error: customerError } = await supabase
     .from("customers")
     .select("id, name, email, phone, cpf")
     .eq("id", order.customer_id)
     .maybeSingle();
-  if (!customer) return NextResponse.json({ error: "Cliente do pedido não encontrado" }, { status: 500 });
+  if (customerError) {
+    return internalErrorResponse(
+      "pay-link-payment-customer",
+      customerError,
+      "Não foi possível consultar o cliente"
+    );
+  }
+  if (!customer) {
+    return internalErrorResponse(
+      "pay-link-payment-customer-missing",
+      new Error("order customer relation is missing"),
+      "Não foi possível processar o pagamento"
+    );
+  }
 
-  const { data: pdv } = await supabase
+  const { data: pdv, error: pdvError } = await supabase
     .from("pdvs")
     .select("name")
     .eq("id", order.pdv_id)
     .maybeSingle();
+  if (pdvError) {
+    return internalErrorResponse(
+      "pay-link-payment-pdv",
+      pdvError,
+      "Não foi possível consultar o PDV"
+    );
+  }
 
   let asaasPaymentId: string | null = null;
   let confirmed = false;
@@ -153,9 +228,10 @@ export async function POST(req: Request, { params }: Params) {
     asaasPaymentId = payment.id;
     confirmed = payment.status === "CONFIRMED" || payment.status === "RECEIVED";
   } catch (err) {
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Erro ao processar pagamento" },
-      { status: 502 }
+    return upstreamErrorResponse(
+      "pay-link-payment-provider",
+      err,
+      "Não foi possível processar o cartão. Confira os dados e tente novamente."
     );
   }
 
@@ -164,7 +240,17 @@ export async function POST(req: Request, { params }: Params) {
     patch.status = "paid";
     patch.paid_at = new Date().toISOString();
   }
-  await supabase.from("orders").update(patch).eq("id", order.id);
+  const { error: updateError } = await supabase
+    .from("orders")
+    .update(patch)
+    .eq("id", order.id);
+  if (updateError) {
+    return internalErrorResponse(
+      "pay-link-payment-update",
+      updateError,
+      "O pagamento foi processado, mas não foi possível atualizar o pedido. Procure o atendimento."
+    );
+  }
 
   if (confirmed) {
     await decrementStockForOrder(supabase, order.id);

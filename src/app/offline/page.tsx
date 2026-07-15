@@ -1,8 +1,12 @@
+import { clientDisplay, clientSans } from "@/lib/fonts/client";
+
 export const metadata = { title: "Sem conexão — SommaFood" };
 
 export default function OfflinePage() {
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center bg-somma-bg px-6 text-center">
+    <div
+      className={`${clientDisplay.variable} ${clientSans.variable} min-h-[100dvh] flex items-center justify-center bg-somma-bg px-6 text-center`}
+    >
       <div className="max-w-sm">
         <p className="text-6xl mb-4">📡</p>
         <h1 className="text-2xl font-display uppercase tracking-wide text-white mb-2">

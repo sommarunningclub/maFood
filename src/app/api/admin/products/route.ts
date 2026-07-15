@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 const ProductInput = z.object({
   pdv_id: z.string().uuid(),
@@ -30,7 +31,13 @@ export async function GET(req: Request) {
   if (pdvId) query = query.eq("pdv_id", pdvId);
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "admin-products-list",
+      error,
+      "Não foi possível carregar os produtos"
+    );
+  }
   return NextResponse.json({ items: data ?? [] });
 }
 
@@ -61,6 +68,12 @@ export async function POST(req: Request) {
     .insert({ ...body, category: categoryText })
     .select("id")
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "admin-product-create",
+      error,
+      "Não foi possível criar o produto"
+    );
+  }
   return NextResponse.json({ ok: true, id: data.id });
 }

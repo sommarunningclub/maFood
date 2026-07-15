@@ -17,7 +17,6 @@ import {
 } from "@dnd-kit/core";
 import Link from "next/link";
 import { X, Search, Plus, Minus, PlusCircle } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { brl, cn, formatTime } from "@/lib/utils";
 import { OrderDetailModal } from "@/components/pdv/order-detail-modal";
 
@@ -178,25 +177,10 @@ export function Pedidos({ slug }: { slug: string }) {
   }, []);
 
   useEffect(() => {
-    refresh();
-    const supabase = createClient();
-    const channel = supabase
-      .channel("pdv-orders-" + slug)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "mafood", table: "orders" },
-        () => refresh()
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "mafood", table: "order_items" },
-        () => refresh()
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [refresh, slug]);
+    void refresh();
+    const interval = window.setInterval(() => void refresh(), 4_000);
+    return () => window.clearInterval(interval);
+  }, [refresh]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return orders;

@@ -342,7 +342,7 @@ export function ProductDetails({
                   : !isOpen
                     ? "PDV fechado — pedidos online indisponíveis"
                     : payAtCounter
-                      ? "Pedido no app · pagamento na tenda do Dopa"
+                      ? "Pedido no app · pagamento no balcão do PDV"
                       : "Pagamento direto no balcão do PDV"}
               </p>
             </div>

@@ -9,6 +9,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient, createAdminClientPublic } from "@/lib/supabase/admin";
 import { setCustomerCookie, signCustomer } from "@/lib/auth/customer-session";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 const Body = z.object({
   cpf: z.string().regex(/^\d{11}$/, "CPF deve ter 11 dígitos"),
@@ -44,7 +45,11 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   if (eInsider) {
-    return NextResponse.json({ error: `Falha na consulta: ${eInsider.message}` }, { status: 500 });
+    return internalErrorResponse(
+      "landing-login-insider",
+      eInsider,
+      "Não foi possível validar o CPF"
+    );
   }
   if (!insider) {
     return NextResponse.json(
@@ -56,11 +61,18 @@ export async function POST(req: Request) {
   // 2. Upsert no `mafood.customers` (cpf é UNIQUE). Reaproveita registro
   //    se cliente já existia (caso tenha entrado antes pelo /<venue>/login).
   const supa = createAdminClient();
-  const { data: existing } = await supa
+  const { data: existing, error: existingError } = await supa
     .from("customers")
     .select("id, name, is_vip")
     .eq("cpf", cpf)
     .maybeSingle();
+  if (existingError) {
+    return internalErrorResponse(
+      "landing-login-customer",
+      existingError,
+      "Não foi possível concluir o acesso"
+    );
+  }
 
   let customerId = existing?.id;
   let customerName = existing?.name ?? insider.nome;
@@ -77,16 +89,27 @@ export async function POST(req: Request) {
       .select("id, name")
       .single();
     if (eCreate || !created) {
-      return NextResponse.json(
-        { error: eCreate?.message ?? "Falha ao criar cliente" },
-        { status: 500 }
+      return internalErrorResponse(
+        "landing-login-customer-create",
+        eCreate ?? new Error("customer insert returned no row"),
+        "Não foi possível concluir o acesso"
       );
     }
     customerId = created.id;
     customerName = created.name;
   } else if (!existing?.is_vip) {
     // Promove a VIP se ainda não é
-    await supa.from("customers").update({ is_vip: isVip }).eq("id", customerId);
+    const { error: updateError } = await supa
+      .from("customers")
+      .update({ is_vip: isVip })
+      .eq("id", customerId);
+    if (updateError) {
+      return internalErrorResponse(
+        "landing-login-customer-update",
+        updateError,
+        "Não foi possível concluir o acesso"
+      );
+    }
   }
 
   // 3. Assina cookie de sessão de cliente (30 dias)

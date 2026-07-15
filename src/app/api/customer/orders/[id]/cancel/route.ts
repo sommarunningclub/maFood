@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCustomerSession } from "@/lib/auth/customer-session";
 import { cancelPayment } from "@/lib/asaas";
+import { internalErrorResponse, upstreamErrorResponse } from "@/lib/server-errors";
 
 interface Params {
   params: { id: string };
@@ -35,9 +36,16 @@ export async function POST(_req: Request, { params }: Params) {
     );
   }
 
-  // Cancela a cobrança no Asaas (best-effort — não bloqueia o cancelamento local)
+  // Não cancela o pedido local se a cobrança externa continuar ativa.
   if (order.asaas_payment_id) {
-    await cancelPayment(order.asaas_payment_id);
+    const providerCancelled = await cancelPayment(order.asaas_payment_id);
+    if (!providerCancelled) {
+      return upstreamErrorResponse(
+        "customer-order-cancel-payment",
+        new Error("provider cancellation failed"),
+        "Não foi possível cancelar a cobrança. Tente novamente."
+      );
+    }
   }
 
   const { data: cancelled, error } = await supabase
@@ -47,7 +55,13 @@ export async function POST(_req: Request, { params }: Params) {
     .eq("status", "pending") // guard contra corrida com webhook de confirmação
     .select("id")
     .maybeSingle();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "customer-order-cancel",
+      error,
+      "Não foi possível cancelar o pedido"
+    );
+  }
 
   // Só restaura o cupom se o cancelamento realmente ocorreu (não houve corrida com
   // o webhook de confirmação) e o pedido usava cupom.

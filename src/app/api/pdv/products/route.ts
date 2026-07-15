@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPdvSession } from "@/lib/auth/session";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 export async function GET() {
   const session = await getPdvSession();
@@ -19,7 +20,13 @@ export async function GET() {
     .order("category", { ascending: true })
     .order("name", { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "pdv-products-list",
+      error,
+      "Não foi possível carregar os produtos"
+    );
+  }
   return NextResponse.json({ products: data ?? [] });
 }
 
@@ -76,6 +83,12 @@ export async function POST(req: Request) {
     .select("id")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "pdv-product-create",
+      error,
+      "Não foi possível criar o produto"
+    );
+  }
   return NextResponse.json({ ok: true, id: data.id });
 }

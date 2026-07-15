@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPdvSession } from "@/lib/auth/session";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 const PatchBody = z.object({
   name: z.string().min(1).max(60).optional(),
@@ -37,14 +38,27 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     .from("product_categories")
     .update(body)
     .eq("id", params.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "pdv-category-update",
+      error,
+      "Não foi possível atualizar a categoria"
+    );
+  }
 
   // Se renomeou, propaga o nome pros products.category text legacy
   if (body.name && body.name !== owned.name) {
-    await supabase
+    const { error: productsError } = await supabase
       .from("products")
       .update({ category: body.name })
       .eq("category_id", params.id);
+    if (productsError) {
+      return internalErrorResponse(
+        "pdv-category-products",
+        productsError,
+        "A categoria foi atualizada, mas não foi possível atualizar os produtos"
+      );
+    }
   }
 
   return NextResponse.json({ ok: true });
@@ -62,6 +76,12 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     .from("product_categories")
     .delete()
     .eq("id", params.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "pdv-category-delete",
+      error,
+      "Não foi possível excluir a categoria"
+    );
+  }
   return NextResponse.json({ ok: true });
 }

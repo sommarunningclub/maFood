@@ -83,6 +83,7 @@ export interface Order {
 
 export interface Coupon {
   id: string;
+  venue_id: string | null;
   code: string;
   type: "percent" | "fixed";
   value: number;
@@ -90,7 +91,8 @@ export interface Coupon {
   max_uses: number;
   used: number;
   is_active: boolean;
-  valid_until: string;
+  valid_until: string | null;
+  pdv_ids?: string[];
 }
 
 // ── Pricing engine ──────────────────────────────────────────────────

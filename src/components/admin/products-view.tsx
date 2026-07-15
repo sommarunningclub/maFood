@@ -579,15 +579,19 @@ function ProductDialog({
     form.append("file", file);
     form.append("pdv_id", pdvId);
     form.append("kind", "product");
-    const r = await fetch("/api/admin/upload", { method: "POST", body: form });
-    setUploading(false);
-    if (!r.ok) {
-      const d = await r.json().catch(() => ({}));
-      setError(d.error ?? "Falha no upload");
-      return;
+    try {
+      const r = await fetch("/api/admin/upload", { method: "POST", body: form });
+      const data = (await r.json().catch(() => ({}))) as { error?: string; url?: string };
+      if (!r.ok || !data.url) {
+        setError(data.error ?? "Falha no upload");
+        return;
+      }
+      setImageUrl(data.url);
+    } catch {
+      setError("Falha de conexão durante o upload");
+    } finally {
+      setUploading(false);
     }
-    const data = await r.json();
-    setImageUrl(data.url);
   }
 
   async function createCategory() {
@@ -668,7 +672,7 @@ function ProductDialog({
             {uploading ? "Enviando..." : imageUrl ? "Trocar imagem" : "Enviar imagem"}
             <input
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               className="hidden"
               onChange={handleFile}
               disabled={uploading || !pdvId}

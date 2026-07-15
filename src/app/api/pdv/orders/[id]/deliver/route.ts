@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPdvSession } from "@/lib/auth/session";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 const Body = z.object({
   // array: { item_id, qty } onde qty é o quanto está entregando AGORA (vai somar ao delivered_qty atual)
@@ -38,7 +39,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     .from("order_items")
     .select("id, order_id, qty, delivered_qty")
     .eq("order_id", params.id);
-  if (e1) return NextResponse.json({ error: e1.message }, { status: 500 });
+  if (e1) {
+    return internalErrorResponse(
+      "pdv-order-delivery-items",
+      e1,
+      "Não foi possível carregar os itens"
+    );
+  }
 
   const byId = new Map((items ?? []).map((i) => [i.id, i]));
   for (const d of body.deliveries) {
@@ -52,7 +59,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       .from("order_items")
       .update({ delivered_qty: newDelivered })
       .eq("id", it.id);
-    if (eUp) return NextResponse.json({ error: eUp.message }, { status: 500 });
+    if (eUp) {
+      return internalErrorResponse(
+        "pdv-order-delivery-item",
+        eUp,
+        "Não foi possível registrar a retirada"
+      );
+    }
     it.delivered_qty = newDelivered;
   }
 
@@ -65,7 +78,17 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   else if (anyDelivered && order.status !== "partial") newStatus = "partial";
 
   if (newStatus) {
-    await supabase.from("orders").update({ status: newStatus }).eq("id", params.id);
+    const { error: statusError } = await supabase
+      .from("orders")
+      .update({ status: newStatus })
+      .eq("id", params.id);
+    if (statusError) {
+      return internalErrorResponse(
+        "pdv-order-delivery-status",
+        statusError,
+        "A retirada foi registrada, mas não foi possível atualizar o pedido"
+      );
+    }
   }
 
   return NextResponse.json({ ok: true, status: newStatus });

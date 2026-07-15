@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
 import { useCart, cartItemUnitPrice } from "@/stores/cart-store";
@@ -13,8 +13,17 @@ import { PixPayment } from "@/components/customer/pix-payment";
 import { EmptyState } from "@/components/customer/ui/mafood-states";
 import { BrandMomentGif } from "@/components/customer/brand-moment-gif";
 import { customerReadyForCard } from "@/lib/customer-profile";
+import type { Product } from "@/types";
 
-type Step = "form" | "profile" | "card-form" | "submitting" | "pix" | "approved" | "failed";
+type Step =
+  | "form"
+  | "profile"
+  | "card-form"
+  | "submitting"
+  | "pix"
+  | "pending"
+  | "approved"
+  | "failed";
 type PaymentMethod = "pix" | "card" | "counter";
 
 interface CardData {
@@ -33,7 +42,17 @@ export function CheckoutView({
   initialHasSession: boolean;
 }) {
   const router = useRouter();
-  const { items, pdvId, payAtCounter, total, clear, add, remove } = useCart();
+  const {
+    items,
+    pdvId,
+    payAtCounter,
+    total,
+    clear,
+    add,
+    remove,
+    hasHydrated,
+    reconcile,
+  } = useCart();
   const [notes, setNotes] = useState("");
   const [code, setCode] = useState("");
   const [method, setMethod] = useState<PaymentMethod>(payAtCounter ? "counter" : "pix");
@@ -47,6 +66,11 @@ export function CheckoutView({
   const [pixPayload, setPixPayload] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(initialHasSession);
   const [identifyOpen, setIdentifyOpen] = useState(false);
+  const [cartChecking, setCartChecking] = useState(true);
+  const [cartValidated, setCartValidated] = useState(false);
+  const [cartNotice, setCartNotice] = useState<string | null>(null);
+  const submittingRef = useRef(false);
+  const regeneratingRef = useRef(false);
 
   const [card, setCard] = useState<CardData>({
     holderName: "",
@@ -68,25 +92,132 @@ export function CheckoutView({
   const subtotal = total();
   const empty = items.length === 0;
 
+  const refreshCart = useCallback(async () => {
+    if (!hasHydrated) return;
+
+    const current = useCart.getState();
+    if (!current.pdvId || current.items.length === 0) {
+      setCartValidated(true);
+      setCartChecking(false);
+      return;
+    }
+
+    setCartChecking(true);
+    setCartValidated(false);
+    setCartNotice(null);
+    try {
+      const response = await fetch("/api/customer/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pdv_id: current.pdvId,
+          product_ids: current.items.map((item) => item.product.id),
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        pdv?: { id: string; pay_at_counter: boolean };
+        products?: Product[];
+      };
+      if (!response.ok || !data.pdv || !Array.isArray(data.products)) {
+        throw new Error(data.error ?? "Não foi possível atualizar a sacola");
+      }
+
+      const result = reconcile(data.products, {
+        pdvId: data.pdv.id,
+        payAtCounter: data.pdv.pay_at_counter,
+      });
+      const changes: string[] = [];
+      if (result.removedItems > 0) {
+        changes.push(
+          `${result.removedItems} ${result.removedItems === 1 ? "item indisponível foi removido" : "itens indisponíveis foram removidos"}`
+        );
+      }
+      if (result.pricesChanged) changes.push("os preços foram atualizados");
+      if (result.paymentModeChanged) changes.push("a forma de pagamento do PDV mudou");
+      if (changes.length > 0) {
+        setCartNotice(`${changes.join(" e ")}. Revise a sacola antes de continuar.`);
+      }
+      setCartValidated(true);
+    } catch {
+      setError("Não foi possível atualizar a sacola. Verifique sua conexão e tente novamente.");
+    } finally {
+      setCartChecking(false);
+    }
+  }, [hasHydrated, reconcile]);
+
   useEffect(() => {
     if (payAtCounter) setMethod("counter");
     else setMethod((m) => (m === "counter" ? "pix" : m));
   }, [payAtCounter]);
 
+  useEffect(() => {
+    void refreshCart();
+  }, [refreshCart]);
+
+  useEffect(() => {
+    if (step !== "pending" || !orderId) return;
+
+    let active = true;
+    const check = async () => {
+      try {
+        const response = await fetch(`/api/customer/orders/${orderId}?view=status`, {
+          cache: "no-store",
+        });
+        const data = (await response.json().catch(() => ({}))) as {
+          status?: string;
+        };
+        if (!active || !response.ok) return;
+        if (["paid", "preparing", "ready", "partial", "delivered"].includes(data.status ?? "")) {
+          setStep("approved");
+        } else if (data.status === "cancelled") {
+          setError("O pagamento não foi confirmado.");
+          setStep("failed");
+        }
+      } catch {
+        // Mantém a tela de espera; a próxima consulta tenta novamente.
+      }
+    };
+
+    void check();
+    const interval = window.setInterval(() => void check(), 3000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [orderId, step]);
+
   async function ensureCardProfile(): Promise<boolean> {
-    const r = await fetch("/api/customer/me");
-    if (!r.ok) return false;
-    const data = await r.json();
-    const c = data.customer;
-    if (customerReadyForCard(c)) return true;
-    setProfEmail(c.email ?? "");
-    setProfPhone(c.phone ? maskPhone(c.phone) : "");
-    setProfCep(c.postal_code ?? "");
-    setProfNumber(c.address_number ?? "");
-    setProfComplement(c.address_complement ?? "");
-    setProfCepHint(null);
-    setStep("profile");
-    return false;
+    try {
+      const response = await fetch("/api/customer/me");
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        customer?: {
+          email?: string | null;
+          phone?: string | null;
+          postal_code?: string | null;
+          address_number?: string | null;
+          address_complement?: string | null;
+        };
+      };
+      if (!response.ok || !data.customer) {
+        setError(data.error ?? "Não foi possível carregar seu cadastro");
+        return false;
+      }
+      const customer = data.customer;
+      if (customerReadyForCard(customer)) return true;
+      setProfEmail(customer.email ?? "");
+      setProfPhone(customer.phone ? maskPhone(customer.phone) : "");
+      setProfCep(customer.postal_code ?? "");
+      setProfNumber(customer.address_number ?? "");
+      setProfComplement(customer.address_complement ?? "");
+      setProfCepHint(null);
+      setStep("profile");
+      return false;
+    } catch {
+      setError("Não foi possível carregar seu cadastro. Verifique sua conexão.");
+      return false;
+    }
   }
 
   async function goToCardCheckout() {
@@ -96,6 +227,7 @@ export function CheckoutView({
   }
 
   function handleSubmitClick() {
+    if (submittingRef.current || cartChecking || !cartValidated) return;
     if (!hasSession) {
       setIdentifyOpen(true);
       return;
@@ -134,109 +266,203 @@ export function CheckoutView({
     e.preventDefault();
     setError(null);
     setProfSaving(true);
-    const r = await fetch("/api/customer/me", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: profEmail.trim(),
-        phone: profPhone.replace(/\D/g, ""),
-        postal_code: profCep.replace(/\D/g, ""),
-        address_number: profNumber.trim(),
-        address_complement: profComplement.trim() || null,
-      }),
-    });
-    setProfSaving(false);
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) {
-      setError(data.error ?? "Não foi possível salvar");
-      return;
+    try {
+      const response = await fetch("/api/customer/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: profEmail.trim(),
+          phone: profPhone.replace(/\D/g, ""),
+          postal_code: profCep.replace(/\D/g, ""),
+          address_number: profNumber.trim(),
+          address_complement: profComplement.trim() || null,
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        setError(data.error ?? "Não foi possível salvar");
+        return;
+      }
+      setStep("card-form");
+    } catch {
+      setError("Não foi possível salvar. Verifique sua conexão.");
+    } finally {
+      setProfSaving(false);
     }
-    setStep("card-form");
   }
 
   async function submitOrder(): Promise<{ ok: boolean }> {
+    if (submittingRef.current) return { ok: false };
+    if (!cartValidated || cartChecking) {
+      setError("Aguarde a atualização da sacola antes de continuar.");
+      return { ok: false };
+    }
+
+    submittingRef.current = true;
     setError(null);
     setStep("submitting");
-    if (!pdvId) {
-      setError("Carrinho inválido");
-      setStep("form");
-      return { ok: false };
-    }
-    const payload: Record<string, unknown> = {
-      pdv_id: pdvId,
-      method,
-      notes: notes || null,
-      coupon_code: code.trim() || null,
-      items: items.map((i) => ({
-        product_id: i.product.id,
-        qty: i.qty,
-        notes: i.notes,
-        size_label: i.sizeLabel ?? null,
-      })),
-    };
-    if (method === "card") {
-      payload.card = {
-        holderName: card.holderName,
-        number: card.number.replace(/\s/g, ""),
-        expiryMonth: card.expiryMonth,
-        expiryYear: card.expiryYear,
-        ccv: card.ccv,
+    try {
+      if (!pdvId || items.length === 0) {
+        setError("Carrinho inválido");
+        setStep("form");
+        return { ok: false };
+      }
+      const payload: Record<string, unknown> = {
+        pdv_id: pdvId,
+        method,
+        notes: notes || null,
+        coupon_code: code.trim() || null,
+        items: items.map((i) => ({
+          product_id: i.product.id,
+          qty: i.qty,
+          notes: i.notes,
+          size_label: i.sizeLabel ?? null,
+        })),
       };
-    }
+      if (method === "card") {
+        payload.card = {
+          holderName: card.holderName,
+          number: card.number.replace(/\s/g, ""),
+          expiryMonth: card.expiryMonth,
+          expiryYear: card.expiryYear,
+          ccv: card.ccv,
+        };
+      }
 
-    // Delay mínimo 3s — UX: garante que o usuário veja "Processando..." e
-    // tenha um retorno claro de aprovado/negado mesmo se o Asaas responder rápido.
-    const minDelay = new Promise<void>((res) => setTimeout(res, 3000));
-    const requestP = fetch("/api/customer/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const [r] = await Promise.all([requestP, minDelay]);
-    const data = await r.json();
-    if (!r.ok) {
-      setError(data.error ?? "Não foi possível concluir o pagamento");
+      const response = await fetch("/api/customer/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        order_number?: number;
+        order_id?: string;
+        total?: number;
+        discount?: number;
+        status?: string;
+        pix_payload?: string | null;
+        pix_qr_code?: string | null;
+      };
+      if (!response.ok || !data.order_id) {
+        setError(data.error ?? "Não foi possível concluir o pagamento");
+        setStep("failed");
+        return { ok: false };
+      }
+
+      setOrderNumber(data.order_number ?? null);
+      setOrderId(data.order_id);
+      setFinalTotal(Number(data.total ?? subtotal));
+      setDiscount(Number(data.discount ?? 0));
+
+      if (method === "pix") {
+        setPixPayload(data.pix_payload ?? null);
+        if (data.pix_qr_code) {
+          setQr(
+            data.pix_qr_code.startsWith("data:")
+              ? data.pix_qr_code
+              : `data:image/png;base64,${data.pix_qr_code}`
+          );
+        } else if (data.pix_payload) {
+          try {
+            setQr(await QRCode.toDataURL(data.pix_payload, { width: 240, margin: 1 }));
+          } catch {
+            setQr(null);
+          }
+        }
+        setStep("pix");
+      } else if (method === "counter" || data.status === "paid") {
+        setStep("approved");
+      } else {
+        setStep("pending");
+      }
+      return { ok: true };
+    } catch {
+      setError(
+        "A resposta do pagamento não foi confirmada. Confira seu banco antes de tentar novamente."
+      );
       setStep("failed");
       return { ok: false };
+    } finally {
+      submittingRef.current = false;
     }
-    setOrderNumber(data.order_number);
-    setOrderId(data.order_id);
-    setFinalTotal(Number(data.total));
-    setDiscount(Number(data.discount));
-
-    if (method === "pix") {
-      // Guarda payload para o botão de copiar
-      if (data.pix_payload) setPixPayload(data.pix_payload);
-      // Prefere o QR base64 do Asaas; cai pra qrcode lib se ausente
-      if (data.pix_qr_code) {
-        setQr(
-          data.pix_qr_code.startsWith("data:")
-            ? data.pix_qr_code
-            : `data:image/png;base64,${data.pix_qr_code}`
-        );
-      } else if (data.pix_payload) {
-        setQr(await QRCode.toDataURL(data.pix_payload, { width: 240, margin: 1 }));
-      }
-      setStep("pix");
-    } else {
-      // Cartão aprovado ou pedido na tenda: confirmação antes do tracker.
-      setStep("approved");
-    }
-    return { ok: true };
   }
 
   async function regeneratePix() {
-    // Cancela o pedido/cobrança anterior (e devolve o cupom) antes de gerar um novo,
-    // evitando cobrança duplicada e o código antigo ainda válido estrandar o cliente.
-    if (orderId) {
-      await fetch(`/api/customer/orders/${orderId}/cancel`, { method: "POST" }).catch(() => {});
+    if (regeneratingRef.current || !orderId) return;
+    regeneratingRef.current = true;
+    setError(null);
+    setStep("submitting");
+    try {
+      const response = await fetch(`/api/customer/orders/${orderId}/cancel`, {
+        method: "POST",
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        setError(data.error ?? "Não foi possível cancelar o Pix anterior");
+        setStep("failed");
+        return;
+      }
+      setOrderId(null);
+      setOrderNumber(null);
+      setQr(null);
+      setPixPayload(null);
+      await submitOrder();
+    } catch {
+      setError("Não foi possível cancelar o Pix anterior. Tente novamente.");
+      setStep("failed");
+    } finally {
+      regeneratingRef.current = false;
     }
-    await submitOrder();
   }
 
   function finalize() {
     clear();
     router.push(`/${venue}/order/${orderId}`);
+  }
+
+  if (!hasHydrated || cartChecking) {
+    return (
+      <div className="min-h-dvh-100 flex items-center justify-center p-8 pt-safe pb-safe">
+        <div className="text-center max-w-sm" role="status" aria-live="polite">
+          <BrandMomentGif variant="cart" size={150} className="mb-2" />
+          <h2 className="mafood-display text-mafood-text-primary text-fluid-xl">
+            Atualizando sua sacola
+          </h2>
+          <p className="num text-xs text-mafood-text-secondary mt-2">
+            Conferindo disponibilidade e preços atuais…
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!cartValidated && !empty) {
+    return (
+      <div className="min-h-dvh-100 flex items-center justify-center p-6 pt-safe pb-safe">
+        <div className="text-center max-w-sm w-full">
+          <h2 className="mafood-display text-mafood-text-primary text-fluid-xl">
+            Não foi possível atualizar a sacola
+          </h2>
+          <p role="alert" className="num text-sm text-mafood-text-secondary mt-3">
+            {error ?? "Verifique sua conexão e tente novamente."}
+          </p>
+          <button
+            type="button"
+            onClick={() => void refreshCart()}
+            className="mt-6 w-full rounded-mafood-md bg-mafood-primary-strong min-h-touch h-12 text-white font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+          >
+            Tentar atualizar
+          </button>
+          <Link
+            href={`/${venue}`}
+            className="mt-3 inline-flex min-h-touch items-center num text-[11px] text-mafood-text-secondary underline underline-offset-4"
+          >
+            Voltar à praça
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   if (empty && step === "form") {
@@ -470,6 +696,34 @@ export function CheckoutView({
     );
   }
 
+  if (step === "pending") {
+    return (
+      <div className="min-h-dvh-100 flex items-center justify-center p-6 pt-safe pb-safe">
+        <div className="text-center max-w-sm w-full" role="status" aria-live="polite">
+          <div className="size-16 mx-auto mb-5 rounded-full border-4 border-mafood-border border-t-mafood-primary animate-spin" />
+          <h2 className="mafood-display text-mafood-text-primary text-fluid-2xl">
+            Pagamento em análise
+          </h2>
+          <p className="num text-sm text-mafood-text-secondary mt-3">
+            O banco ainda não confirmou o cartão. Esta tela atualizará automaticamente.
+          </p>
+          {orderNumber != null && (
+            <p className="mt-4 text-fluid-lg font-semibold tabular-nums text-mafood-primary-strong">
+              Pedido #{orderNumber}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={finalize}
+            className="mt-6 w-full rounded-mafood-md border border-mafood-border min-h-touch h-12 text-mafood-text-primary font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+          >
+            Acompanhar pedido
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (step === "approved") {
     return (
       <div className="min-h-dvh-100 flex items-center justify-center p-6 pt-safe pb-safe">
@@ -518,7 +772,7 @@ export function CheckoutView({
             </p>
           )}
           <p className="num text-[11px] text-mafood-text-secondary/80 mt-3">
-            Nenhum valor foi cobrado. Você pode tentar novamente com outro método ou cartão.
+            Se houve falha de conexão, confira o app do banco antes de tentar novamente.
           </p>
           <div className="mt-6 space-y-2">
             {/* Produto inválido = IDs do carrinho desatualizados; orientar o usuário a limpar */}
@@ -569,6 +823,15 @@ export function CheckoutView({
   return (
     <div className="min-h-dvh-100 pb-32 p-4 sm:p-5 pt-safe">
       <Header venue={venue} title="Checkout" />
+
+      {cartNotice && (
+        <p
+          role="status"
+          className="mt-4 rounded-mafood-md border border-mafood-gold/40 bg-mafood-gold/10 px-3 py-2 text-sm text-mafood-text-primary"
+        >
+          {cartNotice}
+        </p>
+      )}
 
       <section className="mt-5 rounded-mafood-md border border-mafood-border bg-mafood-surface-strong overflow-hidden">
         {items.map((i, idx) => (
@@ -640,7 +903,7 @@ export function CheckoutView({
         {payAtCounter ? (
           <div className="rounded-mafood-md border border-mafood-primary/40 bg-mafood-primary/5 px-4 py-3.5">
             <p className="text-[14px] font-semibold text-mafood-text-primary">
-              Pagar na tenda do Dopa
+              Pagar na tenda do PDV
             </p>
             <p className="mt-1 text-[12px] leading-snug text-mafood-text-secondary">
               Pague na maquininha da tenda (Pix ou cartão). A produção só começa
@@ -693,7 +956,8 @@ export function CheckoutView({
         <div className="mx-auto max-w-screen-mobile p-3 sm:p-4">
           <button
             onClick={handleSubmitClick}
-            className="w-full rounded-mafood-md bg-mafood-primary-strong min-h-touch h-13 text-white font-semibold active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+            disabled={cartChecking || !cartValidated || submittingRef.current}
+            className="w-full rounded-mafood-md bg-mafood-primary-strong min-h-touch h-13 text-white font-semibold active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary disabled:cursor-not-allowed disabled:opacity-50"
           >
             {hasSession
               ? payAtCounter

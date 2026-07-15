@@ -2,17 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CreditCard, Loader2, Check, Lock, ShoppingBag, ShieldCheck, X } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { brl, cn } from "@/lib/utils";
 
 interface Order {
   id: string;
   number: number;
-  customer_name: string;
   total: number;
   method: "pix" | "card";
   status: string;
-  notes: string | null;
   pdv_name: string;
   items: { id: string; name: string; qty: number; unit_price: number }[];
 }
@@ -24,7 +21,7 @@ interface CepHint {
   state?: string;
 }
 
-type Step = "form" | "processing" | "success" | "failed";
+type Step = "form" | "processing" | "pending" | "success" | "failed";
 
 /* Marca — logo do Somma Club (arquivo em /public/somma-club.svg).
    Enquanto o arquivo não existir, exibe wordmark tipográfico como fallback. */
@@ -83,28 +80,25 @@ export function PayLinkView({
   const [cepHint, setCepHint] = useState<CepHint | null>(null);
   const [cepLoading, setCepLoading] = useState(false);
 
-  // Realtime: status muda → atualiza UI (ex: webhook confirmou o pagamento)
-  useEffect(() => {
-    const supabase = createClient();
-    const ch = supabase
-      .channel(`pay-${orderId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "mafood", table: "orders", filter: `id=eq.${orderId}` },
-        async () => {
-          const r = await fetch(`/api/pay/${orderId}`);
-          if (r.ok) {
-            const d = await r.json();
-            setOrder(d.order);
-            if (d.order.status === "paid") setStep("success");
-          }
-        }
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
+  const refreshOrder = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/pay/${orderId}`, { cache: "no-store" });
+      if (!response.ok) return;
+      const data = (await response.json().catch(() => ({}))) as { order?: Order };
+      if (!data.order) return;
+      setOrder(data.order);
+      if (["paid", "preparing", "ready", "partial", "delivered"].includes(data.order.status)) {
+        setStep("success");
+      }
+    } catch {
+      // Uma falha transitória será recuperada na próxima consulta.
+    }
   }, [orderId]);
+
+  useEffect(() => {
+    const poll = window.setInterval(() => void refreshOrder(), 3000);
+    return () => window.clearInterval(poll);
+  }, [refreshOrder]);
 
   const lookupCep = useCallback(async (raw: string) => {
     const cep = raw.replace(/\D/g, "");
@@ -136,36 +130,43 @@ export function PayLinkView({
   async function submit() {
     setError(null);
     setStep("processing");
-    // Delay mínimo 5s (UX consistency)
-    const minDelay = new Promise<void>((res) => setTimeout(res, 5000));
-    const reqP = fetch(`/api/pay/${orderId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        card: {
-          holderName: card.holderName,
-          number: card.number.replace(/\s/g, ""),
-          expiryMonth: card.expiryMonth,
-          expiryYear: card.expiryYear,
-          ccv: card.ccv,
-        },
-        holder_info: {
-          email: holder.email,
-          postalCode: holder.postalCode.replace(/\D/g, ""),
-          addressNumber: holder.addressNumber,
-          addressComplement: holder.addressComplement || null,
-          phone: holder.phone ? holder.phone.replace(/\D/g, "") : null,
-        },
-      }),
-    });
-    const [r] = await Promise.all([reqP, minDelay]);
-    const data = await r.json();
-    if (!r.ok) {
-      setError(data.error ?? "Não foi possível concluir o pagamento");
+    try {
+      const response = await fetch(`/api/pay/${orderId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          card: {
+            holderName: card.holderName,
+            number: card.number.replace(/\s/g, ""),
+            expiryMonth: card.expiryMonth,
+            expiryYear: card.expiryYear,
+            ccv: card.ccv,
+          },
+          holder_info: {
+            email: holder.email,
+            postalCode: holder.postalCode.replace(/\D/g, ""),
+            addressNumber: holder.addressNumber,
+            addressComplement: holder.addressComplement || null,
+            phone: holder.phone ? holder.phone.replace(/\D/g, "") : null,
+          },
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        status?: string;
+      };
+      if (!response.ok) {
+        setError(data.error ?? "Não foi possível concluir o pagamento");
+        setStep("failed");
+        return;
+      }
+      setStep(data.status === "paid" ? "success" : "pending");
+    } catch {
+      setError(
+        "A resposta do pagamento não foi confirmada. Confira seu banco antes de tentar novamente."
+      );
       setStep("failed");
-      return;
     }
-    setStep("success");
   }
 
   // ─── SUCESSO ───────────────────────────────────────────────
@@ -222,6 +223,28 @@ export function PayLinkView({
     );
   }
 
+  if (step === "pending") {
+    return (
+      <div
+        className="min-h-dvh-100 flex flex-col items-center justify-center p-8 pt-safe pb-safe bg-somma-bg somma-grain font-body text-center"
+        role="status"
+        aria-live="polite"
+      >
+        <Brand className="mb-10" />
+        <div className="size-14 mb-5 rounded-full border-4 border-somma-border border-t-somma-orange animate-spin" />
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+          Pagamento em análise
+        </h2>
+        <p className="text-sm text-somma-muted mt-2 max-w-xs">
+          A operadora ainda não confirmou o cartão. Esta página atualizará automaticamente.
+        </p>
+        <p className="text-[12px] text-somma-muted/60 mt-2 tabular-nums">
+          Pedido #{order.number}
+        </p>
+      </div>
+    );
+  }
+
   // ─── FALHA ─────────────────────────────────────────────────
   if (step === "failed") {
     return (
@@ -242,7 +265,7 @@ export function PayLinkView({
           </p>
         )}
         <p className="text-[13px] text-somma-muted/80 mt-3 max-w-xs">
-          Nenhum valor foi cobrado. Você pode tentar novamente com outro cartão.
+          Se houve falha de conexão, confira o app do banco antes de tentar novamente.
         </p>
         <button
           onClick={() => {
@@ -258,7 +281,6 @@ export function PayLinkView({
   }
 
   // ─── FORMULÁRIO ────────────────────────────────────────────
-  const subtotal = order.items.reduce((s, i) => s + i.qty * i.unit_price, 0);
   const cardFilled =
     card.holderName.trim().length >= 2 &&
     card.number.replace(/\D/g, "").length >= 13 &&
@@ -326,7 +348,6 @@ export function PayLinkView({
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white leading-[1.05] mt-2 text-balance">
             {order.pdv_name}
           </h1>
-          <p className="text-[14px] text-somma-muted mt-2">{order.customer_name}</p>
         </div>
 
         {/* Mobile: resumo no topo, depois form. Desktop: grid 2 col */}
@@ -468,7 +489,7 @@ export function PayLinkView({
                 disabled={!cardFilled}
                 className="w-full rounded-xl bg-somma-orange min-h-touch h-14 text-white font-semibold text-base active:scale-[0.99] transition-transform focus-ring disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Pagar {brl(subtotal)}
+                Pagar {brl(order.total)}
               </button>
               <p className="text-[11px] text-somma-muted text-center mt-3 inline-flex items-center justify-center gap-1.5 w-full">
                 <Lock className="size-3" />
@@ -504,7 +525,7 @@ export function PayLinkView({
             disabled={!cardFilled}
             className="w-full rounded-xl bg-somma-orange min-h-touch h-13 text-white font-semibold text-base active:scale-[0.98] transition-transform focus-ring disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Pagar {brl(subtotal)}
+            Pagar {brl(order.total)}
           </button>
           <p className="text-[11px] text-somma-muted text-center mt-2 inline-flex items-center justify-center gap-1 w-full">
             <Lock className="size-2.5" />

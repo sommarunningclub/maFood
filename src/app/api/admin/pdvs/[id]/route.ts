@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 const Body = z.object({
   name: z.string().min(1).max(120).optional(),
@@ -27,7 +28,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const supabase = createAdminClient();
   const { error } = await supabase.from("pdvs").update(body).eq("id", params.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse("admin-pdv-update", error, "Não foi possível atualizar o PDV");
+  }
   return NextResponse.json({ ok: true });
 }
 
@@ -42,14 +45,22 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     .select("id, name, wallet_balance")
     .eq("id", params.id)
     .maybeSingle();
-  if (eFetch) return NextResponse.json({ error: eFetch.message }, { status: 500 });
+  if (eFetch) {
+    return internalErrorResponse("admin-pdv-read", eFetch, "Não foi possível consultar o PDV");
+  }
   if (!pdv) return NextResponse.json({ error: "PDV não encontrado" }, { status: 404 });
 
   const { count: orderCount, error: eCount } = await supabase
     .from("orders")
     .select("id", { count: "exact", head: true })
     .eq("pdv_id", params.id);
-  if (eCount) return NextResponse.json({ error: eCount.message }, { status: 500 });
+  if (eCount) {
+    return internalErrorResponse(
+      "admin-pdv-orders-count",
+      eCount,
+      "Não foi possível validar o histórico do PDV"
+    );
+  }
 
   if ((orderCount ?? 0) > 0) {
     return NextResponse.json(
@@ -69,6 +80,8 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   }
 
   const { error } = await supabase.from("pdvs").delete().eq("id", params.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse("admin-pdv-delete", error, "Não foi possível excluir o PDV");
+  }
   return NextResponse.json({ ok: true });
 }

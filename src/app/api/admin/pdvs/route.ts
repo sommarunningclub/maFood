@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 const Body = z.object({
   venue_id: z.string().uuid(),
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
     if (error.code === "23505") {
       return NextResponse.json({ error: "Slug ja existe neste venue" }, { status: 409 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return internalErrorResponse("admin-pdv-create", error, "Não foi possível criar o PDV");
   }
   return NextResponse.json({ ok: true, id: data.id });
 }

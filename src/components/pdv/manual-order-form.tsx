@@ -15,7 +15,6 @@ import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { ArrowLeft, Search, Plus, Minus, Copy, ExternalLink, Trash2, Mail, MessageCircle, Link2, Check } from "lucide-react";
 import { brl } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
 
 function maskCpf(v: string) {
   const d = v.replace(/\D/g, "").slice(0, 11);
@@ -540,41 +539,47 @@ function ResultView({
     }
   }, [qrImg, result.pix_payload, result.method]);
 
-  // Detecção automática de pagamento: assina o Realtime do pedido (mesmo canal
-  // do tracker do cliente). Quando o webhook do Asaas marca o pedido como pago,
-  // a tela reflete "Pago!" e volta ao Kanban — o operador não fica preso no QR.
+  // Consulta uma rota autenticada do PDV; evita expor pedidos ao cliente
+  // Supabase do navegador.
   useEffect(() => {
     if (result.method !== "pix") return;
-    const supabase = createClient();
+    let active = true;
     let redirect: ReturnType<typeof setTimeout>;
     const markPaid = () => {
+      if (!active) return;
+      active = false;
       setPaid(true);
       redirect = setTimeout(() => router.push(`/loja/${slug}/pedidos`), 2500);
     };
-    // Fallback: se o status já mudou entre criar o pedido e assinar o canal,
-    // uma leitura inicial garante que não perdemos o evento.
-    supabase
-      .from("orders")
-      .select("status")
-      .eq("id", result.order_id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data && data.status !== "pending") markPaid();
-      });
-    const ch = supabase
-      .channel(`pdv-new-order-${result.order_id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "mafood", table: "orders", filter: `id=eq.${result.order_id}` },
-        (p) => {
-          const status = (p.new as { status?: string } | null)?.status;
-          if (status && status !== "pending" && status !== "cancelled") markPaid();
+
+    const checkStatus = async () => {
+      try {
+        const response = await fetch(`/api/pdv/orders/${result.order_id}`, {
+          cache: "no-store",
+        });
+        const data = (await response.json().catch(() => ({}))) as {
+          status?: string;
+        };
+        if (
+          active &&
+          response.ok &&
+          data.status &&
+          data.status !== "pending" &&
+          data.status !== "cancelled"
+        ) {
+          markPaid();
         }
-      )
-      .subscribe();
+      } catch {
+        // A próxima consulta tenta novamente.
+      }
+    };
+
+    void checkStatus();
+    const interval = window.setInterval(() => void checkStatus(), 3_000);
     return () => {
+      active = false;
       clearTimeout(redirect);
-      supabase.removeChannel(ch);
+      window.clearInterval(interval);
     };
   }, [result.method, result.order_id, router, slug]);
 

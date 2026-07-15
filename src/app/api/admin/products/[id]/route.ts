@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 const Patch = z.object({
   pdv_id: z.string().uuid().optional(),
@@ -41,13 +42,25 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 
   const { error } = await supabase.from("products").update(body).eq("id", params.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "admin-product-update",
+      error,
+      "Não foi possível atualizar o produto"
+    );
+  }
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const supabase = createAdminClient();
   const { error } = await supabase.from("products").delete().eq("id", params.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return internalErrorResponse(
+      "admin-product-delete",
+      error,
+      "Não foi possível excluir o produto"
+    );
+  }
   return NextResponse.json({ ok: true });
 }

@@ -157,7 +157,6 @@ function NavChrome({
     <div
       ref={chromeRef}
       className="fixed bottom-0 inset-x-0 z-40 w-full bg-mafood-surface-strong/95 backdrop-blur border-t border-mafood-border pb-safe"
-      style={{ opacity: 0 }}
     >
       <nav
         className="menu mx-auto max-w-screen-mobile lg:max-w-3xl"

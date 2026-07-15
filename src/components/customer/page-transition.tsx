@@ -46,11 +46,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   return (
-    <div
-      ref={rootRef}
-      className="page-transition min-h-0 w-full"
-      style={{ opacity: 0 }}
-    >
+    <div ref={rootRef} className="page-transition min-h-0 w-full">
       {children}
     </div>
   );

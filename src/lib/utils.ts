@@ -17,6 +17,12 @@ export function formatTime(date: Date | string): string {
   return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
+export function maskCpfForDisplay(value: string | null | undefined): string | null {
+  const digits = value?.replace(/\D/g, "") ?? "";
+  if (digits.length !== 11) return null;
+  return `***.***.***-${digits.slice(-2)}`;
+}
+
 /** Âncora estável para seções de categoria (acentos, espaços, etc.). */
 export function categoryAnchorId(category: string): string {
   const slug = category

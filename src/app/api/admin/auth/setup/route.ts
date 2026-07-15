@@ -9,6 +9,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { setAdminCookie, signAdmin } from "@/lib/auth/admin-session";
+import { internalErrorResponse } from "@/lib/server-errors";
 
 const Body = z.object({
   email: z.string().email(),
@@ -19,7 +20,16 @@ const Body = z.object({
 export async function GET() {
   // Lista pública minimalista: só revela se o setup ainda é necessário
   const supa = createAdminClient();
-  const { count } = await supa.from("admins").select("id", { count: "exact", head: true });
+  const { count, error } = await supa
+    .from("admins")
+    .select("id", { count: "exact", head: true });
+  if (error) {
+    return internalErrorResponse(
+      "admin-setup-status",
+      error,
+      "Não foi possível verificar o setup"
+    );
+  }
   return NextResponse.json({ needs_setup: (count ?? 0) === 0 });
 }
 
@@ -33,7 +43,16 @@ export async function POST(req: Request) {
   }
 
   const supa = createAdminClient();
-  const { count } = await supa.from("admins").select("id", { count: "exact", head: true });
+  const { count, error: countError } = await supa
+    .from("admins")
+    .select("id", { count: "exact", head: true });
+  if (countError) {
+    return internalErrorResponse(
+      "admin-setup-count",
+      countError,
+      "Não foi possível iniciar o setup"
+    );
+  }
   if ((count ?? 0) > 0) {
     return NextResponse.json(
       { error: "Setup já realizado. Use /admin/login." },
@@ -53,7 +72,11 @@ export async function POST(req: Request) {
     .single();
 
   if (error || !created) {
-    return NextResponse.json({ error: error?.message ?? "Erro" }, { status: 500 });
+    return internalErrorResponse(
+      "admin-setup-create",
+      error ?? new Error("admin insert returned no row"),
+      "Não foi possível criar o administrador"
+    );
   }
 
   const token = await signAdmin({

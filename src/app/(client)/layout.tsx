@@ -1,10 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { Providers } from "@/components/providers";
 import {
   CustomerBottomNav,
   CustomerMain,
 } from "@/components/customer/bottom-nav";
-import { merriweather, dmSans } from "@/lib/fonts";
+import {
+  clientDisplay,
+  clientMono,
+  clientSans,
+  dmSans,
+  merriweather,
+} from "@/lib/fonts/client";
 
 export const metadata: Metadata = {
   appleWebApp: {
@@ -25,13 +30,11 @@ export const viewport: Viewport = {
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Providers>
-      <div
-        className={`mafood-shell ${merriweather.variable} ${dmSans.variable} min-h-dvh-100 flex flex-col`}
-      >
-        <CustomerMain>{children}</CustomerMain>
-        <CustomerBottomNav />
-      </div>
-    </Providers>
+    <div
+      className={`mafood-shell ${clientDisplay.variable} ${clientSans.variable} ${clientMono.variable} ${merriweather.variable} ${dmSans.variable} min-h-dvh-100 flex flex-col`}
+    >
+      <CustomerMain>{children}</CustomerMain>
+      <CustomerBottomNav />
+    </div>
   );
 }

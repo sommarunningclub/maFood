@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import QRCode from "qrcode";
 import { ArrowLeft, RefreshCw } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { brl, formatTime } from "@/lib/utils";
 import { PizzaLoader } from "@/components/customer/pizza-loader";
 import { useConfirm } from "@/components/customer/ui/confirm-sheet";
@@ -71,71 +70,23 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
   const [cancelError, setCancelError] = useState<string | null>(null);
 
   const fetchOrder = useCallback(async () => {
-    const supabase = createClient();
-    const { data: o } = await supabase
-      .from("orders")
-      .select(
-        "id, number, customer_name, total, status, method, created_at, paid_at, ready_at, pdv_id, pix_payload, pix_qr_code, created_by"
-      )
-      .eq("id", orderId)
-      .maybeSingle();
-    if (!o) {
+    const response = await fetch(`/api/customer/orders/${orderId}`, {
+      cache: "no-store",
+    });
+    if (!response.ok) {
       setLoading(false);
       return;
     }
-    const [{ data: items }, { data: pdv }] = await Promise.all([
-      supabase
-        .from("order_items")
-        .select("id, name, qty, delivered_qty, unit_price, notes")
-        .eq("order_id", orderId),
-      supabase.from("pdvs").select("name").eq("id", o.pdv_id).maybeSingle(),
-    ]);
-    setOrder({
-      id: o.id,
-      number: o.number,
-      pdv_name: pdv?.name ?? "PDV",
-      customer_name: o.customer_name,
-      total: Number(o.total),
-      status: o.status as Status,
-      method: (o.method as Order["method"]) ?? "pix",
-      created_at: o.created_at,
-      paid_at: o.paid_at,
-      ready_at: o.ready_at,
-      items: (items ?? []).map((i) => ({
-        id: i.id,
-        name: i.name,
-        qty: i.qty,
-        delivered_qty: i.delivered_qty,
-        unit_price: Number(i.unit_price),
-        notes: i.notes,
-      })),
-      pix_payload: o.pix_payload ?? null,
-      pix_qr_code: o.pix_qr_code ?? null,
-      created_by: (o.created_by ?? "customer") as "customer" | "pdv",
-    });
+    const data = (await response.json()) as { order?: Order };
+    if (data.order) setOrder(data.order);
     setLoading(false);
   }, [orderId]);
 
   useEffect(() => {
-    fetchOrder();
-    const supabase = createClient();
-    const ch = supabase
-      .channel(`order-${orderId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "mafood", table: "orders", filter: `id=eq.${orderId}` },
-        () => fetchOrder()
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "mafood", table: "order_items", filter: `order_id=eq.${orderId}` },
-        () => fetchOrder()
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(ch);
-    };
-  }, [fetchOrder, orderId]);
+    void fetchOrder();
+    const interval = window.setInterval(() => void fetchOrder(), 4_000);
+    return () => window.clearInterval(interval);
+  }, [fetchOrder]);
 
   useEffect(() => {
     if (!order) return;
@@ -275,8 +226,8 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
         {isCounter && !isCancelled && (
           <p className="mt-2 text-[13px] leading-snug text-mafood-text-secondary max-w-sm mx-auto">
             {isPending
-              ? "Pague na tenda do Dopa (maquininha Pix ou cartão). A produção só começa depois da confirmação."
-              : "Pagamento na tenda do Dopa (maquininha)."}{" "}
+              ? `Pague no balcão de ${order.pdv_name} (maquininha Pix ou cartão). A produção só começa depois da confirmação.`
+              : `Pagamento no balcão de ${order.pdv_name} (maquininha).`}{" "}
             Mostre o pedido{" "}
             <span className="font-semibold text-mafood-text-primary">#{order.number}</span>.
           </p>

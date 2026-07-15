@@ -16,6 +16,8 @@ import {
   getPixQr,
 } from "@/lib/asaas";
 import { validateStock } from "@/lib/stock";
+import { internalErrorResponse, upstreamErrorResponse } from "@/lib/server-errors";
+import { maskCpfForDisplay } from "@/lib/utils";
 
 const Body = z.object({
   cpf: z.string().regex(/^\d{11}$/, "CPF deve ter 11 dígitos"),
@@ -69,11 +71,18 @@ export async function POST(req: Request) {
   if (ePdv || !pdv) return NextResponse.json({ error: "PDV inválido" }, { status: 400 });
 
   // Cliente — busca por CPF; cria se informado
-  const { data: existing } = await supabase
+  const { data: existing, error: existingError } = await supabase
     .from("customers")
     .select("id, name, email, phone, cpf")
     .eq("cpf", body.cpf)
     .maybeSingle();
+  if (existingError) {
+    return internalErrorResponse(
+      "pdv-manual-order-customer",
+      existingError,
+      "Não foi possível consultar o cliente"
+    );
+  }
 
   let customer = existing;
   if (!customer) {
@@ -94,7 +103,11 @@ export async function POST(req: Request) {
       .select("id, name, email, phone, cpf")
       .single();
     if (eCreate || !created) {
-      return NextResponse.json({ error: eCreate?.message ?? "Erro ao criar cliente" }, { status: 500 });
+      return internalErrorResponse(
+        "pdv-manual-order-customer-create",
+        eCreate ?? new Error("customer insert returned no row"),
+        "Não foi possível criar o cliente"
+      );
     }
     customer = created;
   }
@@ -105,7 +118,13 @@ export async function POST(req: Request) {
     .from("products")
     .select("id, pdv_id, name, price, sale_price, status")
     .in("id", productIds);
-  if (ePr) return NextResponse.json({ error: ePr.message }, { status: 500 });
+  if (ePr) {
+    return internalErrorResponse(
+      "pdv-manual-order-products",
+      ePr,
+      "Não foi possível validar os produtos"
+    );
+  }
 
   const byId = new Map((products ?? []).map((p) => [p.id, p]));
   for (const it of body.items) {
@@ -156,9 +175,10 @@ export async function POST(req: Request) {
       pixQrCode = qr.encodedImage || null;
       invoiceUrl = payment.invoiceUrl ?? null;
     } catch (err) {
-      return NextResponse.json(
-        { error: `Falha no Asaas: ${err instanceof Error ? err.message : "erro"}` },
-        { status: 502 }
+      return upstreamErrorResponse(
+        "pdv-manual-order-payment",
+        err,
+        "Não foi possível gerar a cobrança Pix"
       );
     }
   }
@@ -185,7 +205,11 @@ export async function POST(req: Request) {
     .single();
 
   if (eOrder || !order) {
-    return NextResponse.json({ error: eOrder?.message ?? "Erro ao criar pedido" }, { status: 500 });
+    return internalErrorResponse(
+      "pdv-manual-order-create",
+      eOrder ?? new Error("order insert returned no row"),
+      "Não foi possível criar o pedido"
+    );
   }
 
   const itemsToInsert = body.items.map((it) => {
@@ -203,11 +227,16 @@ export async function POST(req: Request) {
   const { error: eItems } = await supabase.from("order_items").insert(itemsToInsert);
   if (eItems) {
     await supabase.from("orders").delete().eq("id", order.id);
-    return NextResponse.json({ error: eItems.message }, { status: 500 });
+    return internalErrorResponse(
+      "pdv-manual-order-items",
+      eItems,
+      "Não foi possível salvar os itens do pedido"
+    );
   }
 
   // Para cartão (link), monta a URL pública que o operador vai enviar
-  const origin = req.headers.get("origin") ?? new URL(req.url).origin;
+  const origin =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ?? new URL(req.url).origin;
   const payUrl = body.method === "card" ? `${origin}/pay/${order.id}` : null;
 
   return NextResponse.json({
@@ -224,7 +253,7 @@ export async function POST(req: Request) {
     customer: {
       id: customer.id,
       name: customer.name,
-      cpf: customer.cpf,
+      cpf: maskCpfForDisplay(customer.cpf) ?? "***.***.***-**",
       email: customer.email,
       phone: customer.phone,
     },
