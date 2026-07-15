@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPdvSession } from "@/lib/auth/session";
+import { effectivePrice } from "@/lib/pricing";
 import {
   asaasEnabled,
   createPixPayment,
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
   const productIds = body.items.map((i) => i.product_id);
   const { data: products, error: ePr } = await supabase
     .from("products")
-    .select("id, pdv_id, name, price, status")
+    .select("id, pdv_id, name, price, sale_price, status")
     .in("id", productIds);
   if (ePr) return NextResponse.json({ error: ePr.message }, { status: 500 });
 
@@ -121,7 +122,7 @@ export async function POST(req: Request) {
 
   const total = body.items.reduce((s, it) => {
     const p = byId.get(it.product_id)!;
-    return s + Number(p.price) * it.qty;
+    return s + effectivePrice(p) * it.qty;
   }, 0);
 
   if (total <= 0) return NextResponse.json({ error: "Total inválido" }, { status: 400 });
@@ -194,7 +195,7 @@ export async function POST(req: Request) {
       product_id: p.id,
       name: p.name,
       qty: it.qty,
-      unit_price: Number(p.price),
+      unit_price: effectivePrice(p),
       notes: it.notes ?? null,
     };
   });

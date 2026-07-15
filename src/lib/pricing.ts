@@ -1,5 +1,19 @@
 import type { PriceBreakdown } from "@/types";
 
+/**
+ * Preço efetivo mostrado/cobrado ao cliente.
+ * Regra: se houver `sale_price` (override de venda, ex.: Somma Bear) preenchido
+ * e positivo, ele prevalece; caso contrário usa `price`.
+ */
+export function effectivePrice(p: {
+  price: number | string | null;
+  sale_price?: number | string | null;
+}): number {
+  const sale = p.sale_price;
+  if (sale != null && Number(sale) > 0) return Number(sale);
+  return Number(p.price ?? 0);
+}
+
 interface Rates {
   commissionPct: number; // ex.: 15 = 15%
   gatewayPct: number; // ex.: 3.6

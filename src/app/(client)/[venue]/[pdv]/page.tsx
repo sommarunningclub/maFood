@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { effectivePrice } from "@/lib/pricing";
 import { MenuView } from "@/components/customer/menu-view";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +29,7 @@ export default async function PdvMenuPage({
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, pdv_id, category, category_id, name, description, image_url, price, status")
+    .select("id, pdv_id, category, category_id, name, description, image_url, price, sale_price, status")
     .eq("pdv_id", pdv.id)
     .order("created_at", { ascending: true });
 
@@ -48,7 +49,7 @@ export default async function PdvMenuPage({
         name: p.name,
         description: p.description ?? "",
         image_url: p.image_url ?? "",
-        price: Number(p.price),
+        price: effectivePrice(p),
         status: p.status,
       }))}
     />

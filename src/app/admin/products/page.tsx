@@ -14,7 +14,7 @@ export default async function ProductsPage() {
       .order("sort_order", { ascending: true }),
     supabase
       .from("products")
-      .select("id, pdv_id, category_id, category, name, description, price, image_url, status, stock_quantity, supplier_cost")
+      .select("id, pdv_id, category_id, category, name, description, price, sale_price, image_url, status, stock_quantity, supplier_cost")
       .order("created_at", { ascending: false }),
   ]);
 
@@ -31,6 +31,7 @@ export default async function ProductsPage() {
           initialProducts={(products ?? []).map((p) => ({
             ...p,
             price: Number(p.price),
+            sale_price: p.sale_price == null ? null : Number(p.sale_price),
           }))}
         />
       </div>

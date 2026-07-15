@@ -13,6 +13,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCustomerSession } from "@/lib/auth/customer-session";
 import { pdvSellsOnline } from "@/lib/pdv";
+import { effectivePrice } from "@/lib/pricing";
 import {
   asaasEnabled,
   createCardPayment,
@@ -104,7 +105,7 @@ export async function POST(req: Request) {
   const productIds = body.items.map((i) => i.product_id);
   const { data: products, error: ePr } = await supabase
     .from("products")
-    .select("id, pdv_id, name, price, status")
+    .select("id, pdv_id, name, price, sale_price, status")
     .in("id", productIds);
   if (ePr) return NextResponse.json({ error: ePr.message }, { status: 500 });
 
@@ -126,7 +127,7 @@ export async function POST(req: Request) {
   let discount = 0;
   const subtotal = body.items.reduce((s, it) => {
     const p = byId.get(it.product_id)!;
-    return s + Number(p.price) * it.qty;
+    return s + effectivePrice(p) * it.qty;
   }, 0);
 
   if (body.coupon_code) {
@@ -259,7 +260,7 @@ export async function POST(req: Request) {
       product_id: p.id,
       name: p.name,
       qty: it.qty,
-      unit_price: Number(p.price),
+      unit_price: effectivePrice(p),
       notes: it.notes ?? null,
     };
   });

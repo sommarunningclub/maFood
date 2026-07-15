@@ -44,7 +44,8 @@ export interface Product {
   name: string;
   description: string;
   image_url: string;
-  price: number; // preço final ao cliente (único valor armazenado)
+  price: number; // preço base ao cliente
+  sale_price?: number | null; // override de venda (Somma Bear); quando definido, prevalece sobre price
   status: ProductStatus;
 }
 

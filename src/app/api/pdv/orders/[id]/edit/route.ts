@@ -15,6 +15,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPdvSession } from "@/lib/auth/session";
+import { effectivePrice } from "@/lib/pricing";
 
 const Body = z.object({
   notes: z.string().max(500).nullable().optional(),
@@ -89,7 +90,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const productIds = Array.from(new Set(body.items.map((i) => i.product_id)));
   const { data: products } = await supabase
     .from("products")
-    .select("id, pdv_id, name, price, status")
+    .select("id, pdv_id, name, price, sale_price, status")
     .in("id", productIds);
   const productById = new Map((products ?? []).map((p) => [p.id, p]));
 
@@ -104,7 +105,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   // Recalcula total
   const newTotal = body.items.reduce((s, it) => {
     const p = productById.get(it.product_id)!;
-    return s + Number(p.price) * it.qty;
+    return s + effectivePrice(p) * it.qty;
   }, 0);
 
   // Aplica: remove os fora, atualiza/insere os do body
@@ -127,7 +128,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
           product_id: it.product_id,
           name: p.name,
           qty: it.qty,
-          unit_price: Number(p.price),
+          unit_price: effectivePrice(p),
           notes: it.item_notes ?? null,
         })
         .eq("id", it.id);
@@ -137,7 +138,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         product_id: it.product_id,
         name: p.name,
         qty: it.qty,
-        unit_price: Number(p.price),
+        unit_price: effectivePrice(p),
         notes: it.item_notes ?? null,
       });
     }

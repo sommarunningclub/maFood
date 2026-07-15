@@ -29,6 +29,7 @@ interface ProductRow {
   status: "active" | "paused" | "out_of_stock";
   stock_quantity: number | null;
   supplier_cost: number | null;
+  sale_price: number | null;
 }
 
 interface Category {
@@ -506,6 +507,7 @@ function ProductDialog({
   const [trackStock, setTrackStock] = useState<boolean>(product?.stock_quantity != null);
   const [stockQty, setStockQty] = useState<number>(product?.stock_quantity ?? 0);
   const [supplierCost, setSupplierCost] = useState<number>(product?.supplier_cost ?? 0);
+  const [salePrice, setSalePrice] = useState<number>(product?.sale_price ?? 0);
   const [boxSize, setBoxSize] = useState<number>(12);
   const [boxQty, setBoxQty] = useState<number>(0);
   const [uploading, setUploading] = useState(false);
@@ -576,6 +578,7 @@ function ProductDialog({
       status,
       stock_quantity: trackStock ? Math.max(0, Math.floor(stockQty)) : null,
       supplier_cost: supplierCost > 0 ? supplierCost : null,
+      sale_price: salePrice > 0 ? salePrice : null,
     };
     const url = editing ? `/api/admin/products/${product!.id}` : "/api/admin/products";
     const method = editing ? "PATCH" : "POST";
@@ -810,9 +813,21 @@ function ProductDialog({
                   className="mono w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
                 />
               </Field>
+              <Field label="Preço de venda (R$)">
+                <MoneyInput
+                  value={salePrice}
+                  onChange={setSalePrice}
+                  className="mono w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
+                />
+                <p className="mono mt-1 text-[10px] text-palantir-muted">
+                  {salePrice > 0
+                    ? "Este é o preço mostrado e cobrado do cliente."
+                    : `Vazio: o cliente vê o Preço (R$) — ${brl(Number(price) || 0)}.`}
+                </p>
+              </Field>
               {(() => {
                 const cost = supplierCost;
-                const sale = Number(price);
+                const sale = salePrice > 0 ? salePrice : Number(price);
                 if (!cost || !sale || cost <= 0 || sale <= 0) {
                   return (
                     <p className="mono text-[10px] text-palantir-muted">
