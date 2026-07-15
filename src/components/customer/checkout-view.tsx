@@ -191,6 +191,15 @@ export function CheckoutView({
     return { ok: true };
   }
 
+  async function regeneratePix() {
+    // Cancela o pedido/cobrança anterior (e devolve o cupom) antes de gerar um novo,
+    // evitando cobrança duplicada e o código antigo ainda válido estrandar o cliente.
+    if (orderId) {
+      await fetch(`/api/customer/orders/${orderId}/cancel`, { method: "POST" }).catch(() => {});
+    }
+    await submitOrder();
+  }
+
   function finalize() {
     clear();
     router.push(`/${venue}/order/${orderId}`);
@@ -221,7 +230,7 @@ export function CheckoutView({
         pixPayload={pixPayload}
         finalTotal={finalTotal}
         discount={discount}
-        onRegenerate={() => void submitOrder()}
+        onRegenerate={() => void regeneratePix()}
         onFinalize={finalize}
       />
     );
