@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 type Stage = "cpf" | "vip_prefill" | "new" | "loading";
@@ -43,7 +42,6 @@ export function CustomerLogin({
   venueDescription?: string;
   next?: string;
 }) {
-  const router = useRouter();
   const [stage, setStage] = useState<Stage>("cpf");
   const [cpf, setCpf] = useState("");
   const [prefill, setPrefill] = useState<Prefill | null>(null);
@@ -58,6 +56,11 @@ export function CustomerLogin({
 
   function nextUrl() {
     return next && next.startsWith(`/${venue}`) ? next : `/${venue}`;
+  }
+
+  /** Hard nav: cookie httpOnly acabou de ser setado; soft push fica preso em "Aguarde...". */
+  function goAfterAuth() {
+    window.location.assign(nextUrl());
   }
 
   function resetToCpf() {
@@ -118,7 +121,7 @@ export function CustomerLogin({
       return;
     }
     if (data.status === "existing") {
-      router.push(nextUrl());
+      goAfterAuth();
       return;
     }
     setPrefill(data.prefill ?? { cpf });
@@ -152,7 +155,7 @@ export function CustomerLogin({
       setStage(prefill?.lista_vip_id ? "vip_prefill" : "new");
       return;
     }
-    router.push(nextUrl());
+    goAfterAuth();
   }
 
   return (

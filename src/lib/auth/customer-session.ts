@@ -47,6 +47,21 @@ export async function setCustomerCookie(token: string) {
   });
 }
 
+/** Preferível em Route Handlers: garante Set-Cookie no NextResponse.json. */
+export function attachCustomerCookie(
+  res: import("next/server").NextResponse,
+  token: string
+) {
+  res.cookies.set(CUSTOMER_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: TTL,
+  });
+  return res;
+}
+
 export async function clearCustomerCookie() {
   const c = await cookies();
   c.delete(CUSTOMER_COOKIE);

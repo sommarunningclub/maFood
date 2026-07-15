@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { PeepsCanvas } from "./peeps-canvas";
@@ -14,7 +13,6 @@ function maskCpf(v: string) {
 }
 
 export function LandingLogin() {
-  const router = useRouter();
   const [cpf, setCpf] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,8 +32,8 @@ export function LandingLogin() {
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error ?? "Erro");
-      router.push(data.next ?? "/somma-special-day");
-      router.refresh();
+      // Hard nav: cookie httpOnly acabou de ser setado; soft push pode travar.
+      window.location.assign(data.next ?? "/somma-special-day");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro");
       setLoading(false);

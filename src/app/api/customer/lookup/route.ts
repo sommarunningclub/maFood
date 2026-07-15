@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient, createAdminClientPublic } from "@/lib/supabase/admin";
-import { signCustomer, setCustomerCookie } from "@/lib/auth/customer-session";
+import { signCustomer, attachCustomerCookie } from "@/lib/auth/customer-session";
 import { internalErrorResponse } from "@/lib/server-errors";
 
 const Body = z.object({ cpf: z.string().min(11).max(14) });
@@ -41,8 +41,8 @@ export async function POST(req: Request) {
       name: existing.name,
       is_vip: existing.is_vip,
     });
-    await setCustomerCookie(token);
-    return NextResponse.json({ status: "existing" });
+    const res = NextResponse.json({ status: "existing" });
+    return attachCustomerCookie(res, token);
   }
 
   // 2) Está na lista_vip? (lê do schema public via cliente apropriado)

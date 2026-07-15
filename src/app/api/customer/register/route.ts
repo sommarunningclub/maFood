@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { signCustomer, setCustomerCookie } from "@/lib/auth/customer-session";
+import { signCustomer, attachCustomerCookie } from "@/lib/auth/customer-session";
 import { internalErrorResponse } from "@/lib/server-errors";
 
 const Body = z.object({
@@ -69,7 +69,6 @@ export async function POST(req: Request) {
     name: data.name,
     is_vip: data.is_vip,
   });
-  await setCustomerCookie(token);
-
-  return NextResponse.json({ ok: true, customer: data });
+  const res = NextResponse.json({ ok: true, customer: data });
+  return attachCustomerCookie(res, token);
 }
