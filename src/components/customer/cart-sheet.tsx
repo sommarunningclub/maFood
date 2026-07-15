@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Minus, Plus, ShoppingBag, Trash2, UtensilsCrossed, X } from "lucide-react";
 import { brl } from "@/lib/utils";
 import type { CartItem } from "@/types";
+import { isSommaBar } from "@/lib/pdv";
 import { BrandMomentGif } from "@/components/customer/brand-moment-gif";
 
 /**
@@ -14,6 +15,7 @@ import { BrandMomentGif } from "@/components/customer/brand-moment-gif";
  */
 export function CartSheet({
   venue,
+  pdvSlug,
   pdvName,
   items,
   total,
@@ -23,6 +25,7 @@ export function CartSheet({
   onClose,
 }: {
   venue: string;
+  pdvSlug: string;
   pdvName: string;
   items: CartItem[];
   total: number;
@@ -31,6 +34,7 @@ export function CartSheet({
   onClear: () => void;
   onClose: () => void;
 }) {
+  const showBrandGif = isSommaBar({ slug: pdvSlug, name: pdvName });
   const panelRef = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
@@ -155,9 +159,11 @@ export function CartSheet({
           <div className="flex justify-center pb-2" aria-hidden>
             <div className="h-1.5 w-10 rounded-full bg-mafood-border" />
           </div>
-          <div className="flex justify-center py-1" aria-hidden>
-            <BrandMomentGif variant="cart" size={128} />
-          </div>
+          {showBrandGif && (
+            <div className="flex justify-center py-1" aria-hidden>
+              <BrandMomentGif variant="cart" size={128} />
+            </div>
+          )}
           <div className="flex items-start justify-between gap-3 pb-3">
             <div className="min-w-0">
               <h2 className="mafood-product-title text-fluid-lg text-mafood-text-primary">

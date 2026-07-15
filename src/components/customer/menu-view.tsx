@@ -310,6 +310,7 @@ export function MenuView({
       {cartOpen && c > 0 && (
         <CartSheet
           venue={venue}
+          pdvSlug={pdv.slug}
           pdvName={pdv.name}
           items={items}
           total={total()}
