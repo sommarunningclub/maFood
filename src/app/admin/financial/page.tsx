@@ -2,6 +2,12 @@ import { PageHeader } from "@/components/admin/page-header";
 import { logServerError } from "@/lib/server-errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { brl } from "@/lib/utils";
+import {
+  asaasEnabled,
+  getAccountFees,
+  getPayment,
+  type AsaasAccountFees,
+} from "@/lib/asaas";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +21,11 @@ type FinancialPdv = {
 };
 
 type FinancialOrder = {
+  id: string;
   pdv_id: string;
   total: number | string | null;
   method: "pix" | "card" | "counter";
+  asaas_payment_id: string | null;
 };
 
 type PayoutRecord = {
@@ -32,6 +40,9 @@ export default async function FinancialPage() {
   let orders: FinancialOrder[] = [];
   let payouts: PayoutRecord[] = [];
   let errorReference: string | null = null;
+  let asaasErrorReference: string | null = null;
+  let accountFees: AsaasAccountFees | null = null;
+  const actualFeeByPayment = new Map<string, number>();
 
   try {
     const supabase = createAdminClient();
@@ -43,7 +54,7 @@ export default async function FinancialPage() {
         .returns<FinancialPdv[]>(),
       supabase
         .from("orders")
-        .select("pdv_id, total, method")
+        .select("id, pdv_id, total, method, asaas_payment_id")
         .in("status", REVENUE_STATUSES)
         .returns<FinancialOrder[]>(),
       supabase
@@ -63,30 +74,80 @@ export default async function FinancialPage() {
     errorReference = logServerError("admin-financial", error);
   }
 
+  if (asaasEnabled) {
+    const paymentIds = Array.from(
+      new Set(
+        orders
+          .map((order) => order.asaas_payment_id)
+          .filter((id): id is string => Boolean(id))
+      )
+    );
+    const [feesResult, ...paymentResults] = await Promise.allSettled([
+      getAccountFees(),
+      ...paymentIds.map((id) => getPayment(id)),
+    ]);
+
+    if (feesResult.status === "fulfilled") {
+      accountFees = feesResult.value;
+    } else {
+      asaasErrorReference = logServerError("admin-financial-asaas-fees", feesResult.reason);
+    }
+
+    paymentResults.forEach((result, index) => {
+      if (result.status !== "fulfilled") return;
+      const value = Number(result.value.value);
+      const netValue = Number(result.value.netValue);
+      if (!Number.isFinite(value) || !Number.isFinite(netValue)) return;
+      actualFeeByPayment.set(
+        paymentIds[index],
+        Math.max(0, Math.round((value - netValue) * 100) / 100)
+      );
+    });
+  }
+
   const pdvById = new Map(pdvs.map((pdv) => [pdv.id, pdv]));
   const totalsByPdv = new Map<
     string,
-    { final: number; commission: number; gateway: number; net: number }
+    {
+      final: number;
+      commission: number;
+      gateway: number;
+      actualGateway: number;
+      actualCount: number;
+      estimatedCount: number;
+      net: number;
+    }
   >();
   for (const order of orders) {
     const pdv = pdvById.get(order.pdv_id);
     const value = Number(order.total ?? 0);
     if (!pdv || !Number.isFinite(value)) continue;
     const commission = (value * Number(pdv.commission_pct ?? 0)) / 100;
+    const actualGateway = order.asaas_payment_id
+      ? actualFeeByPayment.get(order.asaas_payment_id)
+      : undefined;
     const gateway =
       order.method === "counter"
         ? 0
-        : (value * Number(pdv.gateway_pct ?? 0)) / 100;
+        : actualGateway ?? (value * Number(pdv.gateway_pct ?? 0)) / 100;
     const current = totalsByPdv.get(order.pdv_id) ?? {
       final: 0,
       commission: 0,
       gateway: 0,
+      actualGateway: 0,
+      actualCount: 0,
+      estimatedCount: 0,
       net: 0,
     };
     totalsByPdv.set(order.pdv_id, {
       final: current.final + value,
       commission: current.commission + commission,
       gateway: current.gateway + gateway,
+      actualGateway: current.actualGateway + (actualGateway ?? 0),
+      actualCount: current.actualCount + (actualGateway !== undefined ? 1 : 0),
+      estimatedCount:
+        current.estimatedCount +
+        (order.method !== "counter" && actualGateway === undefined ? 1 : 0),
       net: current.net + value - commission - gateway,
     });
   }
@@ -103,6 +164,9 @@ export default async function FinancialPage() {
       final: 0,
       commission: 0,
       gateway: 0,
+      actualGateway: 0,
+      actualCount: 0,
+      estimatedCount: 0,
       net: 0,
     };
     return { pdv, payout: latestPayoutByPdv.get(pdv.id) ?? null, ...totals };
@@ -113,10 +177,24 @@ export default async function FinancialPage() {
       final: acc.final + r.final,
       commission: acc.commission + r.commission,
       gateway: acc.gateway + r.gateway,
+      actualGateway: acc.actualGateway + r.actualGateway,
+      actualCount: acc.actualCount + r.actualCount,
+      estimatedCount: acc.estimatedCount + r.estimatedCount,
       net: acc.net + r.net,
     }),
-    { final: 0, commission: 0, gateway: 0, net: 0 }
+    {
+      final: 0,
+      commission: 0,
+      gateway: 0,
+      actualGateway: 0,
+      actualCount: 0,
+      estimatedCount: 0,
+      net: 0,
+    }
   );
+
+  const pixFeeLabel = describePixFee(accountFees?.payment?.pix);
+  const cardFeeLabel = describeCardFee(accountFees?.payment?.creditCard);
 
   return (
     <>
@@ -134,13 +212,55 @@ export default async function FinancialPage() {
             <span className="mono">{errorReference}</span>
           </div>
         )}
+        {asaasErrorReference && (
+          <div
+            role="alert"
+            className="mb-4 border border-palantir-yellow/40 bg-palantir-yellow/10 px-4 py-3 text-sm text-palantir-yellow"
+          >
+            As tarifas reais do Asaas não puderam ser consultadas; valores sem
+            `netValue` usam a estimativa cadastrada no PDV. Referência:{" "}
+            <span className="mono">{asaasErrorReference}</span>
+          </div>
+        )}
+
+        {accountFees && (
+          <div className="mb-4 grid grid-cols-1 gap-px bg-palantir-border sm:grid-cols-2">
+            <div className="bg-palantir-surface p-4">
+              <p className="mono text-[10px] uppercase tracking-wider text-palantir-muted">
+                Tarifa Asaas · Pix
+              </p>
+              <p className="mono mt-1 text-base font-semibold text-palantir-text">
+                {pixFeeLabel}
+              </p>
+            </div>
+            <div className="bg-palantir-surface p-4">
+              <p className="mono text-[10px] uppercase tracking-wider text-palantir-muted">
+                Tarifa Asaas · Cartão 1x
+              </p>
+              <p className="mono mt-1 text-base font-semibold text-palantir-text">
+                {cardFeeLabel}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* KPIs financeiros */}
         <div className="mb-6 grid grid-cols-2 lg:grid-cols-4 gap-px bg-palantir-border">
           {[
             { label: "Bruto total", value: brl(totals.final), accent: "text-palantir-text" },
             { label: "Comissão maFood", value: brl(totals.commission), accent: "text-palantir-yellow" },
-            { label: "Taxa gateway", value: brl(totals.gateway), accent: "text-palantir-red" },
+            {
+              label: totals.actualCount > 0 ? "Taxa Asaas real" : "Taxa gateway estimada",
+              value:
+                totals.actualCount > 0
+                  ? brl(totals.actualGateway)
+                  : brl(totals.gateway),
+              accent: "text-palantir-red",
+              sub:
+                totals.actualCount > 0
+                  ? `${totals.actualCount} cobrança(s) consultada(s)`
+                  : `${totals.estimatedCount} cobrança(s) estimada(s)`,
+            },
             { label: "Líquido aos PDVs", value: brl(totals.net), accent: "text-palantir-green" },
           ].map((k) => (
             <div key={k.label} className="bg-palantir-surface p-3 sm:p-4">
@@ -148,6 +268,9 @@ export default async function FinancialPage() {
                 {k.label}
               </p>
               <p className={`mono mt-1 text-fluid-xl font-bold ${k.accent}`}>{k.value}</p>
+              {"sub" in k && k.sub && (
+                <p className="mono mt-1 text-[9px] text-palantir-muted">{k.sub}</p>
+              )}
             </div>
           ))}
         </div>
@@ -160,7 +283,7 @@ export default async function FinancialPage() {
                 <th className="px-4 py-2">PDV</th>
                 <th className="px-4 py-2 text-right">Bruto</th>
                 <th className="px-4 py-2 text-right">Comissão</th>
-                <th className="px-4 py-2 text-right">Gateway</th>
+                <th className="px-4 py-2 text-right">Asaas</th>
                 <th className="px-4 py-2 text-right">Líquido</th>
                 <th className="px-4 py-2 text-right">Repasse</th>
               </tr>
@@ -171,7 +294,16 @@ export default async function FinancialPage() {
                   <td className="px-4 py-2 text-palantir-text whitespace-nowrap">{r.pdv.name}</td>
                   <td className="mono px-4 py-2 text-right text-palantir-text whitespace-nowrap">{brl(r.final)}</td>
                   <td className="mono px-4 py-2 text-right text-palantir-yellow whitespace-nowrap">{brl(r.commission)}</td>
-                  <td className="mono px-4 py-2 text-right text-palantir-red whitespace-nowrap">{brl(r.gateway)}</td>
+                  <td className="mono px-4 py-2 text-right text-palantir-red whitespace-nowrap">
+                    {brl(r.gateway)}
+                    <span className="block text-[9px] text-palantir-muted">
+                      {r.actualCount > 0
+                        ? `${r.actualCount} real`
+                        : r.estimatedCount > 0
+                          ? "estimado"
+                          : "sem taxa"}
+                    </span>
+                  </td>
                   <td className="mono px-4 py-2 text-right text-palantir-green whitespace-nowrap">{brl(r.net)}</td>
                   <td className="px-4 py-2 text-right">
                     <span
@@ -222,6 +354,59 @@ export default async function FinancialPage() {
       </div>
     </>
   );
+}
+
+type PixFee = NonNullable<NonNullable<AsaasAccountFees["payment"]>["pix"]>;
+type CardFee = NonNullable<NonNullable<AsaasAccountFees["payment"]>["creditCard"]>;
+
+function activeDiscount(expires: string | null | undefined) {
+  if (!expires) return false;
+  const time = new Date(expires.replace(" ", "T")).getTime();
+  return Number.isFinite(time) && time > Date.now();
+}
+
+function describePixFee(fee: PixFee | undefined) {
+  if (!fee) return "Não informado";
+  const freeRemaining = Math.max(
+    0,
+    Number(fee.monthlyCreditsWithoutFee ?? 0) -
+      Number(fee.creditsReceivedOfCurrentMonth ?? 0)
+  );
+  const free = freeRemaining > 0 ? ` · ${freeRemaining} grátis restantes` : "";
+  if (
+    fee.fixedFeeValueWithDiscount != null &&
+    activeDiscount(fee.discountExpiration)
+  ) {
+    return `${brl(Number(fee.fixedFeeValueWithDiscount))} por cobrança${free}`;
+  }
+  if (fee.fixedFeeValue != null) {
+    return `${brl(Number(fee.fixedFeeValue))} por cobrança${free}`;
+  }
+  if (fee.percentageFee != null) {
+    const limits = [
+      fee.minimumFeeValue != null ? `mín. ${brl(Number(fee.minimumFeeValue))}` : null,
+      fee.maximumFeeValue != null ? `máx. ${brl(Number(fee.maximumFeeValue))}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    return `${Number(fee.percentageFee).toLocaleString("pt-BR")}%${
+      limits ? ` · ${limits}` : ""
+    }${free}`;
+  }
+  return `Sem tarifa informada${free}`;
+}
+
+function describeCardFee(fee: CardFee | undefined) {
+  if (!fee) return "Não informado";
+  const percentage =
+    fee.discountOneInstallmentPercentage != null &&
+    activeDiscount(fee.discountExpiration)
+      ? Number(fee.discountOneInstallmentPercentage)
+      : Number(fee.oneInstallmentPercentage ?? 0);
+  const operation = Number(fee.operationValue ?? 0);
+  return `${percentage.toLocaleString("pt-BR")}%${
+    operation > 0 ? ` + ${brl(operation)} por cobrança` : ""
+  }`;
 }
 
 function payoutLabel(status: string | undefined) {

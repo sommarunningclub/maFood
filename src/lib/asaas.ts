@@ -70,7 +70,32 @@ export interface AsaasPayment {
   id: string;
   status: string;
   value: number;
+  /** Valor líquido após a tarifa efetivamente cobrada pelo Asaas. */
+  netValue?: number;
+  billingType?: string;
   invoiceUrl?: string;
+}
+
+export interface AsaasAccountFees {
+  payment?: {
+    pix?: {
+      fixedFeeValue?: number | null;
+      fixedFeeValueWithDiscount?: number | null;
+      percentageFee?: number | null;
+      minimumFeeValue?: number | null;
+      maximumFeeValue?: number | null;
+      discountExpiration?: string | null;
+      monthlyCreditsWithoutFee?: number | null;
+      creditsReceivedOfCurrentMonth?: number | null;
+    };
+    creditCard?: {
+      operationValue?: number | null;
+      oneInstallmentPercentage?: number | null;
+      discountOneInstallmentPercentage?: number | null;
+      discountExpiration?: string | null;
+      daysToReceive?: number | null;
+    };
+  };
 }
 
 export interface AsaasPixQr {
@@ -149,6 +174,20 @@ async function asaasFetch<T>(path: string, init?: RequestInit): Promise<T> {
     throw e;
   }
   return body as T;
+}
+
+/** Tarifas vigentes da conta Asaas (Pix, cartão etc.). */
+export async function getAccountFees(): Promise<AsaasAccountFees> {
+  if (isSimulated()) return {};
+  return asaasFetch<AsaasAccountFees>("/myAccount/fees/");
+}
+
+/** Dados financeiros reais de uma cobrança, incluindo `netValue`. */
+export async function getPayment(paymentId: string): Promise<AsaasPayment> {
+  if (isSimulated()) {
+    return { id: paymentId, status: "RECEIVED", value: 0, netValue: 0 };
+  }
+  return asaasFetch<AsaasPayment>(`/payments/${encodeURIComponent(paymentId)}`);
 }
 
 export async function findOrCreateCustomer(input: AsaasCustomerInput): Promise<AsaasCustomer> {
