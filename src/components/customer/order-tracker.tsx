@@ -45,18 +45,19 @@ const STEPS: { status: Status; label: string }[] = [
   { status: "delivered", label: "Entregue" },
 ];
 const STEPS_COUNTER: { status: Status; label: string }[] = [
-  { status: "paid", label: "Pedido" },
+  { status: "pending", label: "Aguardando pagamento" },
+  { status: "paid", label: "Na fila" },
   { status: "preparing", label: "Em preparo" },
   { status: "ready", label: "Pronto" },
   { status: "delivered", label: "Entregue" },
 ];
 const RANK: Record<Status, number> = {
-  pending: -1,
-  paid: 0,
-  preparing: 1,
-  ready: 2,
-  partial: 2.5, // entre pronto e entregue
-  delivered: 3,
+  pending: 0,
+  paid: 1,
+  preparing: 2,
+  ready: 3,
+  partial: 3.5,
+  delivered: 4,
   cancelled: -1,
 };
 
@@ -138,10 +139,13 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
 
   useEffect(() => {
     if (!order) return;
-    // Status pending: gera QR do pix_payload (cobrança). Outros: QR de retirada.
+    // Counter pending: sem QR Pix. Asaas pending: QR de cobrança. Demais: QR de retirada.
     if (order.status === "pending") {
+      if (order.method === "counter") {
+        setQr(null);
+        return;
+      }
       if (order.pix_qr_code) {
-        // base64 vindo do Asaas — já é image data
         setQr(
           order.pix_qr_code.startsWith("data:")
             ? order.pix_qr_code
@@ -263,21 +267,24 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
               : "Pedido pronto!"
             : "Acompanhe seu pedido"}
         </h1>
-        {order.created_by === "pdv" && isPending && (
+        {order.created_by === "pdv" && isPending && !isCounter && (
           <p className="num text-[11px] text-mafood-text-secondary mt-1">
             Pedido criado pelo balcão — pague para liberar o preparo
           </p>
         )}
-        {isCounter && !isCancelled && !isPending && (
+        {isCounter && !isCancelled && (
           <p className="mt-2 text-[13px] leading-snug text-mafood-text-secondary max-w-sm mx-auto">
-            Pagamento na tenda do Dopa (maquininha). Mostre o pedido{" "}
+            {isPending
+              ? "Pague na tenda do Dopa (maquininha Pix ou cartão). A produção só começa depois da confirmação."
+              : "Pagamento na tenda do Dopa (maquininha)."}{" "}
+            Mostre o pedido{" "}
             <span className="font-semibold text-mafood-text-primary">#{order.number}</span>.
           </p>
         )}
       </div>
 
       {/* Bloco "aguarde + atualizar" — visível enquanto pedido não está pronto/entregue */}
-      {(order.status === "paid" || isPreparing) && (
+      {(order.status === "paid" || isPreparing || (isPending && isCounter)) && (
         <section className="mt-6 flex flex-col items-center text-center">
           {isPreparing && (
             <div className="opacity-90">
@@ -287,9 +294,11 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
           <p className="num text-[11px] text-mafood-text-secondary mt-3 max-w-xs">
             {isPreparing
               ? "Estamos preparando seu pedido — avisamos aqui assim que estiver pronto."
-              : isCounter
-                ? "Pedido na fila do PDV — pague na tenda e aguarde o preparo."
-                : "Aguardando o PDV aceitar o pedido…"}
+              : isPending && isCounter
+                ? "Aguardando o PDV confirmar o pagamento na maquininha…"
+                : isCounter
+                  ? "Pagamento confirmado — pedido na fila do PDV."
+                  : "Aguardando o PDV aceitar o pedido…"}
           </p>
           <button
             onClick={refreshNow}
@@ -302,8 +311,8 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
         </section>
       )}
 
-      {/* Bloco de pagamento Pix (status pending) */}
-      {isPending && (
+      {/* Bloco de pagamento Pix (status pending · Asaas) */}
+      {isPending && !isCounter && (
         <section className="mt-6 rounded-mafood-md border border-mafood-primary/40 bg-mafood-primary/5 p-4 flex flex-col items-center">
           <p className="num text-[11px] text-mafood-primary-strong tracking-widest uppercase">Pix · SommaFood</p>
           <p className="num text-3xl text-mafood-text-primary font-bold mt-1">{brl(order.total)}</p>
@@ -335,6 +344,19 @@ export function OrderTracker({ venue, orderId }: { venue: string; orderId: strin
           )}
           <p className="text-xs text-mafood-text-secondary text-center mt-3">
             Pague pelo app do seu banco. Esta tela atualiza sozinha quando a cobrança for confirmada.
+          </p>
+        </section>
+      )}
+
+      {/* Counter pending: valor a pagar na tenda */}
+      {isPending && isCounter && (
+        <section className="mt-6 rounded-mafood-md border border-mafood-primary/40 bg-mafood-primary/5 p-4 flex flex-col items-center text-center">
+          <p className="num text-[11px] text-mafood-primary-strong tracking-widest uppercase">
+            Pagar na tenda
+          </p>
+          <p className="num text-3xl text-mafood-text-primary font-bold mt-1">{brl(order.total)}</p>
+          <p className="text-[13px] text-mafood-text-secondary mt-3 max-w-xs">
+            Pix ou cartão na maquininha. O preparo começa só depois que o PDV confirmar o pagamento.
           </p>
         </section>
       )}

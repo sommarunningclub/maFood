@@ -2,7 +2,7 @@
   Criação de pedido pelo cliente (PWA):
   - Pix / cartão: integra Asaas (checkout transparente)
   - counter: pedido no app · pagamento na tenda/balcão (sem Asaas);
-    entra direto como `paid` no Kanban do PDV
+    entra como `pending` até o PDV confirmar o pagamento na maquininha
 */
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -266,10 +266,9 @@ export async function POST(req: Request) {
     }
   }
 
-  // counter → paid (Kanban NOVOS); cartão confirmado → paid; senão pending
-  const orderStatus = counterCheckout || cardInstantlyConfirmed ? "paid" : "pending";
-  const paidAt =
-    counterCheckout || cardInstantlyConfirmed ? new Date().toISOString() : null;
+  // counter → pending (aguarda confirmação na maquininha); cartão confirmado → paid; senão pending
+  const orderStatus = cardInstantlyConfirmed ? "paid" : "pending";
+  const paidAt = cardInstantlyConfirmed ? new Date().toISOString() : null;
   const { data: order, error: eOrder } = await supabase
     .from("orders")
     .insert({

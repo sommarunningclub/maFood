@@ -480,7 +480,7 @@ export function CheckoutView({
           </h2>
           <p className="num text-sm text-mafood-text-secondary mt-3">
             {method === "counter"
-              ? "Pague na tenda do Dopa na maquininha. Mostre o número do pedido."
+              ? "Pague na maquininha (Pix ou cartão). A produção começa após a confirmação do pagamento."
               : "Aguardando o restaurante aceitar seu pedido"}
           </p>
           {orderNumber != null && method === "counter" && (
@@ -643,8 +643,8 @@ export function CheckoutView({
               Pagar na tenda do Dopa
             </p>
             <p className="mt-1 text-[12px] leading-snug text-mafood-text-secondary">
-              Seu pedido vai para a fila do PDV. O pagamento é na maquininha da tenda —
-              mostre o número do pedido.
+              Pague na maquininha da tenda (Pix ou cartão). A produção só começa
+              depois que o PDV confirmar o pagamento — mostre o número do pedido.
             </p>
           </div>
         ) : (

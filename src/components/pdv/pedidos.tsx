@@ -58,14 +58,22 @@ interface ColumnSpec {
 }
 
 /*
-  DnD totalmente livre — qualquer card (não-pending) pode ser solto em
-  qualquer coluna, inclusive voltando estados ou pulando direto pra entregue.
-  Drop em "delivered" continua abrindo DeliverDialog porque entrega precisa
-  registrar quantidade por item; demais drops são PATCH direto do status.
+  DnD livre entre colunas operacionais (após pagamento).
+  Pedidos `pending` (pagar na tenda) ficam em AGUARDANDO PAGTO — só avançam
+  via CTA "CONFIRMAR PAGAMENTO" (não arrastam pra produção).
+  Drop em "delivered" abre DeliverDialog (quantidade por item).
 */
 const ALL_DROPPABLE: Status[] = ["paid", "preparing", "ready", "partial", "delivered"];
 
 const COLUMNS: ColumnSpec[] = [
+  {
+    status: "pending",
+    label: "AGUARDANDO PAGTO",
+    accent: "text-somma-orange border-somma-orange",
+    next: "paid",
+    cta: "CONFIRMAR PAGAMENTO",
+    acceptsFrom: [],
+  },
   {
     status: "paid",
     label: "NOVOS",
@@ -149,12 +157,19 @@ export function Pedidos({ slug }: { slug: string }) {
       const data = (await r.json()) as { orders: Order[] };
       setOrders(data.orders);
 
-      const newPaidIds = data.orders.filter((o) => o.status === "paid").map((o) => o.id);
-      const novosDesconhecidos = newPaidIds.filter((id) => !prevNewIds.current.has(id));
+      // Alerta sonoro: novo pedido aguardando pagamento na tenda OU novo pago
+      const alertIds = data.orders
+        .filter(
+          (o) =>
+            o.status === "paid" ||
+            (o.status === "pending" && o.method === "counter")
+        )
+        .map((o) => o.id);
+      const novosDesconhecidos = alertIds.filter((id) => !prevNewIds.current.has(id));
       if (prevNewIds.current.size > 0 && novosDesconhecidos.length > 0) {
         beepRef.current?.();
       }
-      prevNewIds.current = new Set(newPaidIds);
+      prevNewIds.current = new Set(alertIds);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro");
     } finally {
@@ -198,7 +213,11 @@ export function Pedidos({ slug }: { slug: string }) {
   const byStatus = useMemo(() => {
     const map: Record<string, Order[]> = {};
     for (const c of COLUMNS) map[c.status] = [];
-    for (const o of filtered) (map[o.status] ??= []).push(o);
+    for (const o of filtered) {
+      // Coluna pending só lista pagamento na tenda (Pix/cartão Asaas ficam fora do Kanban)
+      if (o.status === "pending" && o.method !== "counter") continue;
+      (map[o.status] ??= []).push(o);
+    }
     return map;
   }, [filtered]);
 
@@ -350,7 +369,7 @@ export function Pedidos({ slug }: { slug: string }) {
           onDragCancel={() => setActiveId(null)}
         >
           <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden bg-palantir-border lg:overflow-hidden">
-            <div className="flex h-full gap-px lg:grid lg:grid-cols-5 scroll-snap-x">
+            <div className="flex h-full gap-px lg:grid lg:grid-cols-6 scroll-snap-x">
               {COLUMNS.map((col) => (
                 <Column
                   key={col.status}
@@ -387,6 +406,10 @@ export function Pedidos({ slug }: { slug: string }) {
         <OrderDetailModal
           order={detail}
           onClose={() => setDetail(null)}
+          onConfirmPayment={async () => {
+            await advance(detail.id, "paid");
+            setDetail(null);
+          }}
           onSaved={() => {
             setDetail(null);
             refresh();
@@ -605,7 +628,10 @@ function OrderCard({
         </div>
       )}
       <div className="mono mb-2 text-xs text-palantir-muted">
-        {order.method.toUpperCase()} · {brl(order.total)}
+        {order.method === "counter"
+          ? "TENDA"
+          : order.method.toUpperCase()}{" "}
+        · {brl(order.total)}
       </div>
       {(onAdvance || onDeliver || onCancel) && !dragging && (
         <div className="flex gap-1">
@@ -625,7 +651,7 @@ function OrderCard({
               ENTREGAR
             </button>
           )}
-          {columnStatus === "paid" && onCancel && (
+          {(columnStatus === "paid" || columnStatus === "pending") && onCancel && (
             <button
               onClick={(e) => { stop(e); onCancel(); }}
               aria-label="Cancelar pedido"

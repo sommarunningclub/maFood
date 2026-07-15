@@ -92,10 +92,13 @@ export function OrderDetailModal({
   order: orderProp,
   onClose,
   onSaved,
+  onConfirmPayment,
 }: {
   order: Order;
   onClose: () => void;
   onSaved?: () => void;
+  /** Confirma pagamento na maquininha (pending → paid). */
+  onConfirmPayment?: () => void | Promise<void>;
 }) {
   const [order, setOrder] = useState<Order>(orderProp);
   const [editing, setEditing] = useState(false);
@@ -106,6 +109,7 @@ export function OrderDetailModal({
   const [adding, setAdding] = useState(false);
   const [productSearch, setProductSearch] = useState("");
   const [saving, setSaving] = useState(false);
+  const [confirmingPay, setConfirmingPay] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -573,6 +577,31 @@ export function OrderDetailModal({
         </div>
 
         {/* Footer com botões de edit */}
+        {!editing &&
+          order.status === "pending" &&
+          order.method === "counter" &&
+          onConfirmPayment && (
+            <div className="sticky bottom-0 z-10 bg-palantir-surface border-t border-palantir-border px-4 sm:px-5 py-3 pb-safe">
+              <p className="mono text-[10px] text-palantir-muted mb-2 uppercase tracking-wider">
+                Confirme após o pagamento na maquininha (Pix ou cartão)
+              </p>
+              <button
+                type="button"
+                disabled={confirmingPay}
+                onClick={async () => {
+                  setConfirmingPay(true);
+                  try {
+                    await onConfirmPayment();
+                  } finally {
+                    setConfirmingPay(false);
+                  }
+                }}
+                className="w-full rounded-admin bg-palantir-blue min-h-touch py-3 text-sm font-semibold text-white disabled:opacity-50 focus-ring-admin"
+              >
+                {confirmingPay ? "Confirmando…" : "CONFIRMAR PAGAMENTO"}
+              </button>
+            </div>
+          )}
         {editing && (
           <div className="sticky bottom-0 z-10 bg-palantir-surface border-t border-palantir-border px-4 sm:px-5 py-3 flex justify-end gap-2 pb-safe">
             <button
