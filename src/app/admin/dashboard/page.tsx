@@ -27,7 +27,6 @@ type DashboardOrder = {
   created_at: string;
   paid_at: string | null;
   ready_at: string | null;
-  pdvs: { name: string | null } | null;
 };
 
 function currentSaoPauloRange() {
@@ -62,9 +61,7 @@ export default async function AdminDashboard() {
         .returns<PdvRecord[]>(),
       supabase
         .from("orders")
-        .select(
-          "id, number, pdv_id, total, status, created_at, paid_at, ready_at, pdvs(name)"
-        )
+        .select("id, number, pdv_id, total, status, created_at, paid_at, ready_at")
         .in("status", REVENUE_STATUSES)
         .gte("paid_at", range.start)
         .lt("paid_at", range.end)
@@ -72,11 +69,9 @@ export default async function AdminDashboard() {
         .returns<DashboardOrder[]>(),
       supabase
         .from("orders")
-        .select(
-          "id, number, pdv_id, total, status, created_at, paid_at, ready_at, pdvs(name)"
-        )
+        .select("id, number, pdv_id, total, status, created_at, paid_at, ready_at")
         .order("created_at", { ascending: false })
-        .limit(6)
+        .limit(8)
         .returns<DashboardOrder[]>(),
     ]);
 
@@ -155,7 +150,7 @@ export default async function AdminDashboard() {
 
   return (
     <>
-      <PageHeader title="Dashboard" subtitle="Dados reais · vendas confirmadas hoje" />
+      <PageHeader title="Dashboard" subtitle="Dados reais · vendas confirmadas hoje (America/Sao_Paulo)" />
       <div className="p-4 sm:p-6">
         {errorReference && (
           <div
@@ -207,7 +202,7 @@ export default async function AdminDashboard() {
                           </div>
                         </td>
                         <td className="mono px-4 py-2 text-right text-palantir-text whitespace-nowrap">
-                          {share.toFixed(1)}%
+                          {share.toFixed(1)}% · {brl(revenue)}
                         </td>
                       </tr>
                     );
@@ -237,7 +232,10 @@ export default async function AdminDashboard() {
                         #{order.number}
                       </td>
                       <td className="px-4 py-2 text-palantir-text truncate max-w-[160px]">
-                        {order.pdvs?.name ?? "—"}
+                        {pdvById.get(order.pdv_id)?.name ?? "—"}
+                      </td>
+                      <td className="mono px-4 py-2 text-right text-palantir-muted whitespace-nowrap uppercase">
+                        {order.status}
                       </td>
                       <td className="mono px-4 py-2 text-right text-palantir-text whitespace-nowrap">
                         {brl(Number(order.total ?? 0))}
@@ -246,7 +244,7 @@ export default async function AdminDashboard() {
                   ))}
                   {recentOrders.length === 0 && (
                     <tr>
-                      <td colSpan={3} className="px-4 py-8 text-center text-palantir-muted">
+                      <td colSpan={4} className="px-4 py-8 text-center text-palantir-muted">
                         Nenhum pedido recente
                       </td>
                     </tr>
