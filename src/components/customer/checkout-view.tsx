@@ -10,6 +10,7 @@ import { brl } from "@/lib/utils";
 import { IdentifyModal } from "@/components/customer/identify-modal";
 import { PixPayment } from "@/components/customer/pix-payment";
 import { EmptyState } from "@/components/customer/ui/mafood-states";
+import { BrandMomentGif } from "@/components/customer/brand-moment-gif";
 
 type Step = "form" | "card-form" | "submitting" | "pix" | "approved" | "failed";
 type PaymentMethod = "pix" | "card";
@@ -390,7 +391,7 @@ export function CheckoutView({
     return (
       <div className="min-h-dvh-100 flex items-center justify-center p-8 pt-safe pb-safe">
         <div className="text-center max-w-sm">
-          <div className="size-14 mx-auto mb-4 rounded-full border-4 border-mafood-border border-t-mafood-primary animate-spin" />
+          <BrandMomentGif variant="cart" size={180} className="mb-2" />
           <h2 className="mafood-display text-mafood-text-primary text-fluid-xl">
             {method === "pix" ? "Gerando Pix" : "Processando pagamento"}
           </h2>
@@ -409,9 +410,7 @@ export function CheckoutView({
     return (
       <div className="min-h-dvh-100 flex items-center justify-center p-6 pt-safe pb-safe">
         <div className="text-center max-w-sm w-full">
-          <div className="size-20 mx-auto mb-5 rounded-full border-4 border-mafood-success-strong/40 bg-mafood-success/10 grid place-items-center">
-            <span className="text-4xl">✓</span>
-          </div>
+          <BrandMomentGif variant="success" size={200} className="mb-3" />
           <h2 className="mafood-display text-mafood-text-primary text-fluid-2xl">
             Pagamento aprovado
           </h2>

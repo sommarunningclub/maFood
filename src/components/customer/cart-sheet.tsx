@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Minus, Plus, ShoppingBag, Trash2, UtensilsCrossed, X } from "lucide-react";
 import { brl } from "@/lib/utils";
 import type { CartItem } from "@/types";
+import { BrandMomentGif } from "@/components/customer/brand-moment-gif";
 
 /**
  * Bottom sheet de revisão da sacola — permite ajustar quantidades e
@@ -153,6 +154,9 @@ export function CartSheet({
         >
           <div className="flex justify-center pb-2" aria-hidden>
             <div className="h-1.5 w-10 rounded-full bg-mafood-border" />
+          </div>
+          <div className="flex justify-center py-1" aria-hidden>
+            <BrandMomentGif variant="cart" size={128} />
           </div>
           <div className="flex items-start justify-between gap-3 pb-3">
             <div className="min-w-0">
