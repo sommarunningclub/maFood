@@ -43,6 +43,7 @@ export function RestaurantHeader({ venue, pdv }: { venue: string; pdv: Pdv }) {
             animate={{ opacity: 1, y: 0 }}
             exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
             transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
+            data-slim-header
             className="fixed inset-x-0 top-0 z-40 pt-safe mafood-header-gradient text-white shadow-mafood-sm"
           >
             <div className="flex h-[3.25rem] items-center gap-2 px-2">

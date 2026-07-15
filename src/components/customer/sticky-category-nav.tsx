@@ -1,42 +1,64 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
- * Navegação de categorias — pills horizontais, fixa (sticky) logo abaixo
- * do cabeçalho. Clicar rola suavemente até a seção `#<cat>` e sincroniza
- * o pill ativo. Um IntersectionObserver mantém o ativo em sincronia
- * conforme o usuário rola.
+ * Navegação de categorias — pills horizontais numa barra FIXA na base da
+ * tela. Aparece assim que o usuário rola para baixo (sai do topo do hero) e
+ * some perto do topo, para não competir com o cabeçalho. Clicar rola
+ * suavemente até a seção `#<cat>` e sincroniza o pill ativo; um
+ * IntersectionObserver mantém o ativo em sincronia conforme o usuário rola.
+ *
+ * `raised` sobe a barra para acima da barra flutuante do carrinho quando ela
+ * está visível, evitando sobreposição.
  */
 export function StickyCategoryNavigation({
   categories,
   active,
   onSelect,
+  raised = false,
 }: {
   categories: string[];
   active: string;
   onSelect: (cat: string) => void;
+  raised?: boolean;
 }) {
   const navRef = useRef<HTMLElement>(null);
   const onSelectRef = useRef(onSelect);
   const clickLockRef = useRef(0);
+  // A barra só aparece depois que o usuário rola para baixo (passa do hero).
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     onSelectRef.current = onSelect;
   });
 
+  // Mostra/esconde a barra conforme a rolagem. Threshold ~ altura do hero;
+  // acima disso (topo da página) a barra fica escondida.
+  useEffect(() => {
+    let rafId = 0;
+    const SHOW_AT = 140; // px rolados a partir do topo
+    const evaluate = () => {
+      rafId = 0;
+      setVisible(window.scrollY > SHOW_AT);
+    };
+    const onScroll = () => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(evaluate);
+    };
+    evaluate();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, []);
+
   // Sincroniza o pill ativo enquanto o usuário rola a lista de seções.
-  // O rootMargin é calculado dinamicamente a partir da posição real da nav
-  // (getBoundingClientRect().bottom), o que cobre automaticamente a altura
-  // da slim bar colapsável + safe-area-inset-top + altura da própria nav,
-  // sem números mágicos fixos.
-  //
-  // Importante: no mount (scrollY=0) a nav ainda NÃO está pinada — ela fica
-  // no fluxo, logo abaixo do hero alto (~150px), então bottom vem inflado.
-  // Por isso remedimos a posição real da nav no scroll (throttlado com rAF)
-  // e só recriamos o observer quando o valor muda >2px. Assim que a nav
-  // estabiliza na posição dockada (~110px), o valor para de mudar e o
-  // observer deixa de ser recriado (sem churn).
+  // Para uma barra na BASE, o offset relevante é o topo do conteúdo visível
+  // (logo abaixo da slim bar colapsável do cabeçalho). Medimos a slim bar
+  // real (`[data-slim-header]`) para cobrir safe-area-inset-top + altura,
+  // com fallback constante quando ela ainda não está montada.
   useEffect(() => {
     if (categories.length === 0) return;
     const sections = categories
@@ -45,39 +67,35 @@ export function StickyCategoryNavigation({
     if (sections.length === 0) return;
 
     let observer: IntersectionObserver | null = null;
-    let lastNavBottom = -1;
+    let lastTop = -1;
     let rafId = 0;
 
-    const createObserver = (navBottom: number) => {
-      lastNavBottom = navBottom;
+    const createObserver = (topOffset: number) => {
+      lastTop = topOffset;
       observer?.disconnect();
       observer = new IntersectionObserver(
         (entries) => {
-          // Ignora atualizações logo após um clique (o scroll suave dispara
-          // várias interseções que sobrescreveriam a seleção do usuário).
           if (Date.now() < clickLockRef.current) return;
-          const visible = entries
+          const visibleSecs = entries
             .filter((e) => e.isIntersecting)
-            .sort(
-              (a, b) => a.boundingClientRect.top - b.boundingClientRect.top
-            );
-          if (visible[0]?.target.id) onSelectRef.current(visible[0].target.id);
+            .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+          if (visibleSecs[0]?.target.id)
+            onSelectRef.current(visibleSecs[0].target.id);
         },
-        { rootMargin: `-${navBottom}px 0px -60% 0px`, threshold: 0 }
+        { rootMargin: `-${topOffset}px 0px -55% 0px`, threshold: 0 }
       );
       sections.forEach((s) => observer?.observe(s));
     };
 
-    // Remede a posição real da nav e recria o observer só se mudou o bastante.
     const syncOffset = () => {
-      const navBottom = Math.round(
-        navRef.current?.getBoundingClientRect().bottom ?? 96
+      const slim = document.querySelector<HTMLElement>("[data-slim-header]");
+      const topOffset = Math.round(
+        slim?.getBoundingClientRect().bottom ?? 64
       );
-      if (observer && Math.abs(navBottom - lastNavBottom) <= 2) return;
-      createObserver(navBottom);
+      if (observer && Math.abs(topOffset - lastTop) <= 2) return;
+      createObserver(topOffset);
     };
 
-    // Scroll throttlado com requestAnimationFrame.
     const onScroll = () => {
       if (rafId) return;
       rafId = requestAnimationFrame(() => {
@@ -119,9 +137,17 @@ export function StickyCategoryNavigation({
     <nav
       ref={navRef}
       aria-label="Categorias"
-      className="sticky top-[calc(3.25rem+env(safe-area-inset-top))] z-20 border-b border-mafood-border bg-mafood-background/95 backdrop-blur supports-[backdrop-filter]:bg-mafood-background/80"
+      className={`fixed inset-x-0 z-20 border-t border-mafood-border bg-mafood-background/95 backdrop-blur supports-[backdrop-filter]:bg-mafood-background/80 transition-[transform,opacity] duration-200 ${
+        raised
+          ? "bottom-[calc(4.75rem+env(safe-area-inset-bottom))]"
+          : "bottom-0 pb-safe"
+      } ${
+        visible
+          ? "translate-y-0 opacity-100"
+          : "pointer-events-none translate-y-full opacity-0"
+      }`}
     >
-      <div className="flex gap-2 overflow-x-auto px-4 py-2.5 no-scrollbar scroll-snap-x">
+      <div className="mx-auto flex max-w-screen-mobile gap-2 overflow-x-auto px-4 py-2.5 no-scrollbar scroll-snap-x">
         {categories.map((cat) => {
           const isActive = active === cat;
           return (

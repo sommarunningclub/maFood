@@ -33,7 +33,7 @@ export function MenuView({
   const c = count();
 
   return (
-    <div className={`min-h-dvh-100 ${sellsOnline ? "pb-28" : "pb-10"}`}>
+    <div className={`min-h-dvh-100 ${sellsOnline ? "pb-36" : "pb-24"}`}>
       <RestaurantHeader venue={venue} pdv={pdv} />
 
       {/* Bifurcação: PDVs sem venda online pagam no balcão */}
@@ -55,13 +55,13 @@ export function MenuView({
         </div>
       )}
 
-      <div className="mt-4">
-        <StickyCategoryNavigation
-          categories={categories}
-          active={active}
-          onSelect={setActive}
-        />
-      </div>
+      {/* Navegação de categorias — barra fixa na base (aparece ao rolar) */}
+      <StickyCategoryNavigation
+        categories={categories}
+        active={active}
+        onSelect={setActive}
+        raised={sellsOnline && c > 0}
+      />
 
       {/* Cardápio */}
       <div className="mt-5 space-y-8 px-4">
