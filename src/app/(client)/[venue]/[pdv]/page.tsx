@@ -21,7 +21,7 @@ export default async function PdvMenuPage({
 
   const { data: pdv } = await supabase
     .from("pdvs")
-    .select("id, slug, venue_id, name, category, logo_url, prep_time_min, is_open, is_visible, instagram_handle, commission_pct, gateway_pct, sort_order, wallet_balance")
+    .select("id, slug, venue_id, name, category, logo_url, prep_time_min, is_open, is_visible, sells_online, instagram_handle, commission_pct, gateway_pct, sort_order, wallet_balance")
     .eq("slug", params.pdv)
     .eq("venue_id", venue.id)
     .maybeSingle();

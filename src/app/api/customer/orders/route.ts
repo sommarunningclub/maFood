@@ -91,7 +91,7 @@ export async function POST(req: Request) {
 
   const { data: pdv, error: ePdv } = await supabase
     .from("pdvs")
-    .select("id, venue_id, name, is_open, category")
+    .select("id, venue_id, name, is_open, category, sells_online")
     .eq("id", body.pdv_id)
     .maybeSingle();
   if (ePdv || !pdv) return NextResponse.json({ error: "PDV invalido" }, { status: 400 });

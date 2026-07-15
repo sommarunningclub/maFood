@@ -19,6 +19,7 @@ export interface PdvCardData {
   is_open: boolean;
   prep_time_min: number;
   instagram_handle: string | null;
+  sells_online?: boolean;
   product_count: number;
   price_min: number | null;
   price_max: number | null;

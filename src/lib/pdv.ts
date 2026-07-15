@@ -1,8 +1,11 @@
 /**
- * A PDV sells and charges inside maFood (Asaas flow) only when it is a
- * beverages PDV. Single source of truth for the payment-routing rule —
- * change here if the rule evolves (e.g. an admin toggle).
+ * PDV aceita pedido e pagamento pelo app (Asaas).
+ * Fonte da verdade: coluna `sells_online`. Fallback legado: categoria "bebidas".
  */
-export function pdvSellsOnline(pdv: { category?: string | null }): boolean {
+export function pdvSellsOnline(pdv: {
+  sells_online?: boolean | null;
+  category?: string | null;
+}): boolean {
+  if (typeof pdv.sells_online === "boolean") return pdv.sells_online;
   return (pdv.category ?? "").trim().toLowerCase() === "bebidas";
 }

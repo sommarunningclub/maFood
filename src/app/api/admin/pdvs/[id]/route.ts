@@ -13,6 +13,7 @@ const Body = z.object({
   email: z.string().email().nullable().optional().or(z.literal("").transform(() => null)),
   is_open: z.boolean().optional(),
   is_visible: z.boolean().optional(),
+  sells_online: z.boolean().optional(),
 });
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {

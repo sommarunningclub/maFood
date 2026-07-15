@@ -82,12 +82,32 @@ export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
       body: JSON.stringify({ is_visible: next }),
     });
     if (!r.ok) {
-      // reverte
       setPdvs((items) =>
         items.map((p) => (p.id === id ? { ...p, is_visible: !next } : p))
       );
       const d = await r.json().catch(() => ({}));
       alert(d.error ?? "Não foi possível alterar a visibilidade");
+    }
+  }
+
+  async function toggleSellsOnline(id: string) {
+    const target = pdvs.find((p) => p.id === id);
+    if (!target) return;
+    const next = !target.sells_online;
+    setPdvs((items) =>
+      items.map((p) => (p.id === id ? { ...p, sells_online: next } : p))
+    );
+    const r = await fetch(`/api/admin/pdvs/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sells_online: next }),
+    });
+    if (!r.ok) {
+      setPdvs((items) =>
+        items.map((p) => (p.id === id ? { ...p, sells_online: !next } : p))
+      );
+      const d = await r.json().catch(() => ({}));
+      alert(d.error ?? "Não foi possível alterar o pagamento online");
     }
   }
 
@@ -130,6 +150,7 @@ export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
                 pdv={p}
                 onToggle={toggle}
                 onToggleVisibility={toggleVisibility}
+                onToggleSellsOnline={toggleSellsOnline}
                 onDetail={() => setDetailTarget(p)}
                 onSetPin={() => setPinTarget(p)}
                 onEdit={() => setEditTarget(p)}
@@ -151,6 +172,7 @@ export function PdvsTable({ initial }: { initial: AdminPdvRow[] }) {
                 pdv={p}
                 onToggle={toggle}
                 onToggleVisibility={toggleVisibility}
+                onToggleSellsOnline={toggleSellsOnline}
                 onDetail={() => setDetailTarget(p)}
                 onSetPin={() => setPinTarget(p)}
                 onEdit={() => setEditTarget(p)}
@@ -227,6 +249,7 @@ function RowDesktop({
   pdv,
   onToggle,
   onToggleVisibility,
+  onToggleSellsOnline,
   onDetail,
   onSetPin,
   onClearPin,
@@ -236,6 +259,7 @@ function RowDesktop({
   pdv: AdminPdvRow;
   onToggle: (id: string) => void;
   onToggleVisibility: (id: string) => void;
+  onToggleSellsOnline: (id: string) => void;
   onDetail: () => void;
   onSetPin: () => void;
   onClearPin: () => void;
@@ -307,20 +331,35 @@ function RowDesktop({
           </button>
         )}
       </div>
-      <button
-        onClick={() => onToggleVisibility(pdv.id)}
-        title={pdv.is_visible ? "Visível no cardápio — clique para ocultar" : "Oculto do cardápio — clique para exibir"}
-        aria-label={pdv.is_visible ? "Ocultar do cardápio" : "Exibir no cardápio"}
-        aria-pressed={pdv.is_visible}
-        className={`mono inline-flex items-center gap-1.5 rounded-admin border px-2 py-1 text-[10px] font-bold focus-ring-admin ${
-          pdv.is_visible
-            ? "border-palantir-green/40 bg-palantir-green/10 text-palantir-green"
-            : "border-palantir-border bg-palantir-surface2 text-palantir-muted"
-        }`}
-      >
-        {pdv.is_visible ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
-        {pdv.is_visible ? "VISÍVEL" : "OCULTO"}
-      </button>
+      <div className="flex flex-col gap-1.5 items-start">
+        <button
+          onClick={() => onToggleVisibility(pdv.id)}
+          title={pdv.is_visible ? "Visível no cardápio — clique para ocultar" : "Oculto do cardápio — clique para exibir"}
+          aria-label={pdv.is_visible ? "Ocultar do cardápio" : "Exibir no cardápio"}
+          aria-pressed={pdv.is_visible}
+          className={`mono inline-flex items-center gap-1.5 rounded-admin border px-2 py-1 text-[10px] font-bold focus-ring-admin ${
+            pdv.is_visible
+              ? "border-palantir-green/40 bg-palantir-green/10 text-palantir-green"
+              : "border-palantir-border bg-palantir-surface2 text-palantir-muted"
+          }`}
+        >
+          {pdv.is_visible ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
+          {pdv.is_visible ? "VISÍVEL" : "OCULTO"}
+        </button>
+        <button
+          onClick={() => onToggleSellsOnline(pdv.id)}
+          title={pdv.sells_online ? "Pagamento no app ativo — clique para desativar" : "Pagamento no balcão — clique para ativar no app"}
+          aria-label={pdv.sells_online ? "Desativar pagamento no app" : "Ativar pagamento no app"}
+          aria-pressed={pdv.sells_online}
+          className={`mono inline-flex items-center gap-1.5 rounded-admin border px-2 py-1 text-[10px] font-bold focus-ring-admin ${
+            pdv.sells_online
+              ? "border-palantir-blue/40 bg-palantir-blue/10 text-palantir-blue"
+              : "border-palantir-border bg-palantir-surface2 text-palantir-muted"
+          }`}
+        >
+          {pdv.sells_online ? "APP" : "BALCÃO"}
+        </button>
+      </div>
       <button
         onClick={() => onToggle(pdv.id)}
         className={`mono rounded-admin px-2 py-1 text-[10px] font-bold focus-ring-admin ${
@@ -367,6 +406,7 @@ function CardMobile({
   pdv,
   onToggle,
   onToggleVisibility,
+  onToggleSellsOnline,
   onDetail,
   onSetPin,
   onClearPin,
@@ -376,6 +416,7 @@ function CardMobile({
   pdv: AdminPdvRow;
   onToggle: (id: string) => void;
   onToggleVisibility: (id: string) => void;
+  onToggleSellsOnline: (id: string) => void;
   onDetail: () => void;
   onSetPin: () => void;
   onClearPin: () => void;
@@ -458,6 +499,18 @@ function CardMobile({
             >
               {pdv.is_visible ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
               {pdv.is_visible ? "VISÍVEL" : "OCULTO"}
+            </button>
+            <button
+              onClick={() => onToggleSellsOnline(pdv.id)}
+              aria-pressed={pdv.sells_online}
+              aria-label={pdv.sells_online ? "Desativar pagamento no app" : "Ativar pagamento no app"}
+              className={`mono inline-flex items-center gap-1.5 min-h-touch rounded-admin border px-3 text-[10px] font-bold focus-ring-admin ${
+                pdv.sells_online
+                  ? "border-palantir-blue/40 bg-palantir-blue/10 text-palantir-blue"
+                  : "border-palantir-border bg-palantir-surface2 text-palantir-muted"
+              }`}
+            >
+              {pdv.sells_online ? "APP" : "BALCÃO"}
             </button>
             {pdv.pin_set_at ? (
               <>
@@ -676,6 +729,7 @@ function EditPdvDialog({
     instagram_handle: pdv.instagram_handle ?? "",
     email: pdv.email ?? "",
     is_visible: pdv.is_visible,
+    sells_online: pdv.sells_online,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -912,6 +966,35 @@ function EditPdvDialog({
           <span
             className={`inline-block size-5 rounded-full bg-white transition-transform ${
               form.is_visible ? "translate-x-5" : "translate-x-0.5"
+            }`}
+          />
+        </span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => set("sells_online", !form.sells_online)}
+        aria-pressed={form.sells_online}
+        className="mt-2 flex w-full items-center justify-between gap-3 rounded-admin border border-palantir-border bg-palantir-bg px-3 py-3 text-left focus-ring-admin"
+      >
+        <span className="min-w-0">
+          <span className="flex items-center gap-2 text-sm text-palantir-text">
+            Pagamento pelo app
+          </span>
+          <span className="mono mt-0.5 block text-[10px] text-palantir-muted">
+            {form.sells_online
+              ? "Cliente pede e paga no app (Pix/cartão), como o Somma Bar."
+              : "Somente cardápio — pagamento no balcão."}
+          </span>
+        </span>
+        <span
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+            form.sells_online ? "bg-palantir-blue" : "bg-palantir-surface2"
+          }`}
+        >
+          <span
+            className={`inline-block size-5 rounded-full bg-white transition-transform ${
+              form.sells_online ? "translate-x-5" : "translate-x-0.5"
             }`}
           />
         </span>

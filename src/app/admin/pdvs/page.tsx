@@ -19,7 +19,7 @@ export default async function PdvsPage() {
   const { data, error } = await supabase
     .from("pdvs")
     .select(
-      "id, venue_id, slug, name, category, logo_url, prep_time_min, commission_pct, gateway_pct, is_open, is_visible, sort_order, wallet_balance, instagram_handle, pin_set_at"
+      "id, venue_id, slug, name, category, logo_url, prep_time_min, commission_pct, gateway_pct, is_open, is_visible, sells_online, sort_order, wallet_balance, instagram_handle, pin_set_at"
     )
     .order("sort_order", { ascending: true });
 

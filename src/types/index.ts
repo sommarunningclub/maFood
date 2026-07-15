@@ -34,6 +34,7 @@ export interface Pdv {
   gateway_pct: number;
   is_open: boolean;
   is_visible: boolean;
+  sells_online: boolean;
   sort_order: number;
   wallet_balance: number;
 }

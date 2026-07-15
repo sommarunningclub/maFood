@@ -17,7 +17,7 @@ export default async function MarketplacePage({ params }: { params: { venue: str
   const { data: pdvsData, error: pdvsError } = await supabase
     .from("pdvs")
     .select(
-      "id, slug, name, category, logo_url, is_open, sort_order, prep_time_min, instagram_handle, is_visible"
+      "id, slug, name, category, logo_url, is_open, sort_order, prep_time_min, instagram_handle, is_visible, sells_online"
     )
     .eq("venue_id", venue.id)
     .eq("is_visible", true)
@@ -59,6 +59,7 @@ export default async function MarketplacePage({ params }: { params: { venue: str
       is_open: pdv.is_open,
       prep_time_min: pdv.prep_time_min,
       instagram_handle: pdv.instagram_handle,
+      sells_online: pdv.sells_online,
       product_count: s?.count ?? 0,
       price_min: s && Number.isFinite(s.min) ? s.min : null,
       price_max: s?.max ?? null,
