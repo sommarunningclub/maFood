@@ -6,20 +6,33 @@ import { signCustomer, setCustomerCookie } from "@/lib/auth/customer-session";
 const Body = z.object({
   cpf: z.string().min(11),
   name: z.string().min(2).max(120),
-  email: z.string().email().optional().or(z.literal("")),
-  phone: z.string().max(20).optional().or(z.literal("")),
+  email: z.string().email("E-mail inválido"),
+  phone: z.string().min(10, "Telefone inválido").max(20),
+  postal_code: z.string().min(8, "CEP inválido").max(9),
+  address_number: z.string().min(1, "Informe o número").max(20),
+  address_complement: z.string().max(60).optional().nullable().or(z.literal("")),
   lista_vip_id: z.string().uuid().optional().nullable(),
 });
 
 export async function POST(req: Request) {
-  let body;
-  try { body = Body.parse(await req.json()); }
-  catch (e) {
+  let body: z.infer<typeof Body>;
+  try {
+    body = Body.parse(await req.json());
+  } catch (e) {
     const msg = e instanceof z.ZodError ? e.issues[0]?.message : "Dados invalidos";
     return NextResponse.json({ error: msg }, { status: 400 });
   }
   const cpf = body.cpf.replace(/\D/g, "");
   if (cpf.length !== 11) return NextResponse.json({ error: "CPF invalido" }, { status: 400 });
+
+  const phone = body.phone.replace(/\D/g, "");
+  const postalCode = body.postal_code.replace(/\D/g, "");
+  if (phone.length < 10) {
+    return NextResponse.json({ error: "Telefone inválido" }, { status: 400 });
+  }
+  if (postalCode.length !== 8) {
+    return NextResponse.json({ error: "CEP inválido" }, { status: 400 });
+  }
 
   const supabase = createAdminClient();
   const { data, error } = await supabase
@@ -27,8 +40,11 @@ export async function POST(req: Request) {
     .insert({
       cpf,
       name: body.name.trim(),
-      email: body.email || null,
-      phone: body.phone || null,
+      email: body.email.trim(),
+      phone,
+      postal_code: postalCode,
+      address_number: body.address_number.trim(),
+      address_complement: body.address_complement?.trim() || null,
       is_vip: !!body.lista_vip_id,
       lista_vip_id: body.lista_vip_id || null,
     })
@@ -36,7 +52,6 @@ export async function POST(req: Request) {
     .single();
 
   if (error) {
-    // CPF duplicado
     if (error.code === "23505") {
       return NextResponse.json({ error: "CPF ja cadastrado" }, { status: 409 });
     }

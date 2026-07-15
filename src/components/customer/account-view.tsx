@@ -20,6 +20,9 @@ interface CustomerData {
   cpf: string;
   email: string | null;
   phone: string | null;
+  postal_code: string | null;
+  address_number: string | null;
+  address_complement: string | null;
   is_vip: boolean;
   created_at: string;
 }
@@ -38,6 +41,11 @@ function maskPhone(v: string) {
   if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
+function maskCep(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 8);
+  if (d.length <= 5) return d;
+  return `${d.slice(0, 5)}-${d.slice(5)}`;
+}
 
 export function AccountView({
   venue,
@@ -54,6 +62,11 @@ export function AccountView({
   const [name, setName] = useState(initial.name);
   const [email, setEmail] = useState(initial.email ?? "");
   const [phone, setPhone] = useState(initial.phone ? maskPhone(initial.phone) : "");
+  const [postalCode, setPostalCode] = useState(initial.postal_code ?? "");
+  const [addressNumber, setAddressNumber] = useState(initial.address_number ?? "");
+  const [addressComplement, setAddressComplement] = useState(
+    initial.address_complement ?? ""
+  );
 
   const [saving, setSaving] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -63,7 +76,10 @@ export function AccountView({
   const dirty =
     name.trim() !== customer.name ||
     email.trim() !== (customer.email ?? "") ||
-    phone.replace(/\D/g, "") !== (customer.phone ?? "");
+    phone.replace(/\D/g, "") !== (customer.phone ?? "") ||
+    postalCode.replace(/\D/g, "") !== (customer.postal_code ?? "") ||
+    addressNumber.trim() !== (customer.address_number ?? "") ||
+    addressComplement.trim() !== (customer.address_complement ?? "");
 
   const initials = customer.name
     .split(" ")
@@ -91,6 +107,9 @@ export function AccountView({
         name: name.trim(),
         email: email.trim(),
         phone: phone.replace(/\D/g, ""),
+        postal_code: postalCode.replace(/\D/g, ""),
+        address_number: addressNumber.trim(),
+        address_complement: addressComplement.trim() || null,
       }),
     });
     setSaving(false);
@@ -219,6 +238,39 @@ export function AccountView({
             inputMode="tel"
             autoComplete="tel"
             placeholder="(00) 00000-0000"
+            className="w-full bg-transparent text-mafood-text-primary text-base outline-none placeholder:text-mafood-text-secondary/60"
+          />
+        </Field>
+
+        <div className="grid grid-cols-[1fr_auto] gap-3">
+          <Field label="CEP" icon={<Mail className="size-4" />}>
+            <input
+              value={maskCep(postalCode)}
+              onChange={(e) =>
+                setPostalCode(e.target.value.replace(/\D/g, "").slice(0, 8))
+              }
+              inputMode="numeric"
+              autoComplete="postal-code"
+              placeholder="00000-000"
+              className="w-full bg-transparent text-mafood-text-primary text-base outline-none placeholder:text-mafood-text-secondary/60"
+            />
+          </Field>
+          <Field label="Nº" icon={<UserIcon className="size-4" />}>
+            <input
+              value={addressNumber}
+              onChange={(e) => setAddressNumber(e.target.value.slice(0, 20))}
+              inputMode="numeric"
+              placeholder="123"
+              className="w-full bg-transparent text-mafood-text-primary text-base outline-none placeholder:text-mafood-text-secondary/60"
+            />
+          </Field>
+        </div>
+
+        <Field label="Complemento" icon={<UserIcon className="size-4" />}>
+          <input
+            value={addressComplement}
+            onChange={(e) => setAddressComplement(e.target.value)}
+            placeholder="Apto, bloco… (opcional)"
             className="w-full bg-transparent text-mafood-text-primary text-base outline-none placeholder:text-mafood-text-secondary/60"
           />
         </Field>

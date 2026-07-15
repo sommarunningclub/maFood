@@ -12,7 +12,7 @@ export default async function AccountPage({ params }: { params: { venue: string 
   const supabase = createAdminClient();
   const { data: customer } = await supabase
     .from("customers")
-    .select("id, name, cpf, email, phone, is_vip, created_at")
+    .select("id, name, cpf, email, phone, postal_code, address_number, address_complement, is_vip, created_at")
     .eq("id", session.customer_id)
     .maybeSingle();
   if (!customer) redirect(`/${params.venue}/login`);

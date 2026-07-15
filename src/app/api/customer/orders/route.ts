@@ -18,6 +18,7 @@ import {
   getPixQr,
 } from "@/lib/asaas";
 import { validateStock, decrementStockForOrder } from "@/lib/stock";
+import { customerReadyForCard } from "@/lib/customer-profile";
 
 const CardSchema = z.object({
   holderName: z.string().min(2).max(120),
@@ -25,14 +26,6 @@ const CardSchema = z.object({
   expiryMonth: z.string().regex(/^\d{1,2}$/),
   expiryYear: z.string().regex(/^\d{2}|\d{4}$/),
   ccv: z.string().regex(/^\d{3,4}$/),
-});
-
-const HolderInfoSchema = z.object({
-  email: z.string().email(),
-  postalCode: z.string().min(8).max(9),
-  addressNumber: z.string().min(1).max(20),
-  addressComplement: z.string().max(60).optional().nullable(),
-  phone: z.string().optional().nullable(),
 });
 
 const Body = z.object({
@@ -50,7 +43,6 @@ const Body = z.object({
     )
     .min(1),
   card: CardSchema.optional(),
-  holder_info: HolderInfoSchema.optional(),
 });
 
 function tomorrow(): string {
@@ -76,9 +68,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 
-  if (body.method === "card" && (!body.card || !body.holder_info)) {
+  if (body.method === "card" && !body.card) {
     return NextResponse.json(
-      { error: "Cartão e dados do titular são obrigatórios para pagamento com cartão" },
+      { error: "Dados do cartão são obrigatórios" },
       { status: 400 }
     );
   }
@@ -164,19 +156,27 @@ export async function POST(req: Request) {
   const total = Math.max(0, subtotal - discount);
   if (total <= 0) return NextResponse.json({ error: "Total inválido" }, { status: 400 });
 
-  // Cliente completo do banco (precisamos do email pra holderInfo)
+  // Cliente completo do banco (Asaas holderInfo vem do cadastro)
   const { data: customer } = await supabase
     .from("customers")
-    .select("id, name, email, phone, cpf")
+    .select("id, name, email, phone, cpf, postal_code, address_number, address_complement")
     .eq("id", session.customer_id)
     .maybeSingle();
   if (!customer) return NextResponse.json({ error: "Cliente não encontrado" }, { status: 404 });
 
-  // Email pra Asaas — pega do cadastro; se cartão, usa o do form (sobrescreve)
-  const customerEmail =
-    body.method === "card" && body.holder_info?.email
-      ? body.holder_info.email
-      : customer.email ?? null;
+  if (body.method === "card") {
+    if (!customerReadyForCard(customer)) {
+      return NextResponse.json(
+        {
+          error:
+            "Complete e-mail, telefone, CEP e número do endereço no cadastro antes de pagar com cartão",
+        },
+        { status: 400 }
+      );
+    }
+  }
+
+  const customerEmail = customer.email ?? null;
 
   let asaasPaymentId: string | null = null;
   let pixPayload: string | null = null;
@@ -206,7 +206,6 @@ export async function POST(req: Request) {
         pixPayload = qr.payload;
         pixQrCode = qr.encodedImage || null;
       } else {
-        // Asaas exige email no holderInfo — garantido pelo schema do form
         if (!customerEmail) {
           return NextResponse.json({ error: "E-mail é obrigatório para cartão" }, { status: 400 });
         }
@@ -222,10 +221,10 @@ export async function POST(req: Request) {
             name: customer.name,
             email: customerEmail,
             cpfCnpj: customer.cpf,
-            postalCode: body.holder_info!.postalCode,
-            addressNumber: body.holder_info!.addressNumber,
-            addressComplement: body.holder_info!.addressComplement ?? undefined,
-            phone: body.holder_info!.phone ?? customer.phone ?? undefined,
+            postalCode: customer.postal_code!,
+            addressNumber: customer.address_number!,
+            addressComplement: customer.address_complement ?? undefined,
+            phone: customer.phone ?? undefined,
           },
         });
         asaasPaymentId = payment.id;

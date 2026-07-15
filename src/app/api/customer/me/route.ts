@@ -1,7 +1,7 @@
 /*
   Perfil do cliente logado.
   GET   → dados do customer + contagem de pedidos
-  PATCH → atualiza name / email / phone (CPF é imutável — chave de identificação)
+  PATCH → atualiza name / email / phone / endereço (CPF é imutável)
 */
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -12,6 +12,9 @@ import {
   setCustomerCookie,
 } from "@/lib/auth/customer-session";
 
+const CUSTOMER_SELECT =
+  "id, name, cpf, email, phone, postal_code, address_number, address_complement, is_vip, created_at";
+
 export async function GET() {
   const session = await getCustomerSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -19,7 +22,7 @@ export async function GET() {
   const supabase = createAdminClient();
   const { data: customer, error } = await supabase
     .from("customers")
-    .select("id, name, cpf, email, phone, is_vip, created_at")
+    .select(CUSTOMER_SELECT)
     .eq("id", session.customer_id)
     .maybeSingle();
   if (error || !customer) {
@@ -38,6 +41,9 @@ const Patch = z.object({
   name: z.string().min(2, "Nome muito curto").max(120).optional(),
   email: z.string().email("E-mail inválido").or(z.literal("")).optional(),
   phone: z.string().max(20).or(z.literal("")).optional(),
+  postal_code: z.string().max(9).or(z.literal("")).optional(),
+  address_number: z.string().max(20).or(z.literal("")).optional(),
+  address_complement: z.string().max(60).optional().nullable().or(z.literal("")),
 });
 
 export async function PATCH(req: Request) {
@@ -59,6 +65,19 @@ export async function PATCH(req: Request) {
     const digits = body.phone.replace(/\D/g, "");
     patch.phone = digits || null;
   }
+  if (body.postal_code !== undefined) {
+    const cep = body.postal_code.replace(/\D/g, "");
+    patch.postal_code = cep.length === 8 ? cep : null;
+  }
+  if (body.address_number !== undefined) {
+    patch.address_number = body.address_number.trim() || null;
+  }
+  if (body.address_complement !== undefined) {
+    patch.address_complement =
+      body.address_complement == null
+        ? null
+        : body.address_complement.trim() || null;
+  }
 
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ error: "Nada para atualizar" }, { status: 400 });
@@ -69,11 +88,10 @@ export async function PATCH(req: Request) {
     .from("customers")
     .update(patch)
     .eq("id", session.customer_id)
-    .select("id, name, cpf, email, phone, is_vip, created_at")
+    .select(CUSTOMER_SELECT)
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Se o nome mudou, reemite o cookie de sessão (header mostra o primeiro nome)
   if (patch.name && patch.name !== session.name) {
     const token = await signCustomer({
       customer_id: session.customer_id,

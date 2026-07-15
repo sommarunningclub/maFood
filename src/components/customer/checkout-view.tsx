@@ -11,8 +11,9 @@ import { IdentifyModal } from "@/components/customer/identify-modal";
 import { PixPayment } from "@/components/customer/pix-payment";
 import { EmptyState } from "@/components/customer/ui/mafood-states";
 import { BrandMomentGif } from "@/components/customer/brand-moment-gif";
+import { customerReadyForCard } from "@/lib/customer-profile";
 
-type Step = "form" | "card-form" | "submitting" | "pix" | "approved" | "failed";
+type Step = "form" | "profile" | "card-form" | "submitting" | "pix" | "approved" | "failed";
 type PaymentMethod = "pix" | "card" | "counter";
 
 interface CardData {
@@ -21,21 +22,6 @@ interface CardData {
   expiryMonth: string;
   expiryYear: string;
   ccv: string;
-}
-
-interface HolderInfo {
-  email: string;
-  postalCode: string;
-  addressNumber: string;
-  addressComplement: string;
-  phone: string;
-}
-
-interface CepLookup {
-  street?: string;
-  neighborhood?: string;
-  city?: string;
-  state?: string;
 }
 
 export function CheckoutView({
@@ -68,15 +54,15 @@ export function CheckoutView({
     expiryYear: "",
     ccv: "",
   });
-  const [holder, setHolder] = useState<HolderInfo>({
-    email: "",
-    postalCode: "",
-    addressNumber: "",
-    addressComplement: "",
-    phone: "",
-  });
-  const [cepHint, setCepHint] = useState<CepLookup | null>(null);
-  const [cepLoading, setCepLoading] = useState(false);
+
+  // Completar cadastro (clientes antigos sem endereço)
+  const [profEmail, setProfEmail] = useState("");
+  const [profPhone, setProfPhone] = useState("");
+  const [profCep, setProfCep] = useState("");
+  const [profNumber, setProfNumber] = useState("");
+  const [profComplement, setProfComplement] = useState("");
+  const [profCepHint, setProfCepHint] = useState<string | null>(null);
+  const [profSaving, setProfSaving] = useState(false);
 
   const subtotal = total();
   const empty = items.length === 0;
@@ -86,43 +72,85 @@ export function CheckoutView({
     else setMethod((m) => (m === "counter" ? "pix" : m));
   }, [payAtCounter]);
 
+  async function ensureCardProfile(): Promise<boolean> {
+    const r = await fetch("/api/customer/me");
+    if (!r.ok) return false;
+    const data = await r.json();
+    const c = data.customer;
+    if (customerReadyForCard(c)) return true;
+    setProfEmail(c.email ?? "");
+    setProfPhone(c.phone ? maskPhone(c.phone) : "");
+    setProfCep(c.postal_code ?? "");
+    setProfNumber(c.address_number ?? "");
+    setProfComplement(c.address_complement ?? "");
+    setProfCepHint(null);
+    setStep("profile");
+    return false;
+  }
+
+  async function goToCardCheckout() {
+    setError(null);
+    const ok = await ensureCardProfile();
+    if (ok) setStep("card-form");
+  }
+
   function handleSubmitClick() {
     if (!hasSession) {
       setIdentifyOpen(true);
       return;
     }
     if (method === "card") {
-      setStep("card-form");
+      void goToCardCheckout();
       return;
     }
     void submitOrder();
   }
 
-  async function lookupCep(rawCep: string) {
+  async function lookupProfileCep(rawCep: string) {
     const cep = rawCep.replace(/\D/g, "");
     if (cep.length !== 8) {
-      setCepHint(null);
+      setProfCepHint(null);
       return;
     }
-    setCepLoading(true);
     try {
       const r = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`);
       if (!r.ok) {
-        setCepHint(null);
+        setProfCepHint(null);
         return;
       }
       const data = await r.json();
-      setCepHint({
-        street: data.street,
-        neighborhood: data.neighborhood,
-        city: data.city,
-        state: data.state,
-      });
+      setProfCepHint(
+        [data.street, data.neighborhood, data.city && `${data.city}/${data.state}`]
+          .filter(Boolean)
+          .join(" · ") || null
+      );
     } catch {
-      setCepHint(null);
-    } finally {
-      setCepLoading(false);
+      setProfCepHint(null);
     }
+  }
+
+  async function saveProfileAndContinue(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setProfSaving(true);
+    const r = await fetch("/api/customer/me", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: profEmail.trim(),
+        phone: profPhone.replace(/\D/g, ""),
+        postal_code: profCep.replace(/\D/g, ""),
+        address_number: profNumber.trim(),
+        address_complement: profComplement.trim() || null,
+      }),
+    });
+    setProfSaving(false);
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      setError(data.error ?? "Não foi possível salvar");
+      return;
+    }
+    setStep("card-form");
   }
 
   async function submitOrder(): Promise<{ ok: boolean }> {
@@ -147,13 +175,6 @@ export function CheckoutView({
         expiryMonth: card.expiryMonth,
         expiryYear: card.expiryYear,
         ccv: card.ccv,
-      };
-      payload.holder_info = {
-        email: holder.email,
-        postalCode: holder.postalCode.replace(/\D/g, ""),
-        addressNumber: holder.addressNumber,
-        addressComplement: holder.addressComplement || null,
-        phone: holder.phone ? holder.phone.replace(/\D/g, "") : null,
       };
     }
 
@@ -246,23 +267,110 @@ export function CheckoutView({
     );
   }
 
+  if (step === "profile") {
+    const profileReady =
+      profEmail.includes("@") &&
+      profPhone.replace(/\D/g, "").length >= 10 &&
+      profCep.replace(/\D/g, "").length === 8 &&
+      profNumber.trim().length >= 1;
+
+    return (
+      <div className="min-h-dvh-100 pb-32 p-4 sm:p-5 pt-safe">
+        <Header venue={venue} title="Complete seu cadastro" onBack={() => setStep("form")} />
+        <p className="mt-3 text-[13px] text-mafood-text-secondary leading-snug">
+          Precisamos destes dados uma vez. No pagamento, só o cartão.
+        </p>
+        <form onSubmit={(e) => void saveProfileAndContinue(e)} className="mt-5 space-y-3">
+          <Input
+            label="E-mail *"
+            value={profEmail}
+            onChange={setProfEmail}
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            placeholder="seu@email.com"
+          />
+          <Input
+            label="Telefone *"
+            value={profPhone}
+            onChange={(v) => setProfPhone(maskPhone(v))}
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            placeholder="(00) 00000-0000"
+          />
+          <div className="grid grid-cols-[1fr_auto] gap-3">
+            <Input
+              label="CEP *"
+              value={maskCep(profCep)}
+              onChange={(v) => {
+                const raw = v.replace(/\D/g, "").slice(0, 8);
+                setProfCep(raw);
+                if (raw.length === 8) void lookupProfileCep(raw);
+                else setProfCepHint(null);
+              }}
+              inputMode="numeric"
+              autoComplete="postal-code"
+              placeholder="00000-000"
+            />
+            <Input
+              label="Nº *"
+              value={profNumber}
+              onChange={(v) => setProfNumber(v.slice(0, 20))}
+              inputMode="numeric"
+              placeholder="123"
+            />
+          </div>
+          {profCepHint && (
+            <p className="num text-[11px] text-mafood-text-secondary -mt-1">{profCepHint}</p>
+          )}
+          <Input
+            label="Complemento"
+            value={profComplement}
+            onChange={setProfComplement}
+            placeholder="Apto, bloco… (opcional)"
+            autoComplete="address-line2"
+          />
+          {error && (
+            <p
+              role="alert"
+              className="text-sm text-mafood-accent-dark border border-mafood-accent-dark/30 bg-mafood-accent-dark/10 px-3 py-2 rounded-mafood-md"
+            >
+              {error}
+            </p>
+          )}
+          <div className="fixed bottom-0 inset-x-0 z-30 bg-mafood-background/95 backdrop-blur border-t border-mafood-border pb-safe">
+            <div className="mx-auto max-w-screen-mobile p-3 sm:p-4">
+              <button
+                type="submit"
+                disabled={!profileReady || profSaving}
+                className="w-full rounded-mafood-md bg-mafood-primary-strong min-h-touch h-13 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
+              >
+                {profSaving ? "Salvando…" : "Continuar para o cartão"}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
   if (step === "card-form") {
     const cardFilled =
       card.holderName.trim().length >= 2 &&
       card.number.replace(/\D/g, "").length >= 13 &&
       card.expiryMonth.length >= 1 &&
       card.expiryYear.length >= 2 &&
-      card.ccv.length >= 3 &&
-      holder.email.includes("@") &&
-      holder.postalCode.replace(/\D/g, "").length === 8 &&
-      holder.addressNumber.trim().length >= 1;
+      card.ccv.length >= 3;
 
     return (
       <div className="min-h-dvh-100 pb-32 p-4 sm:p-5 pt-safe">
         <Header venue={venue} title="Cartão de crédito" onBack={() => setStep("form")} />
 
         <section className="mt-5 space-y-3">
-          <p className="num text-[11px] text-mafood-text-secondary">DADOS DO CARTÃO</p>
+          <p className="num text-[11px] text-mafood-text-secondary">
+            Só os dados do cartão — o restante já está no seu cadastro
+          </p>
           <Input
             label="Número do cartão"
             value={formatCardNumber(card.number)}
@@ -305,67 +413,6 @@ export function CheckoutView({
               autoComplete="cc-csc"
             />
           </div>
-        </section>
-
-        <section className="mt-6 space-y-3">
-          <p className="num text-[11px] text-mafood-text-secondary">DADOS DO TITULAR</p>
-          <Input
-            label="E-mail"
-            value={holder.email}
-            onChange={(v) => setHolder({ ...holder, email: v })}
-            placeholder="seu@email.com"
-            inputMode="email"
-            type="email"
-            autoComplete="email"
-          />
-          <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
-            <Input
-              label="CEP"
-              value={maskCep(holder.postalCode)}
-              onChange={(v) => {
-                const raw = v.replace(/\D/g, "").slice(0, 8);
-                setHolder({ ...holder, postalCode: raw });
-                if (raw.length === 8) void lookupCep(raw);
-                else setCepHint(null);
-              }}
-              placeholder="00000-000"
-              inputMode="numeric"
-              autoComplete="postal-code"
-            />
-            <div className="num text-[10px] text-mafood-text-secondary pb-3 min-w-[60px]">
-              {cepLoading ? "buscando..." : cepHint ? "✓" : ""}
-            </div>
-          </div>
-          {cepHint?.street && (
-            <p className="num text-[11px] text-mafood-text-secondary -mt-1">
-              {cepHint.street}
-              {cepHint.neighborhood ? ` · ${cepHint.neighborhood}` : ""} · {cepHint.city}/{cepHint.state}
-            </p>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Número *"
-              value={holder.addressNumber}
-              onChange={(v) => setHolder({ ...holder, addressNumber: v.slice(0, 20) })}
-              placeholder="123"
-              inputMode="numeric"
-            />
-            <Input
-              label="Complemento"
-              value={holder.addressComplement}
-              onChange={(v) => setHolder({ ...holder, addressComplement: v })}
-              placeholder="Apto 12"
-            />
-          </div>
-          <Input
-            label="Telefone (opcional)"
-            value={maskPhone(holder.phone)}
-            onChange={(v) => setHolder({ ...holder, phone: v.replace(/\D/g, "").slice(0, 11) })}
-            placeholder="(00) 00000-0000"
-            inputMode="tel"
-            type="tel"
-            autoComplete="tel"
-          />
         </section>
 
         {error && (
@@ -655,7 +702,7 @@ export function CheckoutView({
         onSuccess={() => {
           setIdentifyOpen(false);
           setHasSession(true);
-          if (method === "card") setStep("card-form");
+          if (method === "card") void goToCardCheckout();
           else void submitOrder();
         }}
       />
