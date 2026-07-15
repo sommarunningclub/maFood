@@ -35,7 +35,7 @@ const ASAAS_NOT_CONFIGURED =
 
 // Retorna true quando devemos devolver dados simulados; lança quando o Asaas
 // não está configurado e o modo simulado não foi liberado.
-function useSimulated(): boolean {
+function isSimulated(): boolean {
   if (asaasEnabled) return false;
   if (asaasAllowSimulated) return true;
   throw new Error(ASAAS_NOT_CONFIGURED);
@@ -152,7 +152,7 @@ async function asaasFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function findOrCreateCustomer(input: AsaasCustomerInput): Promise<AsaasCustomer> {
   const cpf = onlyDigits(input.cpfCnpj);
-  if (useSimulated()) {
+  if (isSimulated()) {
     return { id: `sim_cus_${cpf}`, name: input.name, cpfCnpj: cpf };
   }
   // Busca por cpfCnpj evita duplicar
@@ -178,7 +178,7 @@ export async function findOrCreateCustomer(input: AsaasCustomerInput): Promise<A
 }
 
 export async function createPixPayment(input: AsaasPaymentInput): Promise<AsaasPayment> {
-  if (useSimulated()) {
+  if (isSimulated()) {
     return {
       id: `sim_pay_${input.externalReference}_${Date.now()}`,
       status: "PENDING",
@@ -200,7 +200,7 @@ export async function createPixPayment(input: AsaasPaymentInput): Promise<AsaasP
 }
 
 export async function getPixQr(paymentId: string): Promise<AsaasPixQr> {
-  if (useSimulated()) {
+  if (isSimulated()) {
     return {
       encodedImage: "",
       payload: `00020126BR.GOV.BCB.PIX SIMULATED ${paymentId} ${Date.now()}`,
@@ -217,7 +217,7 @@ export async function getPixQr(paymentId: string): Promise<AsaasPixQr> {
   (ex: "O CCV informado é inválido"). Repasse a mensagem pro usuário.
 */
 export async function createCardPayment(input: AsaasCardInput): Promise<AsaasCardPayment> {
-  if (useSimulated()) {
+  if (isSimulated()) {
     return {
       id: `sim_card_${input.externalReference}_${Date.now()}`,
       status: "CONFIRMED",
