@@ -9,7 +9,10 @@ import { pdvSellsOnline } from "@/lib/pdv";
 import { brl } from "@/lib/utils";
 import type { Pdv, Product } from "@/types";
 import { RestaurantHeader } from "@/components/customer/restaurant-header";
-import { StickyCategoryNavigation } from "@/components/customer/sticky-category-nav";
+import {
+  ALL_CATEGORIES,
+  StickyCategoryNavigation,
+} from "@/components/customer/sticky-category-nav";
 import { ProductCard, ProductSection } from "@/components/customer/product-card";
 import { ProductDetails } from "@/components/customer/product-details";
 import { CartSheet } from "@/components/customer/cart-sheet";
@@ -37,12 +40,21 @@ export function MenuView({
     return [...activeItems, ...oos];
   }, [products]);
 
-  const categories = useMemo(
+  const productCategories = useMemo(
     () => Array.from(new Set(visibleProducts.map((p) => p.category || "Outros"))),
     [visibleProducts]
   );
 
-  const [active, setActive] = useState(categories[0] ?? "");
+  // "Todos" sempre primeiro
+  const navCategories = useMemo(
+    () =>
+      productCategories.length > 0
+        ? [ALL_CATEGORIES, ...productCategories]
+        : [],
+    [productCategories]
+  );
+
+  const [active, setActive] = useState(ALL_CATEGORIES);
   const [openProduct, setOpenProduct] = useState<Product | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
@@ -53,23 +65,24 @@ export function MenuView({
   }, [venue, pdv.slug]);
 
   useEffect(() => {
-    if (categories.length && !categories.includes(active)) {
-      setActive(categories[0] ?? "");
+    if (navCategories.length && !navCategories.includes(active)) {
+      setActive(ALL_CATEGORIES);
     }
-  }, [categories, active]);
+  }, [navCategories, active]);
 
-  const categoryProducts = useMemo(
-    () =>
-      visibleProducts.filter((p) => (p.category || "Outros") === active),
-    [visibleProducts, active]
-  );
+  const showAll = active === ALL_CATEGORIES;
 
-  // Transição suave estilo app ao trocar categoria (slide + fade + stagger)
+  const categoryProducts = useMemo(() => {
+    if (showAll) return visibleProducts;
+    return visibleProducts.filter((p) => (p.category || "Outros") === active);
+  }, [visibleProducts, active, showAll]);
+
+  // Transição suave estilo app ao trocar categoria
   useLayoutEffect(() => {
     const el = listRef.current;
     if (!el) return;
 
-    const nextIndex = Math.max(0, categories.indexOf(active));
+    const nextIndex = Math.max(0, navCategories.indexOf(active));
     const dir = nextIndex >= prevCatIndex.current ? 1 : -1;
     prevCatIndex.current = nextIndex;
 
@@ -107,17 +120,22 @@ export function MenuView({
           autoAlpha: 1,
           y: 0,
           duration: 0.2,
-          stagger: 0.04,
+          stagger: 0.035,
           ease: "power2.out",
           delay: 0.04,
           overwrite: "auto",
         }
       );
     }
-  }, [active, categories]);
+  }, [active, navCategories]);
 
   const qtyOf = (id: string) => items.find((i) => i.product.id === id)?.qty ?? 0;
   const c = count();
+  const cartVisible = canOrder && c > 0 && !cartOpen;
+  // Espaço para categorias na base (+ sacola se houver)
+  const bottomPad = cartVisible
+    ? "pb-[calc(9.5rem+env(safe-area-inset-bottom))]"
+    : "pb-[calc(4.5rem+env(safe-area-inset-bottom))]";
 
   function handleCartAdd(productId: string) {
     const item = items.find((i) => i.product.id === productId);
@@ -127,21 +145,20 @@ export function MenuView({
   function handleSelectCategory(cat: string) {
     if (cat === active) return;
     setActive(cat);
-    // Garante que a lista fique visível sob as pills
     window.requestAnimationFrame(() => {
-      const nav = document.querySelector<HTMLElement>('[aria-label="Categorias"]');
-      const top = nav
-        ? Math.round(nav.getBoundingClientRect().bottom) + 8
-        : 80;
-      const listTop = listRef.current?.getBoundingClientRect().top ?? 0;
-      if (listTop < top) {
-        window.scrollBy({ top: listTop - top, behavior: "smooth" });
-      }
+      const headerBottom =
+        document.querySelector<HTMLElement>("[data-slim-header]")?.getBoundingClientRect()
+          .bottom ?? 0;
+      const y = window.scrollY + (listRef.current?.getBoundingClientRect().top ?? 0);
+      window.scrollTo({
+        top: Math.max(0, y - headerBottom - 12),
+        behavior: "smooth",
+      });
     });
   }
 
   return (
-    <div className={`min-h-dvh-100 ${canOrder && c > 0 ? "pb-28" : "pb-8"}`}>
+    <div className={`min-h-dvh-100 ${bottomPad}`}>
       <RestaurantHeader venue={venue} pdv={pdv} />
 
       <div className="px-4">
@@ -182,12 +199,6 @@ export function MenuView({
           )}
         </div>
 
-        <StickyCategoryNavigation
-          categories={categories}
-          active={active}
-          onSelect={handleSelectCategory}
-        />
-
         <div ref={listRef} className="mt-5 space-y-8 pb-4" style={{ opacity: 0 }}>
           {visibleProducts.length === 0 ? (
             <EmptyState
@@ -199,8 +210,27 @@ export function MenuView({
             <EmptyState
               icon={UtensilsCrossed}
               title="Nada nesta categoria"
-              hint="Escolha outra categoria no menu acima."
+              hint="Escolha outra categoria no menu abaixo."
             />
+          ) : showAll ? (
+            productCategories.map((cat) => (
+              <ProductSection key={cat} id={`cat-${cat}`} title={cat}>
+                {visibleProducts
+                  .filter((p) => (p.category || "Outros") === cat)
+                  .map((p) => (
+                    <div key={p.id} data-product-card>
+                      <ProductCard
+                        product={p}
+                        sellsOnline={canOrder}
+                        qty={qtyOf(p.id)}
+                        onAdd={() => add(p)}
+                        onRemove={() => remove(p.id)}
+                        onOpen={() => setOpenProduct(p)}
+                      />
+                    </div>
+                  ))}
+              </ProductSection>
+            ))
           ) : (
             <ProductSection id={`cat-${active}`} title={active}>
               {categoryProducts.map((p) => (
@@ -220,6 +250,13 @@ export function MenuView({
         </div>
       </div>
 
+      <StickyCategoryNavigation
+        categories={navCategories}
+        active={active}
+        onSelect={handleSelectCategory}
+        raised={cartVisible}
+      />
+
       {canOrder && (
         <AnimatePresence>
           {c > 0 && !cartOpen && (
@@ -228,7 +265,7 @@ export function MenuView({
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 100, opacity: 0 }}
               transition={{ type: "spring", stiffness: 380, damping: 32 }}
-              className="fixed bottom-0 inset-x-0 z-30 pb-safe"
+              className="fixed bottom-0 inset-x-0 z-40 pb-safe"
             >
               <div className="mx-auto max-w-screen-mobile p-3 sm:p-4 lg:max-w-3xl">
                 <button

@@ -1,45 +1,26 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+
+export const ALL_CATEGORIES = "Todos";
 
 /**
- * Pills de categoria — filtram o cardápio. A animação do conteúdo
- * fica no MenuView (GSAP).
+ * Barra de categorias fixa na BASE (thumb zone). Sobe quando a sacola
+ * está visível para não competir com o CTA.
  */
 export function StickyCategoryNavigation({
   categories,
   active,
   onSelect,
+  raised = false,
 }: {
   categories: string[];
   active: string;
   onSelect: (cat: string) => void;
-  /** @deprecated */
+  /** Sobe a barra acima da sacola flutuante */
   raised?: boolean;
 }) {
   const navRef = useRef<HTMLElement>(null);
-  const [topOffset, setTopOffset] = useState(0);
-
-  useEffect(() => {
-    let rafId = 0;
-    const sync = () => {
-      rafId = 0;
-      const slim = document.querySelector<HTMLElement>("[data-slim-header]");
-      setTopOffset(slim ? Math.round(slim.getBoundingClientRect().bottom) : 0);
-    };
-    const onScroll = () => {
-      if (rafId) return;
-      rafId = requestAnimationFrame(sync);
-    };
-    sync();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", sync);
-    return () => {
-      if (rafId) cancelAnimationFrame(rafId);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", sync);
-    };
-  }, []);
 
   useEffect(() => {
     const el = navRef.current?.querySelector<HTMLElement>(
@@ -54,8 +35,12 @@ export function StickyCategoryNavigation({
     <nav
       ref={navRef}
       aria-label="Categorias"
-      style={{ top: topOffset }}
-      className="sticky z-20 -mx-4 border-b border-mafood-border/80 bg-mafood-background/95 backdrop-blur supports-[backdrop-filter]:bg-mafood-background/85"
+      data-category-nav
+      className={`fixed inset-x-0 z-30 border-t border-mafood-border bg-mafood-background/95 backdrop-blur supports-[backdrop-filter]:bg-mafood-background/85 transition-[bottom] duration-200 ${
+        raised
+          ? "bottom-[calc(4.75rem+env(safe-area-inset-bottom))]"
+          : "bottom-0 pb-safe"
+      }`}
     >
       <div className="mx-auto flex max-w-screen-mobile gap-2 overflow-x-auto px-4 py-2.5 no-scrollbar scroll-snap-x lg:max-w-3xl">
         {categories.map((cat) => {
@@ -67,7 +52,7 @@ export function StickyCategoryNavigation({
               data-cat-active={isActive}
               onClick={() => onSelect(cat)}
               aria-current={isActive ? "true" : undefined}
-              className={`snap-start whitespace-nowrap shrink-0 inline-flex min-h-[40px] items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary ${
+              className={`snap-start whitespace-nowrap shrink-0 inline-flex min-h-[44px] items-center rounded-full px-4 text-sm font-medium transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary ${
                 isActive
                   ? "bg-mafood-primary-strong text-white shadow-mafood-sm"
                   : "border border-mafood-border text-mafood-text-secondary bg-mafood-surface-strong"
