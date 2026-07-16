@@ -1,13 +1,15 @@
 import { PageHeader } from "@/components/admin/page-header";
 import { ProductsView } from "@/components/admin/products-view";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { asaasEnabled, getAccountFees, type AsaasAccountFees } from "@/lib/asaas";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProductsPage() {
   const supabase = createAdminClient();
+  let asaasFees: AsaasAccountFees | null = null;
 
-  const [{ data: pdvs }, { data: products }] = await Promise.all([
+  const [{ data: pdvs }, { data: products }, feesResult] = await Promise.all([
     supabase
       .from("pdvs")
       .select("id, slug, name, logo_url, commission_pct, gateway_pct")
@@ -16,7 +18,9 @@ export default async function ProductsPage() {
       .from("products")
       .select("id, pdv_id, category_id, category, name, description, price, sale_price, image_url, status, stock_quantity, supplier_cost")
       .order("created_at", { ascending: false }),
+    asaasEnabled ? getAccountFees().catch(() => null) : Promise.resolve(null),
   ]);
+  asaasFees = feesResult;
 
   return (
     <>
@@ -33,6 +37,7 @@ export default async function ProductsPage() {
             price: Number(p.price),
             sale_price: p.sale_price == null ? null : Number(p.sale_price),
           }))}
+          asaasFees={asaasFees}
         />
       </div>
     </>

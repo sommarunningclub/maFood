@@ -7,6 +7,7 @@ import { brl } from "@/lib/utils";
 import { PriceEngine } from "@/components/admin/price-engine";
 import { isImageLogo } from "@/components/pdv-logo";
 import { MoneyInput } from "@/components/money-input";
+import type { AsaasAccountFees } from "@/lib/asaas";
 
 interface PdvLite {
   id: string;
@@ -49,9 +50,11 @@ const STATUS_META: Record<ProductRow["status"], { label: string; cls: string }> 
 export function ProductsView({
   pdvs,
   initialProducts,
+  asaasFees,
 }: {
   pdvs: PdvLite[];
   initialProducts: ProductRow[];
+  asaasFees: AsaasAccountFees | null;
 }) {
   const router = useRouter();
   const [localProducts, setLocalProducts] = useState<ProductRow[]>(initialProducts);
@@ -495,6 +498,7 @@ export function ProductsView({
       {creating && (
         <ProductDialog
           pdvs={pdvs}
+          asaasFees={asaasFees}
           defaultPdv={pdvFilter !== "all" ? pdvFilter : pdvs[0]?.id}
           onClose={() => setCreating(false)}
           onSaved={() => {
@@ -507,6 +511,7 @@ export function ProductsView({
       {editTarget && (
         <ProductDialog
           pdvs={pdvs}
+          asaasFees={asaasFees}
           product={editTarget}
           onClose={() => setEditTarget(null)}
           onSaved={() => {
@@ -531,12 +536,14 @@ export function ProductsView({
 
 function ProductDialog({
   pdvs,
+  asaasFees,
   defaultPdv,
   product,
   onClose,
   onSaved,
 }: {
   pdvs: PdvLite[];
+  asaasFees: AsaasAccountFees | null;
   defaultPdv?: string;
   product?: ProductRow;
   onClose: () => void;
@@ -888,23 +895,57 @@ function ProductDialog({
                 const profit = sale - cost;
                 const marginCost = (profit / cost) * 100;
                 const marginSale = (profit / sale) * 100;
+                const pixFee = estimatePixFee(sale, asaasFees?.payment?.pix);
+                const cardFee = estimateCardFee(
+                  sale,
+                  asaasFees?.payment?.creditCard
+                );
                 const fmt = (n: number) =>
                   n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 const profitCls = profit < 0 ? "text-palantir-red" : "text-palantir-green";
                 return (
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-admin border border-palantir-border bg-palantir-bg p-2">
-                      <div className="mono text-[9px] uppercase text-palantir-muted">Lucro</div>
-                      <div className={`mono text-sm font-semibold ${profitCls}`}>R$ {fmt(profit)}</div>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="rounded-admin border border-palantir-border bg-palantir-bg p-2">
+                        <div className="mono text-[9px] uppercase text-palantir-muted">
+                          Lucro bruto
+                        </div>
+                        <div className={`mono text-sm font-semibold ${profitCls}`}>
+                          R$ {fmt(profit)}
+                        </div>
+                      </div>
+                      <div className="rounded-admin border border-palantir-border bg-palantir-bg p-2">
+                        <div className="mono text-[9px] uppercase text-palantir-muted">Margem custo</div>
+                        <div className={`mono text-sm font-semibold ${profitCls}`}>{fmt(marginCost)}%</div>
+                      </div>
+                      <div className="rounded-admin border border-palantir-border bg-palantir-bg p-2">
+                        <div className="mono text-[9px] uppercase text-palantir-muted">Margem venda</div>
+                        <div className={`mono text-sm font-semibold ${profitCls}`}>{fmt(marginSale)}%</div>
+                      </div>
                     </div>
-                    <div className="rounded-admin border border-palantir-border bg-palantir-bg p-2">
-                      <div className="mono text-[9px] uppercase text-palantir-muted">Margem custo</div>
-                      <div className={`mono text-sm font-semibold ${profitCls}`}>{fmt(marginCost)}%</div>
-                    </div>
-                    <div className="rounded-admin border border-palantir-border bg-palantir-bg p-2">
-                      <div className="mono text-[9px] uppercase text-palantir-muted">Margem venda</div>
-                      <div className={`mono text-sm font-semibold ${profitCls}`}>{fmt(marginSale)}%</div>
-                    </div>
+                    {(pixFee != null || cardFee != null) && (
+                      <div className="rounded-admin border border-palantir-red/30 bg-palantir-bg p-2.5">
+                        <p className="mono text-[9px] uppercase tracking-wider text-palantir-muted">
+                          Estimativa com tarifa vigente do Asaas
+                        </p>
+                        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {pixFee != null && (
+                            <FeeResult
+                              label="Pix"
+                              fee={pixFee}
+                              netProfit={profit - pixFee}
+                            />
+                          )}
+                          {cardFee != null && (
+                            <FeeResult
+                              label="Cartão 1x"
+                              fee={cardFee}
+                              netProfit={profit - cardFee}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -1495,6 +1536,88 @@ function SummaryCard({
       {sub && (
         <div className="mono text-[9px] text-palantir-muted truncate mt-0.5">{sub}</div>
       )}
+    </div>
+  );
+}
+
+type AccountPixFee = NonNullable<
+  NonNullable<AsaasAccountFees["payment"]>["pix"]
+>;
+type AccountCardFee = NonNullable<
+  NonNullable<AsaasAccountFees["payment"]>["creditCard"]
+>;
+
+function feeDiscountActive(expires: string | null | undefined) {
+  if (!expires) return false;
+  const time = new Date(expires.replace(" ", "T")).getTime();
+  return Number.isFinite(time) && time > Date.now();
+}
+
+function cents(value: number) {
+  return Math.max(0, Math.round(value * 100) / 100);
+}
+
+function estimatePixFee(value: number, fee: AccountPixFee | undefined) {
+  if (!fee) return null;
+  const freeRemaining =
+    Number(fee.monthlyCreditsWithoutFee ?? 0) -
+    Number(fee.creditsReceivedOfCurrentMonth ?? 0);
+  if (freeRemaining > 0) return 0;
+  if (
+    fee.fixedFeeValueWithDiscount != null &&
+    feeDiscountActive(fee.discountExpiration)
+  ) {
+    return cents(Number(fee.fixedFeeValueWithDiscount));
+  }
+  if (fee.fixedFeeValue != null) return cents(Number(fee.fixedFeeValue));
+  if (fee.percentageFee == null) return null;
+  let result = (value * Number(fee.percentageFee)) / 100;
+  if (fee.minimumFeeValue != null) {
+    result = Math.max(result, Number(fee.minimumFeeValue));
+  }
+  if (fee.maximumFeeValue != null) {
+    result = Math.min(result, Number(fee.maximumFeeValue));
+  }
+  return cents(result);
+}
+
+function estimateCardFee(value: number, fee: AccountCardFee | undefined) {
+  if (!fee) return null;
+  const percentage =
+    fee.discountOneInstallmentPercentage != null &&
+    feeDiscountActive(fee.discountExpiration)
+      ? Number(fee.discountOneInstallmentPercentage)
+      : Number(fee.oneInstallmentPercentage ?? 0);
+  return cents((value * percentage) / 100 + Number(fee.operationValue ?? 0));
+}
+
+function FeeResult({
+  label,
+  fee,
+  netProfit,
+}: {
+  label: string;
+  fee: number;
+  netProfit: number;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-admin border border-palantir-border px-2.5 py-2">
+      <div>
+        <p className="mono text-[9px] uppercase text-palantir-muted">{label}</p>
+        <p className="mono text-xs text-palantir-red">− {brl(fee)}</p>
+      </div>
+      <div className="text-right">
+        <p className="mono text-[9px] uppercase text-palantir-muted">
+          Lucro após Asaas
+        </p>
+        <p
+          className={`mono text-sm font-semibold ${
+            netProfit < 0 ? "text-palantir-red" : "text-palantir-green"
+          }`}
+        >
+          {brl(netProfit)}
+        </p>
+      </div>
     </div>
   );
 }
