@@ -680,11 +680,11 @@ function ProductDialog({
 
   return (
     <Modal onClose={onClose} title={editing ? `Editar — ${product!.name}` : "Novo produto"} wide>
-      <div className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-4">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-[200px_minmax(0,1fr)] xl:grid-cols-[240px_minmax(0,1fr)] md:gap-6 xl:gap-8">
         {/* Imagem */}
-        <div>
+        <div className="md:sticky md:top-0 md:self-start">
           <Field label="Imagem">
-            <div className="aspect-square w-full max-w-[180px] sm:max-w-none mx-auto sm:mx-0 rounded-admin bg-palantir-bg border border-palantir-border overflow-hidden flex items-center justify-center">
+            <div className="aspect-square w-full max-w-[220px] mx-auto md:max-w-none rounded-2xl bg-palantir-bg border border-palantir-border overflow-hidden flex items-center justify-center">
               {imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={imageUrl} alt="" className="size-full object-cover" />
@@ -714,24 +714,38 @@ function ProductDialog({
         </div>
 
         {/* Form */}
-        <div className="space-y-3">
-          <Field label="PDV">
-            <select
-              value={pdvId}
-              onChange={(e) => {
-                setPdvId(e.target.value);
-                setCategoryId("");
-              }}
-              disabled={editing}
-              className="w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white disabled:opacity-60 focus-ring-admin"
-            >
-              {pdvs.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {isImageLogo(p.logo_url) ? "🖼" : p.logo_url} {p.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+        <div className="min-w-0 space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="PDV">
+              <select
+                value={pdvId}
+                onChange={(e) => {
+                  setPdvId(e.target.value);
+                  setCategoryId("");
+                }}
+                disabled={editing}
+                className="w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white disabled:opacity-60 focus-ring-admin"
+              >
+                {pdvs.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {isImageLogo(p.logo_url) ? "🖼" : p.logo_url} {p.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Status">
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as ProductRow["status"])}
+                className="w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
+              >
+                <option value="active">Ativo</option>
+                <option value="paused">Pausado</option>
+                <option value="out_of_stock">Esgotado</option>
+              </select>
+            </Field>
+          </div>
 
           <Field label="Nome">
             <input
@@ -746,31 +760,18 @@ function ProductDialog({
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={2}
+              rows={3}
               className="w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 py-2 text-sm text-white focus-ring-admin"
             />
           </Field>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Preço (R$)">
-              <MoneyInput
-                value={price}
-                onChange={setPrice}
-                className="mono w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
-              />
-            </Field>
-            <Field label="Status">
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as ProductRow["status"])}
-                className="w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
-              >
-                <option value="active">Ativo</option>
-                <option value="paused">Pausado</option>
-                <option value="out_of_stock">Esgotado</option>
-              </select>
-            </Field>
-          </div>
+          <Field label="Preço (R$)">
+            <MoneyInput
+              value={price}
+              onChange={setPrice}
+              className="mono w-full max-w-xs rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
+            />
+          </Field>
 
           <PaymentFeeSimulator
             value={salePrice > 0 ? salePrice : Number(price)}
@@ -1314,13 +1315,13 @@ function Modal({
       role="dialog"
       aria-modal="true"
       aria-label={title}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 sm:p-4 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 sm:p-4 lg:p-6 animate-fade-in"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`w-full max-h-[92dvh] sm:max-h-[85dvh] overflow-y-auto rounded-t-xl sm:rounded-admin border border-palantir-border bg-palantir-surface p-4 sm:p-5 pb-safe ${
-          wide ? "sm:max-w-2xl" : "sm:max-w-lg"
+        className={`w-full max-h-[92dvh] sm:max-h-[90dvh] overflow-y-auto rounded-t-xl sm:rounded-2xl border border-palantir-border bg-palantir-surface p-4 sm:p-6 lg:p-7 pb-safe ${
+          wide ? "sm:max-w-[min(96vw,72rem)]" : "sm:max-w-lg"
         }`}
       >
         <div className="flex items-start justify-between gap-3 mb-3">
@@ -1663,7 +1664,7 @@ function PaymentFeeSimulator({
       <div className="space-y-4 p-4 sm:p-5">
         {fees ? (
           <>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
               {pixFee != null && pixNet != null && (
                 <PaymentEstimate
                   icon={<Zap className="size-4" aria-hidden />}
@@ -1796,49 +1797,49 @@ function PaymentEstimate({
 
   return (
     <article
-      className={`relative flex h-full flex-col rounded-2xl border p-3.5 transition-colors ${toneStyles.shell}`}
+      className={`relative flex h-full min-w-0 flex-col rounded-2xl border p-4 sm:p-5 transition-colors ${toneStyles.shell}`}
     >
       {recommended && (
-        <span className="absolute right-3 top-3 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-medium text-amber-200">
+        <span className="absolute right-3 top-3 rounded-full bg-amber-400/15 px-2.5 py-1 text-[10px] font-medium leading-none text-amber-200">
           Ideal p/ repasse
         </span>
       )}
-      <div className="flex items-center gap-2.5 pr-16">
+      <div className="flex items-start gap-3 pr-20">
         <div
-          className={`grid size-8 place-items-center rounded-lg ${toneStyles.icon}`}
+          className={`grid size-9 shrink-0 place-items-center rounded-lg ${toneStyles.icon}`}
         >
           {icon}
         </div>
         <div className="min-w-0">
-          <p className={`text-sm font-medium ${toneStyles.label}`}>{label}</p>
-          <p className="mt-0.5 truncate text-[11px] text-palantir-muted">
+          <p className={`text-[15px] font-medium leading-snug ${toneStyles.label}`}>
+            {label}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-palantir-muted">
             {availability}
           </p>
         </div>
       </div>
 
       {badge && (
-        <p className="mt-3 inline-flex w-fit rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-palantir-muted">
+        <p className="mt-3 inline-flex w-fit rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-palantir-muted">
           {badge}
         </p>
       )}
 
-      <div className="mt-auto space-y-3 pt-4">
+      <div className="mt-auto space-y-3.5 pt-5">
         <div>
-          <p className="text-[11px] text-palantir-muted">Você recebe</p>
-          <p className="num mt-1 text-xl font-semibold tracking-tight text-palantir-green">
+          <p className="text-xs text-palantir-muted">Você recebe</p>
+          <p className="num mt-1.5 text-2xl font-semibold tracking-tight text-palantir-green">
             {brl(net)}
           </p>
         </div>
-        <div className="border-t border-white/5 pt-3">
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="text-[11px] text-palantir-muted">Taxas</p>
-            <p className="num text-xs font-medium text-palantir-red">
-              − {brl(fee)}
-            </p>
-          </div>
+        <div className="border-t border-white/5 pt-3.5">
+          <p className="text-xs text-palantir-muted">Taxas</p>
+          <p className="num mt-1 text-sm font-medium text-palantir-red">
+            − {brl(fee)}
+          </p>
           {feeDetail && (
-            <p className="mt-1 text-[10px] leading-relaxed text-palantir-muted">
+            <p className="mt-1.5 text-[11px] leading-relaxed text-palantir-muted">
               {feeDetail}
             </p>
           )}
