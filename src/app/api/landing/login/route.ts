@@ -2,14 +2,15 @@
   Login da landing raiz `/`:
   - recebe CPF
   - cliente já cadastrado entra normalmente
-  - insider ainda sem customer é criado como VIP
-  - CPF desconhecido recebe URL para criar um cadastro
+  - consulta as bases Somma para manter a condição VIP atualizada
+  - qualquer pessoa ainda sem customer recebe URL para completar o cadastro
 */
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createAdminClient, createAdminClientPublic } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { attachCustomerCookie, signCustomer } from "@/lib/auth/customer-session";
 import { internalErrorResponse } from "@/lib/server-errors";
+import { lookupCustomerDirectory } from "@/lib/customer-directory";
 
 const Body = z.object({
   cpf: z.string().regex(/^\d{11}$/, "CPF deve ter 11 dígitos"),
@@ -32,23 +33,16 @@ export async function POST(req: Request) {
 
   const cpf = digits(body.cpf);
 
-  // Consulta cadastro geral e lista de insiders em paralelo.
+  // Consulta o cadastro maFood e todas as bases Somma em paralelo.
   const supa = createAdminClient();
-  const supaPub = createAdminClientPublic();
-  const masked = `${cpf.slice(0, 3)}.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-${cpf.slice(9)}`;
 
-  const [customerResult, insiderResult] = await Promise.all([
+  const [customerResult, directory] = await Promise.all([
     supa
       .from("customers")
       .select("id, name, is_vip")
       .eq("cpf", cpf)
       .maybeSingle(),
-    supaPub
-      .from("dados_insiders")
-      .select("id, nome, cpf")
-      .or(`cpf.eq.${cpf},cpf.eq.${masked}`)
-      .limit(1)
-      .maybeSingle(),
+    lookupCustomerDirectory(cpf),
   ]);
 
   if (customerResult.error) {
@@ -58,18 +52,8 @@ export async function POST(req: Request) {
       "Não foi possível consultar o cadastro"
     );
   }
-  if (insiderResult.error) {
-    return internalErrorResponse(
-      "landing-login-insider",
-      insiderResult.error,
-      "Não foi possível validar o CPF"
-    );
-  }
-
   const existing = customerResult.data;
-  const insider = insiderResult.data;
-
-  if (!existing && !insider) {
+  if (!existing) {
     const params = new URLSearchParams({
       cpf,
       next: "/somma-special-day",
@@ -80,36 +64,15 @@ export async function POST(req: Request) {
     });
   }
 
-  // Reaproveita customer existente ou cria o insider como customer VIP.
-  let customerId = existing?.id;
-  let customerName = existing?.name ?? insider?.nome?.trim() ?? "Cliente";
-  const isVip = Boolean(existing?.is_vip || insider);
-
-  if (!customerId && insider) {
-    const { data: created, error: eCreate } = await supa
-      .from("customers")
-      .insert({
-        cpf,
-        name: customerName,
-        is_vip: isVip,
-      })
-      .select("id, name")
-      .single();
-    if (eCreate || !created) {
-      return internalErrorResponse(
-        "landing-login-customer-create",
-        eCreate ?? new Error("customer insert returned no row"),
-        "Não foi possível concluir o acesso"
-      );
-    }
-    customerId = created.id;
-    customerName = created.name;
-  } else if (customerId && insider && !existing?.is_vip) {
-    // Se também consta na lista de insiders, promove o cadastro existente.
+  const isVip = Boolean(existing.is_vip || directory.isVip);
+  if (isVip && !existing.is_vip) {
     const { error: updateError } = await supa
       .from("customers")
-      .update({ is_vip: isVip })
-      .eq("id", customerId);
+      .update({
+        is_vip: true,
+        lista_vip_id: directory.prefill.lista_vip_id || null,
+      })
+      .eq("id", existing.id);
     if (updateError) {
       return internalErrorResponse(
         "landing-login-customer-update",
@@ -119,20 +82,16 @@ export async function POST(req: Request) {
     }
   }
 
-  if (!customerId) {
-    return NextResponse.json({ error: "Não foi possível concluir o cadastro" }, { status: 500 });
-  }
-
   // Assina cookie de sessão de cliente (30 dias).
   const token = await signCustomer({
-    customer_id: customerId,
+    customer_id: existing.id,
     cpf,
-    name: customerName,
+    name: existing.name,
     is_vip: isVip,
   });
   const res = NextResponse.json({
     ok: true,
-    customer: { id: customerId, name: customerName },
+    customer: { id: existing.id, name: existing.name },
     next: "/somma-special-day",
   });
   return attachCustomerCookie(res, token);

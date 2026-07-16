@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { signCustomer, attachCustomerCookie } from "@/lib/auth/customer-session";
 import { internalErrorResponse } from "@/lib/server-errors";
+import { lookupCustomerDirectory } from "@/lib/customer-directory";
 
 const Body = z.object({
   cpf: z.string().min(11),
@@ -35,6 +36,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "CEP inválido" }, { status: 400 });
   }
 
+  // A condição VIP e o vínculo com lista_vip são sempre recalculados no
+  // servidor. Não confiamos em um ID enviado pelo navegador.
+  const directory = await lookupCustomerDirectory(cpf);
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("customers")
@@ -46,8 +50,8 @@ export async function POST(req: Request) {
       postal_code: postalCode,
       address_number: body.address_number.trim(),
       address_complement: body.address_complement?.trim() || null,
-      is_vip: !!body.lista_vip_id,
-      lista_vip_id: body.lista_vip_id || null,
+      is_vip: directory.isVip,
+      lista_vip_id: directory.prefill.lista_vip_id || null,
     })
     .select("id, name, cpf, is_vip")
     .single();

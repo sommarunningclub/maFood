@@ -3,13 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
-type Stage = "cpf" | "vip_prefill" | "new" | "loading";
+type RegistrationStage = "vip_prefill" | "profile_prefill" | "new";
+type Stage = "cpf" | RegistrationStage | "loading";
 
 interface Prefill {
   cpf: string;
   name?: string | null;
   email?: string | null;
   phone?: string | null;
+  postal_code?: string | null;
   lista_vip_id?: string | null;
 }
 
@@ -180,11 +182,23 @@ export function IdentifyModal({
     setName(data.prefill?.name ?? "");
     setEmail(data.prefill?.email ?? "");
     setPhone(data.prefill?.phone ? maskPhone(data.prefill.phone) : "");
-    setStage(data.status === "vip_match" ? "vip_prefill" : "new");
+    const foundPostalCode = data.prefill?.postal_code?.replace(/\D/g, "").slice(0, 8) ?? "";
+    setPostalCode(foundPostalCode);
+    if (foundPostalCode.length === 8) void lookupCep(foundPostalCode);
+    else setCepHint(null);
+    setStage(
+      data.status === "vip_match"
+        ? "vip_prefill"
+        : data.status === "profile_match"
+          ? "profile_prefill"
+          : "new"
+    );
   }
 
   async function submitRegister(e: React.FormEvent) {
     e.preventDefault();
+    const returnStage: RegistrationStage =
+      stage === "vip_prefill" || stage === "profile_prefill" ? stage : "new";
     setError(null);
     setStage("loading");
     const r = await fetch("/api/customer/register", {
@@ -204,7 +218,7 @@ export function IdentifyModal({
     const data = await r.json();
     if (!r.ok) {
       setError(data.error ?? "Erro");
-      setStage(prefill?.lista_vip_id ? "vip_prefill" : "new");
+      setStage(returnStage);
       return;
     }
     onSuccess();
@@ -232,16 +246,18 @@ export function IdentifyModal({
             >
               {stage === "vip_prefill"
                 ? "Bem-vindo de volta!"
+                : stage === "profile_prefill"
+                ? "Encontramos seus dados"
                 : stage === "new"
-                ? "Primeiro acesso"
+                ? "Criar novo cadastro"
                 : "Identifique-se"}
             </h2>
             <p className="text-mafood-text-secondary text-xs mt-1">
               {stage === "cpf" || stage === "loading"
                 ? "Para finalizar o pedido precisamos do seu CPF."
-                : stage === "vip_prefill"
-                ? "Confirme seus dados. No pagamento, só o cartão."
-                : "Cadastro completo — depois o pagamento fica só com o cartão."}
+                : stage === "new"
+                ? "Não encontramos esse CPF. Preencha seus dados para continuar."
+                : "Confira os dados encontrados e preencha o que estiver faltando."}
             </p>
           </div>
           <button
@@ -278,12 +294,12 @@ export function IdentifyModal({
           </form>
         )}
 
-        {(stage === "vip_prefill" || stage === "new") && prefill && (
+        {(stage === "vip_prefill" || stage === "profile_prefill" || stage === "new") && prefill && (
           <form onSubmit={submitRegister}>
-            {stage === "vip_prefill" && (
+            {stage !== "new" && (
               <div className="flex items-center gap-2 mb-3">
                 <span className="num text-[10px] uppercase bg-mafood-primary/15 text-mafood-primary-strong px-2 py-1 rounded">
-                  ✓ Lista VIP
+                  {stage === "vip_prefill" ? "✓ Lista VIP" : "✓ Dados encontrados"}
                 </span>
               </div>
             )}
@@ -314,7 +330,7 @@ export function IdentifyModal({
               disabled={!profileReady}
               className="mt-4 w-full rounded-mafood-md bg-mafood-primary-strong min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
-              {stage === "vip_prefill" ? "Confirmar e continuar" : "Criar cadastro e continuar"}
+              {stage === "new" ? "Criar cadastro e continuar" : "Completar cadastro e continuar"}
             </button>
             <button
               type="button"

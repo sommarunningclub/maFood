@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createAdminClient, createAdminClientPublic } from "@/lib/supabase/admin";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { signCustomer, attachCustomerCookie } from "@/lib/auth/customer-session";
 import { internalErrorResponse } from "@/lib/server-errors";
+import { lookupCustomerDirectory } from "@/lib/customer-directory";
 
 const Body = z.object({ cpf: z.string().min(11).max(14) });
 
@@ -45,33 +46,15 @@ export async function POST(req: Request) {
     return attachCustomerCookie(res, token);
   }
 
-  // 2) Está na lista_vip? (lê do schema public via cliente apropriado)
-  const pub = createAdminClientPublic();
-  const { data: vip, error: vipError } = await pub
-    .from("lista_vip_publico")
-    .select("id, nome, cpf, email, telefone")
-    .eq("cpf", cpf)
-    .maybeSingle();
-  if (vipError) {
-    return internalErrorResponse(
-      "customer-lookup-vip",
-      vipError,
-      "Não foi possível consultar o cadastro"
-    );
-  }
-
-  if (vip) {
+  // 2) Reaproveita o que existir nas bases Somma. Cada fonte é tolerante a
+  // falha para um CPF realmente novo nunca ficar impedido de se cadastrar.
+  const directory = await lookupCustomerDirectory(cpf);
+  if (directory.found) {
     return NextResponse.json({
-      status: "vip_match",
-      prefill: {
-        cpf,
-        name: vip.nome,
-        email: vip.email,
-        phone: vip.telefone,
-        lista_vip_id: vip.id,
-      },
+      status: directory.isVip ? "vip_match" : "profile_match",
+      prefill: directory.prefill,
     });
   }
 
-  return NextResponse.json({ status: "new", prefill: { cpf } });
+  return NextResponse.json({ status: "new", prefill: directory.prefill });
 }

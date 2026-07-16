@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 
-type Stage = "cpf" | "vip_prefill" | "new" | "loading";
+type RegistrationStage = "vip_prefill" | "profile_prefill" | "new";
+type Stage = "cpf" | RegistrationStage | "loading";
 
 interface Prefill {
   cpf: string;
   name?: string | null;
   email?: string | null;
   phone?: string | null;
+  postal_code?: string | null;
   lista_vip_id?: string | null;
 }
 
@@ -132,11 +134,23 @@ export function CustomerLogin({
     setName(data.prefill?.name ?? "");
     setEmail(data.prefill?.email ?? "");
     setPhone(data.prefill?.phone ? maskPhone(data.prefill.phone) : "");
-    setStage(data.status === "vip_match" ? "vip_prefill" : "new");
+    const foundPostalCode = data.prefill?.postal_code?.replace(/\D/g, "").slice(0, 8) ?? "";
+    setPostalCode(foundPostalCode);
+    if (foundPostalCode.length === 8) void lookupCep(foundPostalCode);
+    else setCepHint(null);
+    setStage(
+      data.status === "vip_match"
+        ? "vip_prefill"
+        : data.status === "profile_match"
+          ? "profile_prefill"
+          : "new"
+    );
   }
 
   async function submitRegister(e: React.FormEvent) {
     e.preventDefault();
+    const returnStage: RegistrationStage =
+      stage === "vip_prefill" || stage === "profile_prefill" ? stage : "new";
     setError(null);
     setStage("loading");
     const r = await fetch("/api/customer/register", {
@@ -156,7 +170,7 @@ export function CustomerLogin({
     const data = await r.json();
     if (!r.ok) {
       setError(data.error ?? "Erro");
-      setStage(prefill?.lista_vip_id ? "vip_prefill" : "new");
+      setStage(returnStage);
       return;
     }
     goAfterAuth();
@@ -183,7 +197,7 @@ export function CustomerLogin({
               Identifique-se
             </h2>
             <p className="text-mafood-text-secondary text-sm mb-4">
-              Use seu CPF para acessar a praça de alimentação.
+              Use seu CPF para entrar ou criar um novo cadastro.
             </p>
             <label className="block">
               <span className="num text-[11px] text-mafood-text-secondary">CPF</span>
@@ -208,27 +222,31 @@ export function CustomerLogin({
           </form>
         )}
 
-        {(stage === "vip_prefill" || stage === "new") && prefill && (
+        {(stage === "vip_prefill" || stage === "profile_prefill" || stage === "new") && prefill && (
           <form
             onSubmit={submitRegister}
             className={`rounded-mafood-md border bg-mafood-surface-strong p-5 ${
-              stage === "vip_prefill" ? "border-mafood-primary/40" : "border-mafood-border"
+              stage !== "new" ? "border-mafood-primary/40" : "border-mafood-border"
             }`}
           >
-            {stage === "vip_prefill" && (
+            {stage !== "new" && (
               <div className="flex items-center gap-2 mb-3">
                 <span className="num text-[10px] uppercase bg-mafood-primary/15 text-mafood-primary-strong px-2 py-1 rounded">
-                  ✓ Lista VIP
+                  {stage === "vip_prefill" ? "✓ Lista VIP" : "✓ Dados encontrados"}
                 </span>
               </div>
             )}
             <h2 className="mafood-display text-mafood-text-primary text-lg mb-1">
-              {stage === "vip_prefill" ? "Bem-vindo de volta!" : "Primeiro acesso"}
+              {stage === "vip_prefill"
+                ? "Bem-vindo de volta!"
+                : stage === "profile_prefill"
+                  ? "Encontramos seus dados"
+                  : "Criar novo cadastro"}
             </h2>
             <p className="text-mafood-text-secondary text-sm mb-4">
-              {stage === "vip_prefill"
-                ? "Confirme seus dados. No pagamento, só o cartão."
-                : "Cadastro completo — depois o pagamento fica só com o cartão."}
+              {stage === "new"
+                ? "Não encontramos esse CPF. Preencha seus dados para criar o cadastro e entrar."
+                : "Confira os dados encontrados e preencha o que estiver faltando."}
             </p>
             <PrefillFields
               cpf={cpf}
@@ -257,7 +275,7 @@ export function CustomerLogin({
               disabled={!profileReady}
               className="mt-4 w-full rounded-mafood-md bg-mafood-primary-strong min-h-touch h-12 text-white font-semibold disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
             >
-              {stage === "vip_prefill" ? "Entrar no evento" : "Criar cadastro e entrar"}
+              {stage === "new" ? "Criar cadastro e entrar" : "Completar cadastro e entrar"}
             </button>
             <button
               type="button"
