@@ -16,6 +16,7 @@ export function LandingLogin() {
   const [cpf, setCpf] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [registerUrl, setRegisterUrl] = useState<string | null>(null);
   const digits = cpf.replace(/\D/g, "");
   const valid = digits.length === 11;
 
@@ -32,6 +33,11 @@ export function LandingLogin() {
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error ?? "Erro");
+      if (data.status === "new" && data.registerUrl) {
+        setRegisterUrl(data.registerUrl);
+        setLoading(false);
+        return;
+      }
       // Hard nav: cookie httpOnly acabou de ser setado; soft push pode travar.
       window.location.assign(data.next ?? "/somma-special-day");
     } catch (err) {
@@ -61,7 +67,7 @@ export function LandingLogin() {
             Somma Special Day
           </h1>
           <p className="text-somma-muted text-sm mt-3 text-pretty">
-            Praça de alimentação digital · exclusiva para insiders
+            Praça de alimentação digital · Somma Special Day
           </p>
         </header>
 
@@ -73,14 +79,18 @@ export function LandingLogin() {
             Identifique-se
           </h2>
           <p className="text-somma-muted text-sm mb-4">
-            Use seu CPF cadastrado na lista de insiders.
+            Use seu CPF para entrar ou criar um novo cadastro.
           </p>
 
           <label className="block">
             <span className="num text-[11px] text-somma-muted">CPF</span>
             <input
               value={maskCpf(cpf)}
-              onChange={(e) => setCpf(e.target.value)}
+              onChange={(e) => {
+                setCpf(e.target.value);
+                setRegisterUrl(null);
+                setError(null);
+              }}
               inputMode="numeric"
               placeholder="000.000.000-00"
               autoFocus
@@ -98,17 +108,34 @@ export function LandingLogin() {
             </p>
           )}
 
-          <button
-            type="submit"
-            disabled={!valid || loading}
-            className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide disabled:opacity-40 focus-ring active:scale-[0.98] transition-transform"
-          >
-            {loading ? "Entrando..." : "Entrar"}
-            {!loading && <ArrowRight className="size-4" />}
-          </button>
+          {registerUrl ? (
+            <div className="mt-4 rounded-client border border-somma-orange/50 bg-somma-orange/10 p-3">
+              <p className="text-sm font-medium text-white">CPF ainda não cadastrado</p>
+              <p className="mt-1 text-xs text-somma-muted">
+                Crie seu usuário para acessar a praça e acompanhar os pedidos.
+              </p>
+              <button
+                type="button"
+                onClick={() => window.location.assign(registerUrl)}
+                className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide focus-ring active:scale-[0.98] transition-transform"
+              >
+                Criar cadastro
+                <ArrowRight className="size-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              disabled={!valid || loading}
+              className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-client bg-somma-orange min-h-touch h-12 text-white font-display uppercase tracking-wide disabled:opacity-40 focus-ring active:scale-[0.98] transition-transform"
+            >
+              {loading ? "Entrando..." : "Entrar"}
+              {!loading && <ArrowRight className="size-4" />}
+            </button>
+          )}
 
           <p className="num text-[10px] text-somma-muted/80 text-center mt-4">
-            Não é insider? Fale com a organização para receber acesso.
+            CPF novo? A opção de cadastro aparece automaticamente.
           </p>
         </form>
 

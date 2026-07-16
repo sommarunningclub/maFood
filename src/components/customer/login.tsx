@@ -36,14 +36,18 @@ export function CustomerLogin({
   venue,
   venueName,
   next,
+  initialCpf,
 }: {
   venue: string;
   venueName: string;
   venueDescription?: string;
   next?: string;
+  initialCpf?: string;
 }) {
   const [stage, setStage] = useState<Stage>("cpf");
-  const [cpf, setCpf] = useState("");
+  const [cpf, setCpf] = useState(
+    () => initialCpf?.replace(/\D/g, "").slice(0, 11) ?? ""
+  );
   const [prefill, setPrefill] = useState<Prefill | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");

@@ -10,7 +10,7 @@ export default async function CustomerLoginPage({
   searchParams,
 }: {
   params: { venue: string };
-  searchParams: { next?: string };
+  searchParams: { next?: string; cpf?: string };
 }) {
   // Se já está logado, redireciona
   const existing = await getCustomerSession();
@@ -32,6 +32,7 @@ export default async function CustomerLoginPage({
       venue={params.venue}
       venueName={venue?.name ?? "Evento"}
       next={searchParams.next}
+      initialCpf={searchParams.cpf}
     />
   );
 }

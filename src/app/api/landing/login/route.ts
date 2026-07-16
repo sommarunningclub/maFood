@@ -1,9 +1,9 @@
 /*
   Login da landing raiz `/`:
   - recebe CPF
-  - busca em `public.dados_insiders` (lista de "insiders" do Somma Special Day)
-  - se encontrar, upsert em `mafood.customers` (chave: cpf) e assina cookie
-  - retorna `next` pra redirecionar ao marketplace
+  - cliente já cadastrado entra normalmente
+  - insider ainda sem customer é criado como VIP
+  - CPF desconhecido recebe URL para criar um cadastro
 */
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -32,58 +32,65 @@ export async function POST(req: Request) {
 
   const cpf = digits(body.cpf);
 
-  // 1. Procura no insider list (public schema). A coluna `cpf` é text e pode
-  //    conter pontuação — tentamos sem pontuação primeiro, depois com.
+  // Consulta cadastro geral e lista de insiders em paralelo.
+  const supa = createAdminClient();
   const supaPub = createAdminClientPublic();
   const masked = `${cpf.slice(0, 3)}.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-${cpf.slice(9)}`;
 
-  const { data: insider, error: eInsider } = await supaPub
-    .from("dados_insiders")
-    .select("id, nome, cpf")
-    .or(`cpf.eq.${cpf},cpf.eq.${masked}`)
-    .limit(1)
-    .maybeSingle();
+  const [customerResult, insiderResult] = await Promise.all([
+    supa
+      .from("customers")
+      .select("id, name, is_vip")
+      .eq("cpf", cpf)
+      .maybeSingle(),
+    supaPub
+      .from("dados_insiders")
+      .select("id, nome, cpf")
+      .or(`cpf.eq.${cpf},cpf.eq.${masked}`)
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
-  if (eInsider) {
+  if (customerResult.error) {
+    return internalErrorResponse(
+      "landing-login-customer",
+      customerResult.error,
+      "Não foi possível consultar o cadastro"
+    );
+  }
+  if (insiderResult.error) {
     return internalErrorResponse(
       "landing-login-insider",
-      eInsider,
+      insiderResult.error,
       "Não foi possível validar o CPF"
     );
   }
-  if (!insider) {
-    return NextResponse.json(
-      { error: "CPF não encontrado na lista de insiders." },
-      { status: 404 }
-    );
+
+  const existing = customerResult.data;
+  const insider = insiderResult.data;
+
+  if (!existing && !insider) {
+    const params = new URLSearchParams({
+      cpf,
+      next: "/somma-special-day",
+    });
+    return NextResponse.json({
+      status: "new",
+      registerUrl: `/somma-special-day/login?${params.toString()}`,
+    });
   }
 
-  // 2. Upsert no `mafood.customers` (cpf é UNIQUE). Reaproveita registro
-  //    se cliente já existia (caso tenha entrado antes pelo /<venue>/login).
-  const supa = createAdminClient();
-  const { data: existing, error: existingError } = await supa
-    .from("customers")
-    .select("id, name, is_vip")
-    .eq("cpf", cpf)
-    .maybeSingle();
-  if (existingError) {
-    return internalErrorResponse(
-      "landing-login-customer",
-      existingError,
-      "Não foi possível concluir o acesso"
-    );
-  }
-
+  // Reaproveita customer existente ou cria o insider como customer VIP.
   let customerId = existing?.id;
-  let customerName = existing?.name ?? insider.nome;
-  const isVip = true; // insiders são tratados como VIP
+  let customerName = existing?.name ?? insider?.nome?.trim() ?? "Cliente";
+  const isVip = Boolean(existing?.is_vip || insider);
 
-  if (!customerId) {
+  if (!customerId && insider) {
     const { data: created, error: eCreate } = await supa
       .from("customers")
       .insert({
         cpf,
-        name: insider.nome,
+        name: customerName,
         is_vip: isVip,
       })
       .select("id, name")
@@ -97,8 +104,8 @@ export async function POST(req: Request) {
     }
     customerId = created.id;
     customerName = created.name;
-  } else if (!existing?.is_vip) {
-    // Promove a VIP se ainda não é
+  } else if (customerId && insider && !existing?.is_vip) {
+    // Se também consta na lista de insiders, promove o cadastro existente.
     const { error: updateError } = await supa
       .from("customers")
       .update({ is_vip: isVip })
@@ -112,7 +119,11 @@ export async function POST(req: Request) {
     }
   }
 
-  // 3. Assina cookie de sessão de cliente (30 dias)
+  if (!customerId) {
+    return NextResponse.json({ error: "Não foi possível concluir o cadastro" }, { status: 500 });
+  }
+
+  // Assina cookie de sessão de cliente (30 dias).
   const token = await signCustomer({
     customer_id: customerId,
     cpf,
