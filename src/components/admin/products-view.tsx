@@ -18,6 +18,10 @@ import { brl } from "@/lib/utils";
 import { PriceEngine } from "@/components/admin/price-engine";
 import { isImageLogo } from "@/components/pdv-logo";
 import { MoneyInput } from "@/components/money-input";
+import {
+  ceilToCharmPrice,
+  roundToCharmPrice,
+} from "@/lib/pricing";
 import type { AsaasAccountFees } from "@/lib/asaas";
 import {
   cardSettlementDays,
@@ -642,18 +646,23 @@ function ProductDialog({
     if (!pdvId) return setError("PDV obrigatório");
     if (price < 0) return setError("Preço inválido");
 
+    const charmingPrice = price > 0 ? roundToCharmPrice(price) : 0;
+    const charmingSale = salePrice > 0 ? roundToCharmPrice(salePrice) : 0;
+    if (charmingPrice !== price) setPrice(charmingPrice);
+    if (charmingSale !== salePrice) setSalePrice(charmingSale);
+
     setLoading(true);
     const payload = {
       pdv_id: pdvId,
       category_id: categoryId || null,
       name: name.trim(),
       description: description.trim(),
-      price,
+      price: charmingPrice,
       image_url: imageUrl,
       status,
       stock_quantity: trackStock ? Math.max(0, Math.floor(stockQty)) : null,
       supplier_cost: supplierCost > 0 ? supplierCost : null,
-      sale_price: salePrice > 0 ? salePrice : null,
+      sale_price: charmingSale > 0 ? charmingSale : null,
     };
     const url = editing ? `/api/admin/products/${product!.id}` : "/api/admin/products";
     const method = editing ? "PATCH" : "POST";
@@ -769,8 +778,14 @@ function ProductDialog({
             <MoneyInput
               value={price}
               onChange={setPrice}
+              onBlur={() => {
+                if (price > 0) setPrice(roundToCharmPrice(price));
+              }}
               className="mono w-full max-w-xs rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
             />
+            <p className="mono mt-1 text-[10px] text-palantir-muted">
+              Fecha em ,00 ou ,99 na saída do campo (visão do consumidor).
+            </p>
           </Field>
 
           <PaymentFeeSimulator
@@ -898,11 +913,14 @@ function ProductDialog({
                 <MoneyInput
                   value={salePrice}
                   onChange={setSalePrice}
+                  onBlur={() => {
+                    if (salePrice > 0) setSalePrice(roundToCharmPrice(salePrice));
+                  }}
                   className="mono w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
                 />
                 <p className="mono mt-1 text-[10px] text-palantir-muted">
                   {salePrice > 0
-                    ? "Este é o preço mostrado e cobrado do cliente."
+                    ? "Este é o preço mostrado e cobrado do cliente (,00 ou ,99)."
                     : `Vazio: o cliente vê o Preço (R$) — ${brl(Number(price) || 0)}.`}
                 </p>
               </Field>
@@ -1620,7 +1638,7 @@ function PaymentFeeSimulator({
   const days = cardSettlementDays(fees?.payment?.creditCard);
   const pixNet = pixFee == null ? null : Math.max(0, amount - pixFee);
   const cardNet = cardFee == null ? null : Math.max(0, amount - cardFee);
-  const suggestedCardPrice =
+  const suggestedCardPriceRaw =
     pixNet == null
       ? null
       : priceForAnticipatedCardNet(
@@ -1628,6 +1646,10 @@ function PaymentFeeSimulator({
           fees?.payment?.creditCard,
           fees?.anticipation?.creditCard
         );
+  const suggestedCardPrice =
+    suggestedCardPriceRaw == null
+      ? null
+      : ceilToCharmPrice(suggestedCardPriceRaw);
   const suggestedDelta =
     suggestedCardPrice == null
       ? 0
