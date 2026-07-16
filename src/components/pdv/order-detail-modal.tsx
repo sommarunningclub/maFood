@@ -15,6 +15,8 @@ import {
   Save,
   AlertTriangle,
   Loader2,
+  RotateCcw,
+  ExternalLink,
 } from "lucide-react";
 import { brl, cn, formatTime } from "@/lib/utils";
 
@@ -42,6 +44,20 @@ interface Order {
   created_at: string;
   paid_at: string | null;
   ready_at: string | null;
+  refund_status:
+    | "requested"
+    | "pending"
+    | "partial"
+    | "done"
+    | "cancelled"
+    | "failed"
+    | null;
+  refund_mode: "asaas" | "manual";
+  refund_amount: number | null;
+  refund_requested_at: string | null;
+  refunded_at: string | null;
+  refund_receipt_url: string | null;
+  refund_eligible: boolean;
   items: OrderItem[];
 }
 
@@ -73,6 +89,18 @@ const STATUS_COLOR: Record<Status, string> = {
   cancelled: "text-palantir-red",
 };
 
+const REFUND_STATUS_LABEL: Record<
+  NonNullable<Order["refund_status"]>,
+  string
+> = {
+  requested: "Solicitação enviada",
+  pending: "Aguardando confirmação do reembolso",
+  partial: "Reembolso parcial",
+  done: "Reembolso concluído",
+  cancelled: "Reembolso cancelado",
+  failed: "Falha na tentativa de reembolso",
+};
+
 const TERMINAL: Status[] = ["delivered", "cancelled"];
 
 // Linhas editáveis usam um id local — pra items novos (sem .id do banco)
@@ -93,12 +121,15 @@ export function OrderDetailModal({
   onClose,
   onSaved,
   onConfirmPayment,
+  onRefunded,
 }: {
   order: Order;
   onClose: () => void;
   onSaved?: () => void;
   /** Confirma pagamento na maquininha (pending → paid). */
   onConfirmPayment?: () => void | Promise<void>;
+  /** Atualiza o Kanban sem fechar o resultado do reembolso. */
+  onRefunded?: () => void | Promise<void>;
 }) {
   const [order, setOrder] = useState<Order>(orderProp);
   const [editing, setEditing] = useState(false);
@@ -110,6 +141,13 @@ export function OrderDetailModal({
   const [productSearch, setProductSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [confirmingPay, setConfirmingPay] = useState(false);
+  const [refundConfirmOpen, setRefundConfirmOpen] = useState(false);
+  const [refundReason, setRefundReason] = useState("");
+  const [refunding, setRefunding] = useState(false);
+  const [refundResult, setRefundResult] = useState<{
+    message: string;
+    receiptUrl: string | null;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -120,14 +158,19 @@ export function OrderDetailModal({
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && (editing ? cancelEdit() : onClose());
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || refunding) return;
+      if (editing) cancelEdit();
+      else if (refundConfirmOpen) setRefundConfirmOpen(false);
+      else onClose();
+    };
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
       window.removeEventListener("keydown", onKey);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editing, onClose]);
+  }, [editing, onClose, refundConfirmOpen, refunding]);
 
   function startEdit() {
     setError(null);
@@ -251,6 +294,53 @@ export function OrderDetailModal({
     }
   }
 
+  async function requestRefund() {
+    setError(null);
+    setRefunding(true);
+    try {
+      const response = await fetch(`/api/pdv/orders/${order.id}/refund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: refundReason.trim() }),
+      });
+      const data = (await response.json()) as {
+        error?: string;
+        message?: string;
+        refund_status?: Order["refund_status"];
+        receipt_url?: string | null;
+      };
+
+      if (!response.ok) {
+        setError(data.error ?? "Não foi possível realizar o reembolso");
+        return;
+      }
+
+      const now = new Date().toISOString();
+      setOrder((current) => ({
+        ...current,
+        status: "cancelled",
+        refund_eligible: false,
+        refund_status: data.refund_status ?? "pending",
+        refund_amount: current.total,
+        refund_requested_at: current.refund_requested_at ?? now,
+        refunded_at:
+          data.refund_status === "done" ? now : current.refunded_at,
+        refund_receipt_url:
+          data.receipt_url ?? current.refund_receipt_url,
+      }));
+      setRefundConfirmOpen(false);
+      setRefundResult({
+        message: data.message ?? "Reembolso solicitado com sucesso.",
+        receiptUrl: data.receipt_url ?? null,
+      });
+      await onRefunded?.();
+    } catch {
+      setError("Falha de conexão ao solicitar o reembolso");
+    } finally {
+      setRefunding(false);
+    }
+  }
+
   // ─── View mode (read-only) ────────────────────────────────────
   const isTerminal = TERMINAL.includes(order.status);
   const isAfterPaid = ["preparing", "ready", "partial"].includes(order.status);
@@ -270,7 +360,9 @@ export function OrderDetailModal({
       aria-modal="true"
       aria-label={`Detalhes do pedido #${order.number}`}
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 sm:p-4 animate-fade-in"
-      onClick={() => (editing ? null : onClose())}
+      onClick={() =>
+        editing || refundConfirmOpen || refunding ? null : onClose()
+      }
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -290,7 +382,7 @@ export function OrderDetailModal({
             </p>
           </div>
           <div className="flex items-center gap-1">
-            {!editing && !isTerminal && (
+            {!editing && !isTerminal && !refundConfirmOpen && (
               <button
                 onClick={startEdit}
                 title="Editar pedido"
@@ -301,9 +393,15 @@ export function OrderDetailModal({
               </button>
             )}
             <button
-              onClick={() => (editing ? cancelEdit() : onClose())}
+              onClick={() => {
+                if (refunding) return;
+                if (editing) cancelEdit();
+                else if (refundConfirmOpen) setRefundConfirmOpen(false);
+                else onClose();
+              }}
+              disabled={refunding}
               aria-label="Fechar"
-              className="grid size-touch -mr-2 -mt-1 place-items-center text-palantir-muted hover:text-white focus-ring-admin"
+              className="grid size-touch -mr-2 -mt-1 place-items-center text-palantir-muted hover:text-white disabled:opacity-40 focus-ring-admin"
             >
               <X className="size-5" />
             </button>
@@ -316,8 +414,8 @@ export function OrderDetailModal({
             <AlertTriangle className="size-4 text-palantir-yellow shrink-0 mt-0.5" />
             <p className="text-xs text-palantir-yellow">
               Pedido já foi pago. Ao alterar items, o valor cobrado pelo Asaas
-              <strong> não muda automaticamente</strong> — ajuste manualmente se preciso
-              (cobrar diferença ou estornar).
+              <strong> não muda automaticamente</strong>. Para devolver o valor
+              integral, use a opção de reembolso nos detalhes do pedido.
             </p>
           </div>
         )}
@@ -340,6 +438,57 @@ export function OrderDetailModal({
                 <TimelineRow label="Pedido criado" time={order.created_at} />
                 {order.paid_at && <TimelineRow label="Pago" time={order.paid_at} />}
                 {order.ready_at && <TimelineRow label="Pronto" time={order.ready_at} />}
+                {order.refund_requested_at && (
+                  <TimelineRow
+                    label="Reembolso solicitado"
+                    time={order.refund_requested_at}
+                  />
+                )}
+                {order.refunded_at && (
+                  <TimelineRow
+                    label="Reembolso concluído"
+                    time={order.refunded_at}
+                  />
+                )}
+              </div>
+            </section>
+          )}
+
+          {!editing && order.refund_status && (
+            <section>
+              <SectionTitle icon={RotateCcw} label="Reembolso" />
+              <div
+                className={cn(
+                  "mt-2 rounded-admin border px-3 py-2 text-sm",
+                  order.refund_status === "done"
+                    ? "border-palantir-green/40 bg-palantir-green/10 text-palantir-green"
+                    : order.refund_status === "failed"
+                      ? "border-palantir-red/40 bg-palantir-red/10 text-palantir-red"
+                      : "border-palantir-yellow/40 bg-palantir-yellow/10 text-palantir-yellow"
+                )}
+              >
+                <p className="font-medium">
+                  {REFUND_STATUS_LABEL[order.refund_status]}
+                </p>
+                <p className="mono mt-1 text-[10px] uppercase">
+                  {order.refund_mode === "asaas"
+                    ? "Processado pelo Asaas"
+                    : "Registrado manualmente"}
+                  {order.refund_amount != null
+                    ? ` · ${brl(order.refund_amount)}`
+                    : ""}
+                </p>
+                {order.refund_receipt_url && (
+                  <a
+                    href={order.refund_receipt_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex items-center gap-1 text-xs underline"
+                  >
+                    Abrir comprovante
+                    <ExternalLink className="size-3" />
+                  </a>
+                )}
               </div>
             </section>
           )}
@@ -574,6 +723,26 @@ export function OrderDetailModal({
               {error}
             </p>
           )}
+
+          {refundResult && (
+            <div
+              role="status"
+              className="rounded-admin border border-palantir-green/40 bg-palantir-green/10 px-3 py-3 text-sm text-palantir-green"
+            >
+              <p className="font-medium">{refundResult.message}</p>
+              {refundResult.receiptUrl && (
+                <a
+                  href={refundResult.receiptUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-flex items-center gap-1 text-xs underline"
+                >
+                  Abrir comprovante do Asaas
+                  <ExternalLink className="size-3" />
+                </a>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer com botões de edit */}
@@ -602,6 +771,100 @@ export function OrderDetailModal({
               </button>
             </div>
           )}
+        {!editing && order.refund_eligible && (
+          <div className="sticky bottom-0 z-10 space-y-3 border-t border-palantir-border bg-palantir-surface px-4 py-3 pb-safe sm:px-5">
+            {!refundConfirmOpen ? (
+              <>
+                <p className="text-xs text-palantir-muted">
+                  {order.refund_mode === "asaas"
+                    ? "O reembolso integral será enviado ao Asaas."
+                    : "Pagamento feito fora do Asaas. Devolva o valor pela maquininha ou Pix antes de registrar."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setRefundConfirmOpen(true);
+                  }}
+                  className="inline-flex min-h-touch w-full items-center justify-center gap-2 rounded-admin border border-palantir-red px-4 py-3 text-sm font-semibold text-palantir-red hover:bg-palantir-red/10 focus-ring-admin"
+                >
+                  <RotateCcw className="size-4" />
+                  REEMBOLSAR CLIENTE
+                </button>
+              </>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex gap-2 rounded-admin border border-palantir-red/40 bg-palantir-red/10 p-3">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-palantir-red" />
+                  <div className="text-xs text-palantir-text">
+                    <p className="font-semibold text-palantir-red">
+                      Confirmar reembolso integral de {brl(order.total)}?
+                    </p>
+                    <p className="mt-1">
+                      Esta ação é financeira e não pode ser desfeita pelo painel.
+                    </p>
+                    {order.method === "card" && (
+                      <p className="mt-1 text-palantir-yellow">
+                        No cartão, o crédito pode levar até 10 dias úteis para
+                        aparecer na fatura do cliente.
+                      </p>
+                    )}
+                    {totalEntregues > 0 && (
+                      <p className="mt-1 text-palantir-yellow">
+                        Atenção: este pedido possui itens já entregues.
+                      </p>
+                    )}
+                    {order.refund_mode === "manual" && (
+                      <p className="mt-1 font-medium text-palantir-yellow">
+                        Confirme somente depois de devolver o dinheiro pela
+                        maquininha ou Pix.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <label className="block">
+                  <span className="mono text-[10px] uppercase tracking-wider text-palantir-muted">
+                    Motivo (opcional)
+                  </span>
+                  <textarea
+                    value={refundReason}
+                    onChange={(event) => setRefundReason(event.target.value)}
+                    maxLength={200}
+                    rows={2}
+                    disabled={refunding}
+                    placeholder="Ex.: cliente desistiu do pedido"
+                    className="mt-1 w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 py-2 text-sm text-white outline-none focus:border-palantir-blue disabled:opacity-50"
+                  />
+                </label>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRefundConfirmOpen(false)}
+                    disabled={refunding}
+                    className="min-h-touch flex-1 rounded-admin border border-palantir-border px-3 text-xs text-palantir-text disabled:opacity-50 focus-ring-admin"
+                  >
+                    VOLTAR
+                  </button>
+                  <button
+                    type="button"
+                    onClick={requestRefund}
+                    disabled={refunding}
+                    className="inline-flex min-h-touch flex-[2] items-center justify-center gap-2 rounded-admin bg-palantir-red px-3 text-xs font-semibold text-white disabled:opacity-50 focus-ring-admin"
+                  >
+                    {refunding && <Loader2 className="size-4 animate-spin" />}
+                    {refunding
+                      ? "PROCESSANDO..."
+                      : order.refund_mode === "asaas"
+                        ? "CONFIRMAR NO ASAAS"
+                        : "JÁ DEVOLVI E QUERO REGISTRAR"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         {editing && (
           <div className="sticky bottom-0 z-10 bg-palantir-surface border-t border-palantir-border px-4 sm:px-5 py-3 flex justify-end gap-2 pb-safe">
             <button

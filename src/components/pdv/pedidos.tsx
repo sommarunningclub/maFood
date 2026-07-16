@@ -44,6 +44,20 @@ interface Order {
   created_at: string;
   paid_at: string | null;
   ready_at: string | null;
+  refund_status:
+    | "requested"
+    | "pending"
+    | "partial"
+    | "done"
+    | "cancelled"
+    | "failed"
+    | null;
+  refund_mode: "asaas" | "manual";
+  refund_amount: number | null;
+  refund_requested_at: string | null;
+  refunded_at: string | null;
+  refund_receipt_url: string | null;
+  refund_eligible: boolean;
   items: OrderItem[];
 }
 
@@ -419,6 +433,7 @@ export function Pedidos({ slug }: { slug: string }) {
             setDetail(null);
             refresh();
           }}
+          onRefunded={() => refresh()}
         />
       )}
     </div>
@@ -656,7 +671,7 @@ function OrderCard({
               ENTREGAR
             </button>
           )}
-          {(columnStatus === "paid" || columnStatus === "pending") && onCancel && (
+          {columnStatus === "pending" && onCancel && (
             <button
               onClick={(e) => { stop(e); onCancel(); }}
               aria-label="Cancelar pedido"

@@ -74,6 +74,16 @@ export interface AsaasPayment {
   netValue?: number;
   billingType?: string;
   invoiceUrl?: string;
+  refunds?: AsaasRefund[];
+}
+
+export interface AsaasRefund {
+  dateCreated: string;
+  status: "PENDING" | "CANCELLED" | "DONE";
+  value: number;
+  description?: string | null;
+  endToEndIdentifier?: string | null;
+  transactionReceiptUrl?: string | null;
 }
 
 export interface AsaasAccountFees {
@@ -188,6 +198,42 @@ export async function getPayment(paymentId: string): Promise<AsaasPayment> {
     return { id: paymentId, status: "RECEIVED", value: 0, netValue: 0 };
   }
   return asaasFetch<AsaasPayment>(`/payments/${encodeURIComponent(paymentId)}`);
+}
+
+/**
+ * Solicita o reembolso integral de uma cobrança confirmada/recebida.
+ * O Asaas usa o valor total quando `value` não é enviado.
+ */
+export async function refundPayment(
+  paymentId: string,
+  description?: string
+): Promise<AsaasPayment> {
+  if (isSimulated()) {
+    return {
+      id: paymentId,
+      status: "REFUNDED",
+      value: 0,
+      refunds: [
+        {
+          dateCreated: new Date().toISOString(),
+          status: "DONE",
+          value: 0,
+          description: description || null,
+          transactionReceiptUrl: null,
+        },
+      ],
+    };
+  }
+
+  return asaasFetch<AsaasPayment>(
+    `/payments/${encodeURIComponent(paymentId)}/refund`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        description: description?.trim() || undefined,
+      }),
+    }
+  );
 }
 
 export async function findOrCreateCustomer(input: AsaasCustomerInput): Promise<AsaasCustomer> {

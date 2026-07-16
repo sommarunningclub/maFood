@@ -4,6 +4,15 @@ import { getPdvSession } from "@/lib/auth/session";
 import { internalErrorResponse } from "@/lib/server-errors";
 import { maskCpfForDisplay } from "@/lib/utils";
 
+const REFUNDABLE_STATUSES = new Set([
+  "paid",
+  "preparing",
+  "ready",
+  "partial",
+  "delivered",
+]);
+const RETRYABLE_REFUND_STATES = new Set([null, "failed", "cancelled"]);
+
 export async function GET(req: Request) {
   const session = await getPdvSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -19,7 +28,7 @@ export async function GET(req: Request) {
   const { data: orders, error } = await supabase
     .from("orders")
     .select(
-      "id, number, customer_name, customer_cpf, total, method, status, notes, created_at, paid_at, ready_at"
+      "id, number, customer_name, customer_cpf, total, method, status, notes, created_at, paid_at, ready_at, asaas_payment_id, refund_status, refund_mode, refund_amount, refund_requested_at, refunded_at, refund_receipt_url"
     )
     .eq("pdv_id", session.pdv_id)
     .order("created_at", { ascending: false })
@@ -60,11 +69,29 @@ export async function GET(req: Request) {
   for (const it of items) (byOrder[it.order_id] ??= []).push(it);
 
   return NextResponse.json({
-    orders: (orders ?? []).map((o) => ({
-      ...o,
-      customer_cpf: maskCpfForDisplay(o.customer_cpf),
-      total: Number(o.total),
-      items: (byOrder[o.id] ?? []).map((i) => ({ ...i, unit_price: Number(i.unit_price) })),
-    })),
+    orders: (orders ?? []).map((o) => {
+      const {
+        asaas_payment_id: asaasPaymentId,
+        ...safeOrder
+      } = o;
+      const refundMode = asaasPaymentId ? "asaas" : "manual";
+      const refundEligible =
+        REFUNDABLE_STATUSES.has(o.status) &&
+        RETRYABLE_REFUND_STATES.has(o.refund_status);
+
+      return {
+        ...safeOrder,
+        customer_cpf: maskCpfForDisplay(o.customer_cpf),
+        total: Number(o.total),
+        refund_amount:
+          o.refund_amount == null ? null : Number(o.refund_amount),
+        refund_mode: o.refund_mode ?? refundMode,
+        refund_eligible: refundEligible,
+        items: (byOrder[o.id] ?? []).map((i) => ({
+          ...i,
+          unit_price: Number(i.unit_price),
+        })),
+      };
+    }),
   });
 }

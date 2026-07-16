@@ -11,7 +11,10 @@
   Eventos relevantes (https://docs.asaas.com/docs/webhook-para-cobrancas):
   - PAYMENT_CONFIRMED: cobrança paga (Pix instantâneo geralmente)
   - PAYMENT_RECEIVED:  valor disponível
-  - PAYMENT_DELETED / PAYMENT_REFUNDED: cancelado
+  - PAYMENT_REFUND_IN_PROGRESS: estorno em processamento
+  - PAYMENT_REFUNDED: estorno concluído
+  - PAYMENT_PARTIALLY_REFUNDED: estorno parcial feito fora do maFood
+  - PAYMENT_DELETED: cobrança pendente cancelada
   - PAYMENT_OVERDUE:   venceu sem pagar
 */
 import { NextResponse } from "next/server";
@@ -26,6 +29,13 @@ interface AsaasWebhookEvent {
     id: string;
     status?: string;
     externalReference?: string;
+    value?: number;
+    refunds?: Array<{
+      dateCreated?: string;
+      status?: "PENDING" | "CANCELLED" | "DONE";
+      value?: number;
+      transactionReceiptUrl?: string | null;
+    }>;
   };
 }
 
@@ -57,13 +67,77 @@ export async function POST(req: Request) {
 
     const { data: order } = await supabase
       .from("orders")
-      .select("id, status")
+      .select("id, status, total, refund_status")
       .eq("asaas_payment_id", paymentId)
       .maybeSingle();
 
     if (!order) {
       // Ping de teste, evento de outra origem, ou cobrança fora do maFood
       return ack({ ignored: "order not found", payment_id: paymentId });
+    }
+
+    const refunds = evt.payment.refunds ?? [];
+    const doneRefunds = refunds.filter((refund) => refund.status === "DONE");
+    const refundedAmount = doneRefunds.reduce(
+      (sum, refund) => sum + Number(refund.value || 0),
+      0
+    );
+    const receiptUrl = doneRefunds
+      .filter((refund) => refund.transactionReceiptUrl)
+      .sort((a, b) =>
+        (a.dateCreated ?? "").localeCompare(b.dateCreated ?? "")
+      )
+      .at(-1)?.transactionReceiptUrl;
+
+    // Eventos de estorno precisam ser processados mesmo quando o pedido já foi
+    // retirado do Kanban como cancelled após a solicitação no painel.
+    if (evt.event === "PAYMENT_REFUND_IN_PROGRESS") {
+      if (order.refund_status !== "done") {
+        await supabase
+          .from("orders")
+          .update({
+            status: "cancelled",
+            refund_status: "pending",
+            refund_mode: "asaas",
+            refund_amount: Number(evt.payment.value ?? order.total),
+            refund_requested_at: new Date().toISOString(),
+            refund_error: null,
+          })
+          .eq("id", order.id);
+      }
+      return ack({ action: "refund_pending", order_id: order.id });
+    }
+
+    if (evt.event === "PAYMENT_PARTIALLY_REFUNDED") {
+      if (order.refund_status !== "done") {
+        await supabase
+          .from("orders")
+          .update({
+            refund_status: "partial",
+            refund_mode: "asaas",
+            refund_amount: refundedAmount,
+            refund_receipt_url: receiptUrl || null,
+            refund_error: null,
+          })
+          .eq("id", order.id);
+      }
+      return ack({ action: "partially_refunded", order_id: order.id });
+    }
+
+    if (evt.event === "PAYMENT_REFUNDED") {
+      await supabase
+        .from("orders")
+        .update({
+          status: "cancelled",
+          refund_status: "done",
+          refund_mode: "asaas",
+          refund_amount: refundedAmount || Number(evt.payment.value ?? order.total),
+          refunded_at: new Date().toISOString(),
+          refund_receipt_url: receiptUrl || null,
+          refund_error: null,
+        })
+        .eq("id", order.id);
+      return ack({ action: "refunded", order_id: order.id });
     }
 
     // Estados terminais — webhook de re-tentativa não deve regredir
@@ -89,7 +163,6 @@ export async function POST(req: Request) {
       }
 
       case "PAYMENT_DELETED":
-      case "PAYMENT_REFUNDED":
       case "PAYMENT_CHARGEBACK_REQUESTED": {
         if (order.status === "pending" || order.status === "paid") {
           await supabase.from("orders").update({ status: "cancelled" }).eq("id", order.id);

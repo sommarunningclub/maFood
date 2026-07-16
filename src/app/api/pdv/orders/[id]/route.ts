@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPdvSession } from "@/lib/auth/session";
+import { cancelPayment } from "@/lib/asaas";
 import { decrementStockForOrder } from "@/lib/stock";
-import { internalErrorResponse } from "@/lib/server-errors";
+import {
+  internalErrorResponse,
+  upstreamErrorResponse,
+} from "@/lib/server-errors";
 
 // Aceita qualquer status operacional (pending → paid via confirmação no balcão;
 // Asaas também move pending → paid por webhook).
@@ -56,7 +60,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const { data: existing, error: existingError } = await supabase
     .from("orders")
-    .select("id, pdv_id, status, method")
+    .select("id, pdv_id, status, method, asaas_payment_id")
     .eq("id", params.id)
     .maybeSingle();
   if (existingError) {
@@ -68,6 +72,31 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
   if (!existing || existing.pdv_id !== session.pdv_id) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
+  if (body.status === "cancelled" && existing.status !== "pending") {
+    return NextResponse.json(
+      {
+        error:
+          "Pedido pago não pode ser apenas cancelado. Use a opção Reembolsar cliente.",
+      },
+      { status: 409 }
+    );
+  }
+
+  if (
+    body.status === "cancelled" &&
+    existing.status === "pending" &&
+    existing.asaas_payment_id
+  ) {
+    const cancelled = await cancelPayment(existing.asaas_payment_id);
+    if (!cancelled) {
+      return upstreamErrorResponse(
+        "pdv-order-cancel-payment",
+        new Error("provider cancellation failed"),
+        "Não foi possível cancelar a cobrança no Asaas"
+      );
+    }
   }
 
   const patch: Record<string, unknown> = { ...body };
