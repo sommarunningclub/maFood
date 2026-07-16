@@ -56,6 +56,8 @@ interface AsaasCustomer {
   id: string;
   name: string;
   cpfCnpj: string;
+  /** Quando true, o Asaas não envia e-mail/SMS/WhatsApp de cobrança. */
+  notificationDisabled?: boolean;
 }
 
 interface AsaasPaymentInput {
@@ -250,16 +252,37 @@ export async function refundPayment(
   );
 }
 
+/**
+ * Garante cliente Asaas sem notificações de cobrança (e-mail/SMS/WhatsApp).
+ * No maFood o acompanhamento do pedido é feito no app; cobranças pendentes
+ * não devem disparar lembretes do Asaas.
+ */
 export async function findOrCreateCustomer(input: AsaasCustomerInput): Promise<AsaasCustomer> {
   const cpf = onlyDigits(input.cpfCnpj);
   if (isSimulated()) {
-    return { id: `sim_cus_${cpf}`, name: input.name, cpfCnpj: cpf };
+    return {
+      id: `sim_cus_${cpf}`,
+      name: input.name,
+      cpfCnpj: cpf,
+      notificationDisabled: true,
+    };
   }
   // Busca por cpfCnpj evita duplicar
   const list = await asaasFetch<{ data: AsaasCustomer[] }>(
     `/customers?cpfCnpj=${encodeURIComponent(cpf)}&limit=1`
   );
-  if (list.data?.[0]) return list.data[0];
+  const existing = list.data?.[0];
+  if (existing) {
+    if (existing.notificationDisabled) return existing;
+    // Clientes antigos ainda podem ter notificações ligadas.
+    return asaasFetch<AsaasCustomer>(
+      `/customers/${encodeURIComponent(existing.id)}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ notificationDisabled: true }),
+      }
+    );
+  }
 
   const phone = onlyDigits(input.phone);
   return asaasFetch<AsaasCustomer>(`/customers`, {
@@ -272,7 +295,7 @@ export async function findOrCreateCustomer(input: AsaasCustomerInput): Promise<A
       mobilePhone: phone.length === 11 ? phone : undefined,
       phone: phone && phone.length !== 11 ? phone : undefined,
       externalReference: input.externalReference,
-      notificationDisabled: false,
+      notificationDisabled: true,
     }),
   });
 }
