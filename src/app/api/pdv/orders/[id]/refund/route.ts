@@ -121,7 +121,7 @@ export async function POST(
       : `Reembolso manual do pedido #${order.number}`);
 
   // Claim condicional: impede dois operadores de solicitarem o mesmo estorno.
-  const { data: claimed, error: claimError } = await supabase
+  const claimQuery = supabase
     .from("orders")
     .update({
       refund_status: "requested",
@@ -131,10 +131,17 @@ export async function POST(
       refund_requested_at: requestedAt,
       refund_error: null,
     })
-    .eq("id", order.id)
-    .or(
-      "refund_status.is.null,refund_status.eq.failed,refund_status.eq.cancelled"
-    )
+    .eq("id", order.id);
+
+  // PostgREST pode gerar uma referência inválida ao combinar `.or()` com
+  // UPDATE em schemas customizados. Compara o estado lido diretamente e ainda
+  // preserva o bloqueio de concorrência (compare-and-set).
+  const guardedClaim =
+    currentRefund === null
+      ? claimQuery.is("refund_status", null)
+      : claimQuery.eq("refund_status", currentRefund);
+
+  const { data: claimed, error: claimError } = await guardedClaim
     .select("id")
     .maybeSingle();
 
