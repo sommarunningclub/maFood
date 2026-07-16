@@ -16,7 +16,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import Link from "next/link";
-import { X, Search, Plus, Minus, PlusCircle } from "lucide-react";
+import { X, Search, Plus, Minus, PlusCircle, RefreshCw } from "lucide-react";
 import { brl, cn, formatTime } from "@/lib/utils";
 import { OrderDetailModal } from "@/components/pdv/order-detail-modal";
 
@@ -120,6 +120,7 @@ export function Pedidos({ slug }: { slug: string }) {
   const [detail, setDetail] = useState<Order | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [manualRefreshing, setManualRefreshing] = useState(false);
   const beepRef = useRef<(() => void) | null>(null);
   const prevNewIds = useRef<Set<string>>(new Set());
 
@@ -155,6 +156,7 @@ export function Pedidos({ slug }: { slug: string }) {
       if (!r.ok) throw new Error("Falha ao carregar pedidos");
       const data = (await r.json()) as { orders: Order[] };
       setOrders(data.orders);
+      setError(null);
 
       // Alerta sonoro: novo pedido aguardando pagamento na tenda OU novo pago
       const alertIds = data.orders
@@ -175,6 +177,15 @@ export function Pedidos({ slug }: { slug: string }) {
       setLoading(false);
     }
   }, []);
+
+  async function handleManualRefresh() {
+    setManualRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setManualRefreshing(false);
+    }
+  }
 
   useEffect(() => {
     void refresh();
@@ -273,6 +284,16 @@ export function Pedidos({ slug }: { slug: string }) {
             <PlusCircle className="size-4" />
             <span className="hidden sm:inline">NOVO PEDIDO</span>
           </Link>
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            disabled={manualRefreshing}
+            className="inline-flex items-center gap-1.5 rounded-admin border border-palantir-border min-h-touch px-3 text-xs font-semibold text-palantir-text hover:border-palantir-blue hover:text-white disabled:opacity-50 focus-ring-admin"
+            aria-label="Atualizar pedidos"
+          >
+            <RefreshCw className={cn("size-4", manualRefreshing && "animate-spin")} />
+            <span className="hidden sm:inline">ATUALIZAR</span>
+          </button>
           <div className="hidden md:flex items-center gap-2">
             <input
               value={query}
