@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { gsap } from "gsap";
-import { Clock, ShoppingBag, Store, UtensilsCrossed } from "lucide-react";
+import { Clock, Store, UtensilsCrossed } from "lucide-react";
 import { useCart } from "@/stores/cart-store";
 import { pdvAcceptsAppOrders, pdvPayAtCounter } from "@/lib/pdv";
-import { brl } from "@/lib/utils";
 import type { Pdv, Product } from "@/types";
 import { RestaurantHeader } from "@/components/customer/restaurant-header";
 import {
@@ -16,6 +15,7 @@ import {
 import { ProductCard, ProductSection } from "@/components/customer/product-card";
 import { ProductDetails } from "@/components/customer/product-details";
 import { CartSheet } from "@/components/customer/cart-sheet";
+import { CartFab } from "@/components/customer/cart-fab";
 import { EmptyState } from "@/components/customer/ui/mafood-states";
 import { rememberLastPdv } from "@/components/customer/bottom-nav";
 
@@ -59,9 +59,16 @@ export function MenuView({
   const [active, setActive] = useState(ALL_CATEGORIES);
   const [openProduct, setOpenProduct] = useState<Product | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
+  // A store de carrinho re-hidrata do localStorage de forma síncrona, então o
+  // 1º render do cliente já teria itens enquanto o servidor renderiza vazio.
+  // `mounted` só vira true após montar → server e 1º render batem (sem sacola)
+  // e a bolinha entra depois, evitando erro de hidratação.
+  const [mounted, setMounted] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const prevCatIndex = useRef(0);
   const categoryAnimationReady = useRef(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     rememberLastPdv(venue, pdv.slug);
@@ -144,10 +151,12 @@ export function MenuView({
   }, [active, navCategories]);
 
   const c = count();
-  const cartVisible = canOrder && c > 0 && !cartOpen;
-  // Espaço para categorias na base (+ sacola se houver)
+  const cartVisible = mounted && canOrder && c > 0 && !cartOpen;
+  const navVisible = navCategories.length > 1;
+  // Espaço na base: barra de categorias + folga p/ a bolinha não cobrir o
+  // botão "+" do último card quando a sacola está visível.
   const bottomPad = cartVisible
-    ? "pb-[calc(9.5rem+env(safe-area-inset-bottom))]"
+    ? "pb-[calc(8.5rem+env(safe-area-inset-bottom))]"
     : "pb-[calc(4.5rem+env(safe-area-inset-bottom))]";
 
   function handleCartAdd(productId: string, sizeLabel?: string) {
@@ -289,46 +298,20 @@ export function MenuView({
         categories={navCategories}
         active={active}
         onSelect={handleSelectCategory}
-        raised={cartVisible}
       />
 
-      {canOrder && (
-        <AnimatePresence>
-          {c > 0 && !cartOpen && (
-            <motion.div
-              initial={{ y: 100, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 100, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 380, damping: 32 }}
-              className="fixed bottom-0 inset-x-0 z-40 pb-safe"
-            >
-              <div className="mx-auto max-w-screen-mobile p-3 sm:p-4 lg:max-w-3xl">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOpenProduct(null);
-                    setCartOpen(true);
-                  }}
-                  className="flex h-14 min-h-touch w-full items-center justify-between gap-3 rounded-mafood-md bg-mafood-primary-strong px-4 text-white shadow-mafood-lg active:scale-[0.98] transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-mafood-primary"
-                >
-                  <span className="inline-flex items-center gap-2.5 shrink-0">
-                    <span className="grid size-8 place-items-center rounded-full bg-white/15">
-                      <ShoppingBag className="size-4" aria-hidden="true" />
-                    </span>
-                    <span className="grid min-w-6 place-items-center rounded-full bg-white/20 px-1.5 text-xs font-bold tabular-nums">
-                      {c}
-                    </span>
-                  </span>
-                  <span className="truncate font-semibold">Ver sacola</span>
-                  <span className="shrink-0 font-semibold tabular-nums">
-                    {brl(total())}
-                  </span>
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      )}
+      <AnimatePresence>
+        {cartVisible && (
+          <CartFab
+            count={c}
+            navVisible={navVisible}
+            onClick={() => {
+              setOpenProduct(null);
+              setCartOpen(true);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {openProduct && (
         <ProductDetails
