@@ -2,7 +2,7 @@
 
 /*
   Formulário POS-like: operador do PDV cria um pedido no nome de um cliente.
-  - Etapa 1: input CPF, busca via /api/customer/lookup (existente/vip/new)
+  - Etapa 1: input CPF, busca via endpoint autenticado do PDV
   - Etapa 2: se "new", coleta nome+contato; cria customer junto com order
   - Etapa 3: seleção de produtos do PDV, qty, observações, total
   - Etapa 4: gera Pix (Asaas) e exibe QR + link da fatura + cópia-cola
@@ -94,7 +94,7 @@ export function ManualOrderForm({ slug }: { slug: string }) {
     if (!cpfValid) return setError("CPF deve ter 11 dígitos");
     setLookupLoading(true);
     try {
-      const r = await fetch("/api/customer/lookup", {
+      const r = await fetch("/api/pdv/customers/lookup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ cpf }),
@@ -103,17 +103,16 @@ export function ManualOrderForm({ slug }: { slug: string }) {
       if (!r.ok) throw new Error(data.error ?? "Erro");
 
       if (data.status === "existing") {
-        // Não temos os dados completos no lookup quando 'existing' — só sinaliza
-        // que existe. Usa CPF como referência; o backend vai resolver pelo CPF.
+        const found = data.customer ?? {};
         setCustomer({
           cpf,
-          name: data.prefill?.name ?? "Cliente cadastrado",
-          email: data.prefill?.email,
-          phone: data.prefill?.phone,
+          name: found.name ?? "Cliente cadastrado",
+          email: found.email,
+          phone: found.phone,
           isExisting: true,
         });
-      } else if (data.status === "vip_match" || data.status === "new") {
-        const prefill = data.prefill ?? {};
+      } else if (data.status === "new") {
+        const prefill = data.customer ?? {};
         setCustomer({
           cpf,
           name: prefill.name ?? "",
@@ -333,6 +332,9 @@ export function ManualOrderForm({ slug }: { slug: string }) {
                       className="mono mt-1 w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
                     />
                   </label>
+                  <p className="sm:col-span-2 text-xs text-palantir-muted">
+                    O novo cliente será cadastrado ao concluir o pedido.
+                  </p>
                 </div>
               )}
             </div>
