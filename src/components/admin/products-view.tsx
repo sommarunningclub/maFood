@@ -2,7 +2,18 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Pencil, Plus, X, Trash2 } from "lucide-react";
+import {
+  Pencil,
+  Plus,
+  X,
+  Trash2,
+  Sparkles,
+  CreditCard,
+  Clock3,
+  Zap,
+  ArrowUpRight,
+  Info,
+} from "lucide-react";
 import { brl } from "@/lib/utils";
 import { PriceEngine } from "@/components/admin/price-engine";
 import { isImageLogo } from "@/components/pdv-logo";
@@ -1576,13 +1587,19 @@ function PaymentFeeSimulator({
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount <= 0) {
     return (
-      <div className="rounded-admin border border-palantir-border bg-palantir-bg p-3">
-        <p className="mono text-[10px] uppercase tracking-wider text-palantir-muted">
-          Simulador Asaas
-        </p>
-        <p className="mono mt-1 text-[10px] text-palantir-muted">
-          Informe o preço para comparar Pix e cartão antecipado.
-        </p>
+      <div className="rounded-2xl border border-palantir-border/80 bg-gradient-to-br from-palantir-surface to-palantir-bg p-4">
+        <div className="flex items-start gap-3">
+          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-palantir-blue/15 text-palantir-blue">
+            <Sparkles className="size-4" aria-hidden />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-white">Simulador Asaas</p>
+            <p className="mt-1 text-xs leading-relaxed text-palantir-muted">
+              Informe o preço do produto para comparar quanto entra no Pix e no
+              cartão antecipado.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1610,151 +1627,224 @@ function PaymentFeeSimulator({
           fees?.payment?.creditCard,
           fees?.anticipation?.creditCard
         );
+  const suggestedDelta =
+    suggestedCardPrice == null
+      ? 0
+      : Math.max(0, suggestedCardPrice - amount);
 
   return (
     <section
       aria-label="Simulador de taxas do Asaas"
-      className="rounded-admin border border-palantir-blue/40 bg-palantir-blue/5 p-3"
+      className="overflow-hidden rounded-2xl border border-palantir-border/80 bg-gradient-to-br from-[#12161e] via-palantir-surface to-palantir-bg shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
     >
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p className="mono text-[10px] uppercase tracking-wider text-palantir-blue">
-            Simulador de recebimento Asaas
-          </p>
-          <p className="mono mt-1 text-[10px] text-palantir-muted">
-            Tarifas vigentes da conta · não altera o preço automaticamente.
-          </p>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-palantir-border/70 px-4 py-3.5 sm:px-5">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-palantir-blue/15 text-palantir-blue ring-1 ring-palantir-blue/20">
+            <Sparkles className="size-5" aria-hidden />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold tracking-tight text-white">
+              Quanto você recebe
+            </p>
+            <p className="mt-0.5 text-xs leading-relaxed text-palantir-muted">
+              Comparação com as tarifas atuais do Asaas. Só serve de referência —
+              o preço do produto não muda sozinho.
+            </p>
+          </div>
         </div>
-        <span className="mono rounded bg-palantir-blue/15 px-2 py-1 text-[9px] uppercase text-palantir-blue">
-          Preço {brl(amount)}
-        </span>
+        <div className="rounded-full border border-palantir-blue/25 bg-palantir-blue/10 px-3 py-1.5">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-palantir-blue/80">
+            Preço atual
+          </p>
+          <p className="num text-sm font-semibold text-white">{brl(amount)}</p>
+        </div>
       </div>
 
-      {fees ? (
-        <>
-          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-            {pixFee != null && pixNet != null && (
-              <PaymentEstimate
-                label="Pix"
-                availability={`Disponível em instantes${
-                  pixFreeRemaining > 0
-                    ? ` · ${Math.floor(pixFreeRemaining)} grátis restantes`
-                    : ""
-                }`}
-                fee={pixFee}
-                net={pixNet}
-              />
-            )}
-            {cardFee != null && cardNet != null && (
-              <PaymentEstimate
-                label="Cartão 1x"
-                availability={`Disponível em ${days} dias`}
-                fee={cardFee}
-                net={cardNet}
-              />
-            )}
-            {anticipated != null && (
-              <PaymentEstimate
-                label="Cartão antecipado"
-                availability={`${anticipated.monthlyRate.toLocaleString(
-                  "pt-BR"
-                )}% a.m. · estimativa ${anticipated.days} dias`}
-                fee={anticipated.totalFee}
-                feeDetail={`${brl(anticipated.processingFee)} cartão + ${brl(
-                  anticipated.anticipationFee
-                )} antecipação`}
-                net={anticipated.net}
-                highlighted
-              />
-            )}
-          </div>
-
-          {suggestedCardPrice != null && pixNet != null && (
-            <div className="mt-3 flex flex-col gap-1 rounded-admin border border-palantir-yellow/40 bg-palantir-yellow/5 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="mono text-[9px] uppercase tracking-wider text-palantir-yellow">
-                  Preço sugerido no cartão antecipado
-                </p>
-                <p className="mono text-[10px] text-palantir-muted">
-                  Preserva o mesmo líquido de {brl(pixNet)} recebido no Pix.
-                </p>
-              </div>
-              <div className="sm:text-right">
-                <p className="mono text-base font-semibold text-palantir-yellow">
-                  {brl(suggestedCardPrice)}
-                </p>
-                <p className="mono text-[9px] text-palantir-muted">
-                  acréscimo de {brl(Math.max(0, suggestedCardPrice - amount))}
-                </p>
-              </div>
+      <div className="space-y-4 p-4 sm:p-5">
+        {fees ? (
+          <>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {pixFee != null && pixNet != null && (
+                <PaymentEstimate
+                  icon={<Zap className="size-4" aria-hidden />}
+                  label="Pix"
+                  availability="Cai em instantes"
+                  badge={
+                    pixFreeRemaining > 0
+                      ? `${Math.floor(pixFreeRemaining)} grátis no mês`
+                      : undefined
+                  }
+                  fee={pixFee}
+                  net={pixNet}
+                  tone="blue"
+                />
+              )}
+              {cardFee != null && cardNet != null && (
+                <PaymentEstimate
+                  icon={<Clock3 className="size-4" aria-hidden />}
+                  label="Cartão 1x"
+                  availability={`Disponível em ${days} dias`}
+                  fee={cardFee}
+                  net={cardNet}
+                  tone="neutral"
+                />
+              )}
+              {anticipated != null && (
+                <PaymentEstimate
+                  icon={<CreditCard className="size-4" aria-hidden />}
+                  label="Cartão antecipado"
+                  availability={`${anticipated.monthlyRate.toLocaleString(
+                    "pt-BR"
+                  )}% a.m. · ${anticipated.days} dias`}
+                  fee={anticipated.totalFee}
+                  feeDetail={`${brl(anticipated.processingFee)} cartão + ${brl(
+                    anticipated.anticipationFee
+                  )} antecipação`}
+                  net={anticipated.net}
+                  tone="amber"
+                  recommended
+                />
+              )}
             </div>
-          )}
 
-          <p className="mono mt-2 text-[9px] leading-relaxed text-palantir-muted">
-            A antecipação depende de aprovação. O valor definitivo é informado
-            pelo Asaas na simulação da cobrança.
-          </p>
-        </>
-      ) : (
-        <p className="mono mt-2 text-[10px] text-palantir-yellow">
-          Não foi possível consultar as tarifas da conta Asaas.
-        </p>
-      )}
+            {suggestedCardPrice != null && pixNet != null && (
+              <div className="relative overflow-hidden rounded-2xl border border-amber-400/25 bg-gradient-to-r from-amber-500/10 via-amber-400/5 to-transparent p-4">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -right-8 -top-10 size-28 rounded-full bg-amber-400/10 blur-2xl"
+                />
+                <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-[11px] font-medium text-amber-200">
+                      <ArrowUpRight className="size-3.5" aria-hidden />
+                      Sugestão de preço
+                    </div>
+                    <p className="mt-2 text-sm font-medium text-white">
+                      Cobrar {brl(suggestedCardPrice)} no cartão antecipado
+                    </p>
+                    <p className="mt-1 max-w-md text-xs leading-relaxed text-palantir-muted">
+                      Mantém o mesmo líquido do Pix ({brl(pixNet)}). Acréscimo
+                      estimado de {brl(suggestedDelta)}.
+                    </p>
+                  </div>
+                  <div className="shrink-0 rounded-xl border border-amber-400/20 bg-black/20 px-4 py-3 sm:text-right">
+                    <p className="text-[11px] text-amber-200/80">Preço sugerido</p>
+                    <p className="num mt-0.5 text-2xl font-semibold tracking-tight text-amber-100">
+                      {brl(suggestedCardPrice)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-start gap-2 rounded-xl bg-white/[0.03] px-3 py-2.5 text-xs leading-relaxed text-palantir-muted">
+              <Info className="mt-0.5 size-3.5 shrink-0 text-palantir-muted" aria-hidden />
+              <p>
+                A antecipação depende de aprovação do Asaas. O valor definitivo
+                aparece na simulação da cobrança.
+              </p>
+            </div>
+          </>
+        ) : (
+          <div className="rounded-xl border border-palantir-yellow/25 bg-palantir-yellow/5 px-3 py-3 text-xs text-palantir-yellow">
+            Não foi possível consultar as tarifas da conta Asaas agora.
+          </div>
+        )}
+      </div>
     </section>
   );
 }
 
 function PaymentEstimate({
+  icon,
   label,
   availability,
+  badge,
   fee,
   feeDetail,
   net,
-  highlighted = false,
+  tone = "neutral",
+  recommended = false,
 }: {
+  icon: React.ReactNode;
   label: string;
   availability: string;
+  badge?: string;
   fee: number;
   feeDetail?: string;
   net: number;
-  highlighted?: boolean;
+  tone?: "blue" | "neutral" | "amber";
+  recommended?: boolean;
 }) {
+  const toneStyles = {
+    blue: {
+      shell: "border-palantir-blue/25 bg-palantir-blue/[0.06]",
+      icon: "bg-palantir-blue/15 text-palantir-blue",
+      label: "text-palantir-blue",
+    },
+    neutral: {
+      shell: "border-palantir-border bg-palantir-bg/80",
+      icon: "bg-white/5 text-palantir-text",
+      label: "text-palantir-text",
+    },
+    amber: {
+      shell: "border-amber-400/30 bg-amber-400/[0.07] ring-1 ring-amber-400/10",
+      icon: "bg-amber-400/15 text-amber-200",
+      label: "text-amber-100",
+    },
+  }[tone];
+
   return (
-    <div
-      className={`rounded-admin border p-2.5 ${
-        highlighted
-          ? "border-palantir-yellow/40 bg-palantir-yellow/5"
-          : "border-palantir-border bg-palantir-bg"
-      }`}
+    <article
+      className={`relative flex h-full flex-col rounded-2xl border p-3.5 transition-colors ${toneStyles.shell}`}
     >
-      <p
-        className={`mono text-[9px] uppercase tracking-wider ${
-          highlighted ? "text-palantir-yellow" : "text-palantir-text"
-        }`}
-      >
-        {label}
-      </p>
-      <p className="mono mt-0.5 text-[9px] text-palantir-muted">
-        {availability}
-      </p>
-      <div className="mt-2 flex items-end justify-between gap-2">
-        <div>
-          <p className="mono text-[9px] uppercase text-palantir-muted">Taxas</p>
-          <p className="mono text-xs text-palantir-red">− {brl(fee)}</p>
+      {recommended && (
+        <span className="absolute right-3 top-3 rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-medium text-amber-200">
+          Ideal p/ repasse
+        </span>
+      )}
+      <div className="flex items-center gap-2.5 pr-16">
+        <div
+          className={`grid size-8 place-items-center rounded-lg ${toneStyles.icon}`}
+        >
+          {icon}
         </div>
-        <div className="text-right">
-          <p className="mono text-[9px] uppercase text-palantir-muted">Líquido</p>
-          <p className="mono text-sm font-semibold text-palantir-green">
-            {brl(net)}
+        <div className="min-w-0">
+          <p className={`text-sm font-medium ${toneStyles.label}`}>{label}</p>
+          <p className="mt-0.5 truncate text-[11px] text-palantir-muted">
+            {availability}
           </p>
         </div>
       </div>
-      {feeDetail && (
-        <p className="mono mt-1 text-[8px] leading-relaxed text-palantir-muted">
-          {feeDetail}
+
+      {badge && (
+        <p className="mt-3 inline-flex w-fit rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-palantir-muted">
+          {badge}
         </p>
       )}
-    </div>
+
+      <div className="mt-auto space-y-3 pt-4">
+        <div>
+          <p className="text-[11px] text-palantir-muted">Você recebe</p>
+          <p className="num mt-1 text-xl font-semibold tracking-tight text-palantir-green">
+            {brl(net)}
+          </p>
+        </div>
+        <div className="border-t border-white/5 pt-3">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-[11px] text-palantir-muted">Taxas</p>
+            <p className="num text-xs font-medium text-palantir-red">
+              − {brl(fee)}
+            </p>
+          </div>
+          {feeDetail && (
+            <p className="mt-1 text-[10px] leading-relaxed text-palantir-muted">
+              {feeDetail}
+            </p>
+          )}
+        </div>
+      </div>
+    </article>
   );
 }
 
