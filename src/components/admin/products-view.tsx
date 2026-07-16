@@ -8,6 +8,13 @@ import { PriceEngine } from "@/components/admin/price-engine";
 import { isImageLogo } from "@/components/pdv-logo";
 import { MoneyInput } from "@/components/money-input";
 import type { AsaasAccountFees } from "@/lib/asaas";
+import {
+  cardSettlementDays,
+  estimateCardAnticipation,
+  estimateCardFee,
+  estimatePixFee,
+  priceForAnticipatedCardNet,
+} from "@/lib/asaas-fees";
 
 interface PdvLite {
   id: string;
@@ -754,6 +761,11 @@ function ProductDialog({
             </Field>
           </div>
 
+          <PaymentFeeSimulator
+            value={salePrice > 0 ? salePrice : Number(price)}
+            fees={asaasFees}
+          />
+
           <Field label="Estoque">
             <div className="space-y-2">
               <label className="mono flex items-center gap-2 text-[11px] text-palantir-text">
@@ -900,6 +912,11 @@ function ProductDialog({
                   sale,
                   asaasFees?.payment?.creditCard
                 );
+                const cardAnticipation = estimateCardAnticipation(
+                  sale,
+                  asaasFees?.payment?.creditCard,
+                  asaasFees?.anticipation?.creditCard
+                );
                 const fmt = (n: number) =>
                   n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 const profitCls = profit < 0 ? "text-palantir-red" : "text-palantir-green";
@@ -923,12 +940,12 @@ function ProductDialog({
                         <div className={`mono text-sm font-semibold ${profitCls}`}>{fmt(marginSale)}%</div>
                       </div>
                     </div>
-                    {(pixFee != null || cardFee != null) && (
+                    {(pixFee != null || cardFee != null || cardAnticipation != null) && (
                       <div className="rounded-admin border border-palantir-red/30 bg-palantir-bg p-2.5">
                         <p className="mono text-[9px] uppercase tracking-wider text-palantir-muted">
                           Estimativa com tarifa vigente do Asaas
                         </p>
-                        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
                           {pixFee != null && (
                             <FeeResult
                               label="Pix"
@@ -938,9 +955,18 @@ function ProductDialog({
                           )}
                           {cardFee != null && (
                             <FeeResult
-                              label="Cartão 1x"
+                              label={`Cartão 1x · D+${cardSettlementDays(
+                                asaasFees?.payment?.creditCard
+                              )}`}
                               fee={cardFee}
                               netProfit={profit - cardFee}
+                            />
+                          )}
+                          {cardAnticipation != null && (
+                            <FeeResult
+                              label="Cartão antecipado"
+                              fee={cardAnticipation.totalFee}
+                              netProfit={profit - cardAnticipation.totalFee}
                             />
                           )}
                         </div>
@@ -1540,55 +1566,196 @@ function SummaryCard({
   );
 }
 
-type AccountPixFee = NonNullable<
-  NonNullable<AsaasAccountFees["payment"]>["pix"]
->;
-type AccountCardFee = NonNullable<
-  NonNullable<AsaasAccountFees["payment"]>["creditCard"]
->;
+function PaymentFeeSimulator({
+  value,
+  fees,
+}: {
+  value: number;
+  fees: AsaasAccountFees | null;
+}) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return (
+      <div className="rounded-admin border border-palantir-border bg-palantir-bg p-3">
+        <p className="mono text-[10px] uppercase tracking-wider text-palantir-muted">
+          Simulador Asaas
+        </p>
+        <p className="mono mt-1 text-[10px] text-palantir-muted">
+          Informe o preço para comparar Pix e cartão antecipado.
+        </p>
+      </div>
+    );
+  }
 
-function feeDiscountActive(expires: string | null | undefined) {
-  if (!expires) return false;
-  const time = new Date(expires.replace(" ", "T")).getTime();
-  return Number.isFinite(time) && time > Date.now();
+  const pixFee = estimatePixFee(amount, fees?.payment?.pix);
+  const cardFee = estimateCardFee(amount, fees?.payment?.creditCard);
+  const anticipated = estimateCardAnticipation(
+    amount,
+    fees?.payment?.creditCard,
+    fees?.anticipation?.creditCard
+  );
+  const pixFreeRemaining = Math.max(
+    0,
+    Number(fees?.payment?.pix?.monthlyCreditsWithoutFee ?? 0) -
+      Number(fees?.payment?.pix?.creditsReceivedOfCurrentMonth ?? 0)
+  );
+  const days = cardSettlementDays(fees?.payment?.creditCard);
+  const pixNet = pixFee == null ? null : Math.max(0, amount - pixFee);
+  const cardNet = cardFee == null ? null : Math.max(0, amount - cardFee);
+  const suggestedCardPrice =
+    pixNet == null
+      ? null
+      : priceForAnticipatedCardNet(
+          pixNet,
+          fees?.payment?.creditCard,
+          fees?.anticipation?.creditCard
+        );
+
+  return (
+    <section
+      aria-label="Simulador de taxas do Asaas"
+      className="rounded-admin border border-palantir-blue/40 bg-palantir-blue/5 p-3"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="mono text-[10px] uppercase tracking-wider text-palantir-blue">
+            Simulador de recebimento Asaas
+          </p>
+          <p className="mono mt-1 text-[10px] text-palantir-muted">
+            Tarifas vigentes da conta · não altera o preço automaticamente.
+          </p>
+        </div>
+        <span className="mono rounded bg-palantir-blue/15 px-2 py-1 text-[9px] uppercase text-palantir-blue">
+          Preço {brl(amount)}
+        </span>
+      </div>
+
+      {fees ? (
+        <>
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {pixFee != null && pixNet != null && (
+              <PaymentEstimate
+                label="Pix"
+                availability={`Disponível em instantes${
+                  pixFreeRemaining > 0
+                    ? ` · ${Math.floor(pixFreeRemaining)} grátis restantes`
+                    : ""
+                }`}
+                fee={pixFee}
+                net={pixNet}
+              />
+            )}
+            {cardFee != null && cardNet != null && (
+              <PaymentEstimate
+                label="Cartão 1x"
+                availability={`Disponível em ${days} dias`}
+                fee={cardFee}
+                net={cardNet}
+              />
+            )}
+            {anticipated != null && (
+              <PaymentEstimate
+                label="Cartão antecipado"
+                availability={`${anticipated.monthlyRate.toLocaleString(
+                  "pt-BR"
+                )}% a.m. · estimativa ${anticipated.days} dias`}
+                fee={anticipated.totalFee}
+                feeDetail={`${brl(anticipated.processingFee)} cartão + ${brl(
+                  anticipated.anticipationFee
+                )} antecipação`}
+                net={anticipated.net}
+                highlighted
+              />
+            )}
+          </div>
+
+          {suggestedCardPrice != null && pixNet != null && (
+            <div className="mt-3 flex flex-col gap-1 rounded-admin border border-palantir-yellow/40 bg-palantir-yellow/5 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="mono text-[9px] uppercase tracking-wider text-palantir-yellow">
+                  Preço sugerido no cartão antecipado
+                </p>
+                <p className="mono text-[10px] text-palantir-muted">
+                  Preserva o mesmo líquido de {brl(pixNet)} recebido no Pix.
+                </p>
+              </div>
+              <div className="sm:text-right">
+                <p className="mono text-base font-semibold text-palantir-yellow">
+                  {brl(suggestedCardPrice)}
+                </p>
+                <p className="mono text-[9px] text-palantir-muted">
+                  acréscimo de {brl(Math.max(0, suggestedCardPrice - amount))}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <p className="mono mt-2 text-[9px] leading-relaxed text-palantir-muted">
+            A antecipação depende de aprovação. O valor definitivo é informado
+            pelo Asaas na simulação da cobrança.
+          </p>
+        </>
+      ) : (
+        <p className="mono mt-2 text-[10px] text-palantir-yellow">
+          Não foi possível consultar as tarifas da conta Asaas.
+        </p>
+      )}
+    </section>
+  );
 }
 
-function cents(value: number) {
-  return Math.max(0, Math.round(value * 100) / 100);
-}
-
-function estimatePixFee(value: number, fee: AccountPixFee | undefined) {
-  if (!fee) return null;
-  const freeRemaining =
-    Number(fee.monthlyCreditsWithoutFee ?? 0) -
-    Number(fee.creditsReceivedOfCurrentMonth ?? 0);
-  if (freeRemaining > 0) return 0;
-  if (
-    fee.fixedFeeValueWithDiscount != null &&
-    feeDiscountActive(fee.discountExpiration)
-  ) {
-    return cents(Number(fee.fixedFeeValueWithDiscount));
-  }
-  if (fee.fixedFeeValue != null) return cents(Number(fee.fixedFeeValue));
-  if (fee.percentageFee == null) return null;
-  let result = (value * Number(fee.percentageFee)) / 100;
-  if (fee.minimumFeeValue != null) {
-    result = Math.max(result, Number(fee.minimumFeeValue));
-  }
-  if (fee.maximumFeeValue != null) {
-    result = Math.min(result, Number(fee.maximumFeeValue));
-  }
-  return cents(result);
-}
-
-function estimateCardFee(value: number, fee: AccountCardFee | undefined) {
-  if (!fee) return null;
-  const percentage =
-    fee.discountOneInstallmentPercentage != null &&
-    feeDiscountActive(fee.discountExpiration)
-      ? Number(fee.discountOneInstallmentPercentage)
-      : Number(fee.oneInstallmentPercentage ?? 0);
-  return cents((value * percentage) / 100 + Number(fee.operationValue ?? 0));
+function PaymentEstimate({
+  label,
+  availability,
+  fee,
+  feeDetail,
+  net,
+  highlighted = false,
+}: {
+  label: string;
+  availability: string;
+  fee: number;
+  feeDetail?: string;
+  net: number;
+  highlighted?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-admin border p-2.5 ${
+        highlighted
+          ? "border-palantir-yellow/40 bg-palantir-yellow/5"
+          : "border-palantir-border bg-palantir-bg"
+      }`}
+    >
+      <p
+        className={`mono text-[9px] uppercase tracking-wider ${
+          highlighted ? "text-palantir-yellow" : "text-palantir-text"
+        }`}
+      >
+        {label}
+      </p>
+      <p className="mono mt-0.5 text-[9px] text-palantir-muted">
+        {availability}
+      </p>
+      <div className="mt-2 flex items-end justify-between gap-2">
+        <div>
+          <p className="mono text-[9px] uppercase text-palantir-muted">Taxas</p>
+          <p className="mono text-xs text-palantir-red">− {brl(fee)}</p>
+        </div>
+        <div className="text-right">
+          <p className="mono text-[9px] uppercase text-palantir-muted">Líquido</p>
+          <p className="mono text-sm font-semibold text-palantir-green">
+            {brl(net)}
+          </p>
+        </div>
+      </div>
+      {feeDetail && (
+        <p className="mono mt-1 text-[8px] leading-relaxed text-palantir-muted">
+          {feeDetail}
+        </p>
+      )}
+    </div>
+  );
 }
 
 function FeeResult({

@@ -106,6 +106,20 @@ export interface AsaasAccountFees {
       daysToReceive?: number | null;
     };
   };
+  anticipation?: {
+    creditCard?: {
+      /** Taxa mensal para antecipar uma cobrança de cartão à vista. */
+      detachedMonthlyFeeValue?: number | null;
+      /** Taxa mensal para antecipar cobranças parceladas. */
+      installmentMonthlyFeeValue?: number | null;
+    };
+    bankSlip?: {
+      monthlyFeePercentage?: number | null;
+    };
+    pix?: {
+      monthlyFeePercentage?: number | null;
+    };
+  };
 }
 
 export interface AsaasPixQr {
