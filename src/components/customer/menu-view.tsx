@@ -17,6 +17,7 @@ import { ProductDetails } from "@/components/customer/product-details";
 import { CartSheet } from "@/components/customer/cart-sheet";
 import { CartFab } from "@/components/customer/cart-fab";
 import { EmptyState } from "@/components/customer/ui/mafood-states";
+import { useConfirm } from "@/components/customer/ui/confirm-sheet";
 import { rememberLastPdv } from "@/components/customer/bottom-nav";
 
 type MenuPdv = Pdv & { instagram_handle?: string | null };
@@ -25,13 +26,28 @@ export function MenuView({
   venue,
   pdv,
   products,
+  openCart = false,
 }: {
   venue: string;
   pdv: MenuPdv;
   products: Product[];
+  /** Abre a sacola (CartSheet) ao chegar — usado pelo link ?sacola=1 da home. */
+  openCart?: boolean;
 }) {
-  const { items, add, remove, clear, count, total, qtyOf, hasHydrated, reconcile } =
-    useCart();
+  const {
+    items,
+    add,
+    remove,
+    clear,
+    count,
+    total,
+    qtyOf,
+    hasHydrated,
+    reconcile,
+    pdvId: cartPdvId,
+    pdvName: cartPdvName,
+  } = useCart();
+  const { confirm, confirmElement } = useConfirm();
   const payAtCounter = pdvPayAtCounter(pdv);
   const acceptsOrders = pdvAcceptsAppOrders(pdv);
   const canOrder = acceptsOrders && pdv.is_open;
@@ -69,6 +85,12 @@ export function MenuView({
   const categoryAnimationReady = useRef(false);
 
   useEffect(() => setMounted(true), []);
+
+  // Chegou via link ?sacola=1 (toque na sacola da home) → abre o CartSheet.
+  // Roda só quando `mounted` vira true; não reabre depois que o usuário fecha.
+  useEffect(() => {
+    if (mounted && openCart) setCartOpen(true);
+  }, [mounted, openCart]);
 
   useEffect(() => {
     rememberLastPdv(venue, pdv.slug);
@@ -166,8 +188,38 @@ export function MenuView({
         (i.sizeLabel ?? "") === (sizeLabel ?? "")
     );
     if (item) {
-      add(item.product, { payAtCounter, sizeLabel: item.sizeLabel });
+      add(item.product, {
+        payAtCounter,
+        sizeLabel: item.sizeLabel,
+        pdvName: pdv.name,
+      });
     }
+  }
+
+  // Adiciona respeitando "uma sacola por restaurante": se já há itens de OUTRO
+  // PDV, confirma antes de trocar (hoje a store trocava em silêncio).
+  async function attemptAdd(
+    product: Product,
+    opts: { payAtCounter: boolean; sizeLabel?: string }
+  ) {
+    const foreignCart =
+      cartPdvId != null && cartPdvId !== product.pdv_id && items.length > 0;
+    if (foreignCart) {
+      const ok = await confirm({
+        title: "Trocar de sacola?",
+        description: `Você tem itens de ${
+          cartPdvName ?? "outro restaurante"
+        }. Você paga um restaurante por vez — limpar a sacola e começar em ${
+          pdv.name
+        }?`,
+        confirmLabel: "Trocar",
+        cancelLabel: "Cancelar",
+        destructive: true,
+      });
+      if (!ok) return;
+      setOpenProduct(null);
+    }
+    add(product, { ...opts, pdvName: pdv.name });
   }
 
   function handleSelectCategory(cat: string) {
@@ -267,7 +319,7 @@ export function MenuView({
                         product={p}
                         sellsOnline={canOrder}
                         qty={qtyOf(p.id)}
-                        onAdd={() => add(p, { payAtCounter })}
+                        onAdd={() => attemptAdd(p, { payAtCounter })}
                         onRemove={() => remove(p.id)}
                         onOpen={() => setOpenProduct(p)}
                       />
@@ -283,7 +335,7 @@ export function MenuView({
                     product={p}
                     sellsOnline={canOrder}
                     qty={qtyOf(p.id)}
-                    onAdd={() => add(p, { payAtCounter })}
+                    onAdd={() => attemptAdd(p, { payAtCounter })}
                     onRemove={() => remove(p.id)}
                     onOpen={() => setOpenProduct(p)}
                   />
@@ -320,7 +372,7 @@ export function MenuView({
           payAtCounter={payAtCounter}
           isOpen={pdv.is_open}
           onAdd={(sizeLabel) =>
-            add(openProduct, { payAtCounter, sizeLabel })
+            attemptAdd(openProduct, { payAtCounter, sizeLabel })
           }
           onRemove={(sizeLabel) => remove(openProduct.id, sizeLabel)}
           onClose={() => setOpenProduct(null)}
@@ -343,6 +395,8 @@ export function MenuView({
           onClose={() => setCartOpen(false)}
         />
       )}
+
+      {confirmElement}
     </div>
   );
 }

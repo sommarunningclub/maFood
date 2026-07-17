@@ -9,6 +9,7 @@ import { HorizontalCategoryList } from "@/components/customer/category-rail";
 import { RestaurantGrid } from "@/components/customer/restaurant-grid";
 import { SearchModal } from "@/components/customer/mafood-search";
 import { MaFoodFooter } from "@/components/customer/mafood-footer";
+import { HomeCartBar } from "@/components/customer/home-cart-bar";
 
 export interface PdvCardData {
   id: string;
@@ -172,7 +173,10 @@ export function MarketplaceView({
 
       <MaFoodFooter venueSlug={venueSlug} />
 
-      <div className="h-4" />
+      {/* Folga para a sacola flutuante não cobrir o rodapé. */}
+      <div className="h-24" />
+
+      <HomeCartBar venueSlug={venueSlug} pdvs={pdvs} />
     </div>
   );
 }

@@ -7,8 +7,10 @@ export const dynamic = "force-dynamic";
 
 export default async function PdvMenuPage({
   params,
+  searchParams,
 }: {
   params: { venue: string; pdv: string };
+  searchParams?: { sacola?: string };
 }) {
   const supabase = createAdminClient();
 
@@ -38,6 +40,7 @@ export default async function PdvMenuPage({
   return (
     <MenuView
       venue={params.venue}
+      openCart={searchParams?.sacola === "1"}
       pdv={{
         ...pdv,
         commission_pct: Number(pdv.commission_pct),

@@ -32,13 +32,15 @@ export interface CartReconcileResult {
 
 interface CartState {
   pdvId: string | null;
+  /** Nome do restaurante da sacola atual (usado na UI cross-PDV). */
+  pdvName: string | null;
   /** Pedido no app · pagamento na tenda/balcão (sem Asaas). */
   payAtCounter: boolean;
   items: CartItem[];
   hasHydrated: boolean;
   add: (
     product: Product,
-    opts?: { payAtCounter?: boolean; sizeLabel?: string }
+    opts?: { payAtCounter?: boolean; sizeLabel?: string; pdvName?: string }
   ) => void;
   remove: (productId: string, sizeLabel?: string) => void;
   setNotes: (productId: string, notes: string, sizeLabel?: string) => void;
@@ -63,6 +65,7 @@ interface PersistedCartItem {
 
 interface PersistedCartState {
   pdvId: string | null;
+  pdvName: string | null;
   payAtCounter: boolean;
   items: PersistedCartItem[];
 }
@@ -101,6 +104,7 @@ function migratePersistedCart(persisted: unknown, version: number): PersistedCar
       ? (persisted as Record<string, unknown>)
       : {};
   const pdvId = typeof value.pdvId === "string" ? value.pdvId : null;
+  const pdvName = typeof value.pdvName === "string" ? value.pdvName : null;
   const payAtCounter = value.payAtCounter === true;
   const rawItems = Array.isArray(value.items) ? value.items : [];
 
@@ -142,13 +146,19 @@ function migratePersistedCart(persisted: unknown, version: number): PersistedCar
     ];
   });
 
-  return { pdvId: items.length ? pdvId : null, payAtCounter, items };
+  return {
+    pdvId: items.length ? pdvId : null,
+    pdvName: items.length ? pdvName : null,
+    payAtCounter,
+    items,
+  };
 }
 
 export const useCart = create<CartState>()(
   persist<CartState, [], [], PersistedCartState>(
     (set, get) => ({
       pdvId: null,
+      pdvName: null,
       payAtCounter: false,
       items: [],
       hasHydrated: false,
@@ -175,7 +185,10 @@ export const useCart = create<CartState>()(
           const payAtCounter = sameContext
             ? (opts?.payAtCounter ?? state.payAtCounter)
             : Boolean(opts?.payAtCounter);
-          return { pdvId: product.pdv_id, payAtCounter, items: next };
+          const pdvName = sameContext
+            ? (opts?.pdvName ?? state.pdvName)
+            : (opts?.pdvName ?? null);
+          return { pdvId: product.pdv_id, pdvName, payAtCounter, items: next };
         }),
       remove: (productId, sizeLabel) =>
         set((state) => {
@@ -188,6 +201,7 @@ export const useCart = create<CartState>()(
           return {
             items,
             pdvId: items.length ? state.pdvId : null,
+            pdvName: items.length ? state.pdvName : null,
             payAtCounter: items.length ? state.payAtCounter : false,
           };
         }),
@@ -239,6 +253,7 @@ export const useCart = create<CartState>()(
           return {
             items,
             pdvId: items.length ? state.pdvId : null,
+            pdvName: items.length ? state.pdvName : null,
             payAtCounter: items.length ? context.payAtCounter : false,
           };
         });
@@ -246,7 +261,7 @@ export const useCart = create<CartState>()(
         return result;
       },
       setHasHydrated: (value) => set({ hasHydrated: value }),
-      clear: () => set({ items: [], pdvId: null, payAtCounter: false }),
+      clear: () => set({ items: [], pdvId: null, pdvName: null, payAtCounter: false }),
       count: () => get().items.reduce((s, i) => s + i.qty, 0),
       total: () =>
         get().items.reduce((s, i) => s + i.qty * unitPrice(i), 0),
@@ -269,6 +284,7 @@ export const useCart = create<CartState>()(
       version: 2,
       partialize: (state) => ({
         pdvId: state.pdvId,
+        pdvName: state.pdvName,
         payAtCounter: state.payAtCounter,
         items: state.items.map((item) => ({
           productId: item.product.id,
@@ -285,6 +301,7 @@ export const useCart = create<CartState>()(
         return {
           ...current,
           pdvId,
+          pdvName: stored.items.length ? stored.pdvName : null,
           payAtCounter: stored.items.length ? stored.payAtCounter : false,
           items:
             pdvId == null
