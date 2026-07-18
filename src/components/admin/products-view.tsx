@@ -13,6 +13,8 @@ import {
   Zap,
   ArrowUpRight,
   Info,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { brl } from "@/lib/utils";
 import { PriceEngine } from "@/components/admin/price-engine";
@@ -20,6 +22,7 @@ import { isImageLogo } from "@/components/pdv-logo";
 import { MoneyInput } from "@/components/money-input";
 import {
   ceilToCharmPrice,
+  effectivePrice,
   roundToCharmPrice,
 } from "@/lib/pricing";
 import type { AsaasAccountFees } from "@/lib/asaas";
@@ -65,7 +68,7 @@ interface Category {
 
 const STATUS_META: Record<ProductRow["status"], { label: string; cls: string }> = {
   active: { label: "Ativo", cls: "text-palantir-green" },
-  paused: { label: "Pausado", cls: "text-palantir-yellow" },
+  paused: { label: "Oculto", cls: "text-palantir-yellow" },
   out_of_stock: { label: "Esgotado", cls: "text-palantir-red" },
 };
 
@@ -112,6 +115,28 @@ export function ProductsView({
     setSelected(new Set());
   }
 
+  // Ocultar = status "paused" (o cardápio do cliente já filtra active/out_of_stock).
+  // Toggle otimista: some/aparece na hora, com revert se a API falhar.
+  async function toggleHidden(p: ProductRow) {
+    const next: ProductRow["status"] = p.status === "paused" ? "active" : "paused";
+    const prevStatus = p.status;
+    setLocalProducts((prev) =>
+      prev.map((x) => (x.id === p.id ? { ...x, status: next } : x))
+    );
+    const r = await fetch(`/api/admin/products/${p.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: next }),
+    }).catch(() => null);
+    if (!r || !r.ok) {
+      setLocalProducts((prev) =>
+        prev.map((x) => (x.id === p.id ? { ...x, status: prevStatus } : x))
+      );
+      return;
+    }
+    router.refresh();
+  }
+
   const visible = useMemo(
     () =>
       pdvFilter === "all"
@@ -129,7 +154,9 @@ export function ProductsView({
       if (p.stock_quantity == null) continue;
       tracked += 1;
       units += p.stock_quantity;
-      sale += p.price * p.stock_quantity;
+      // Projeção de venda usa o preço que o cliente realmente paga
+      // (sale_price/"Preço de venda" quando preenchido; senão o "Preço" base).
+      sale += effectivePrice(p) * p.stock_quantity;
       if (p.supplier_cost != null) cost += p.supplier_cost * p.stock_quantity;
     }
     return { cost, sale, profit: sale - cost, units, tracked };
@@ -296,7 +323,7 @@ export function ProductsView({
                       )}
                     </td>
                     <td className="mono px-4 py-2 whitespace-nowrap text-palantir-muted">
-                      {p.stock_quantity != null ? brl(p.price * p.stock_quantity) : "—"}
+                      {p.stock_quantity != null ? brl(effectivePrice(p) * p.stock_quantity) : "—"}
                     </td>
                     <td className={`mono px-4 py-2 whitespace-nowrap ${STATUS_META[p.status].cls}`}>
                       {STATUS_META[p.status].label}
@@ -314,6 +341,29 @@ export function ProductsView({
                           className="grid size-9 place-items-center rounded-admin border border-palantir-border text-palantir-text hover:bg-palantir-surface2 focus-ring-admin"
                         >
                           <Pencil className="size-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleHidden(localProducts.find((x) => x.id === p.id) ?? p);
+                          }}
+                          aria-label={
+                            p.status === "paused"
+                              ? `Mostrar ${p.name} no cardápio`
+                              : `Ocultar ${p.name} do cardápio`
+                          }
+                          title={
+                            p.status === "paused"
+                              ? "Mostrar no cardápio"
+                              : "Ocultar do cardápio"
+                          }
+                          className="grid size-9 place-items-center rounded-admin border border-palantir-border text-palantir-muted hover:bg-palantir-surface2 hover:text-palantir-text focus-ring-admin"
+                        >
+                          {p.status === "paused" ? (
+                            <EyeOff className="size-3.5" />
+                          ) : (
+                            <Eye className="size-3.5" />
+                          )}
                         </button>
                         <button
                           onClick={(e) => {
@@ -392,6 +442,24 @@ export function ProductsView({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          toggleHidden(localProducts.find((x) => x.id === p.id) ?? p);
+                        }}
+                        aria-label={
+                          p.status === "paused"
+                            ? `Mostrar ${p.name} no cardápio`
+                            : `Ocultar ${p.name} do cardápio`
+                        }
+                        className="grid size-touch place-items-center rounded-admin border border-palantir-border text-palantir-muted hover:bg-palantir-surface2 hover:text-palantir-text focus-ring-admin"
+                      >
+                        {p.status === "paused" ? (
+                          <EyeOff className="size-4" />
+                        ) : (
+                          <Eye className="size-4" />
+                        )}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setDeleteTargets([localProducts.find((x) => x.id === p.id) ?? p]);
                         }}
                         aria-label={`Excluir ${p.name}`}
@@ -410,7 +478,7 @@ export function ProductsView({
                             · {p.stock_quantity} un
                           </span>
                           <span className="ml-2 text-[10px] text-palantir-blue">
-                            · {brl(p.price * p.stock_quantity)}
+                            · {brl(effectivePrice(p) * p.stock_quantity)}
                           </span>
                         </>
                       )}
@@ -750,7 +818,7 @@ function ProductDialog({
                 className="w-full rounded-admin border border-palantir-border bg-palantir-bg px-3 min-h-touch text-white focus-ring-admin"
               >
                 <option value="active">Ativo</option>
-                <option value="paused">Pausado</option>
+                <option value="paused">Oculto</option>
                 <option value="out_of_stock">Esgotado</option>
               </select>
             </Field>
