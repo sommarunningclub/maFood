@@ -16,17 +16,25 @@ const nextConfig = {
       { protocol: "https", hostname: "**.supabase.co" },
     ],
   },
-  // Os QR codes impressos dos PDVs do "Somma Special Day" apontam para
-  // /somma-special-day (praça) e /somma-special-day/<pdv>. Redireciona todos
-  // para a home. permanent: false = 307 (temporário/reversível): basta remover
-  // estas regras para os menus voltarem a abrir pelo QR. Rotas com 2+ segmentos
-  // (ex.: /somma-special-day/order/[id]) NÃO são afetadas, preservando o
-  // acompanhamento de pedido de quem já comprou.
+  // QR codes impressos dos PDVs do "Somma Special Day" → home.
+  //
+  // A raiz "/" já redireciona para /somma-special-day (a home do marketplace),
+  // então NÃO redirecionamos /somma-special-day: a "Praça" já É a home. (Fazer
+  // isso criava um loop /somma-special-day <-> / => ERR_TOO_MANY_REDIRECTS.)
+  //
+  // Enumeramos apenas os slugs dos 4 PDVs — em vez de um "/:pdv" genérico —
+  // para não afetar as rotas funcionais do venue (login, checkout, account,
+  // history, order) e assim preservar o acompanhamento de pedido.
+  //
+  // permanent: false = 307 (reversível): basta remover estas regras para os
+  // menus dos PDVs voltarem a abrir pelo QR.
   async redirects() {
-    return [
-      { source: "/somma-special-day", destination: "/", permanent: false },
-      { source: "/somma-special-day/:pdv", destination: "/", permanent: false },
-    ];
+    const pdvs = ["crepe-do-bob", "dopahmina", "somma-bear", "tiomario"];
+    return pdvs.map((slug) => ({
+      source: `/somma-special-day/${slug}`,
+      destination: "/",
+      permanent: false,
+    }));
   },
 };
 
